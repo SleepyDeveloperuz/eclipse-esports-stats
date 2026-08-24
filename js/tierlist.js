@@ -14,8 +14,36 @@ window.TierListManager = class TierListManager {
     this.searchQuery = '';
     this.sortBy = 'metaScore'; // 'metaScore', 'winRate', 'banRate', 'pickRate', 'name'
     this.sortOrder = 'desc';
+    this.liveSource = 'moonton_auto_sync';
+    this.lastUpdated = new Date().toISOString();
 
     this.initMetaDatabase();
+    this.fetchLiveMetaData(this.currentRank);
+  }
+
+  async fetchLiveMetaData(rank = 'glory') {
+    try {
+      const res = await fetch(`/api/meta?rank=${encodeURIComponent(rank)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json && Array.isArray(json.heroes) && json.heroes.length > 0) {
+          const merged = json.heroes.map(liveHero => {
+            const existing = this.metaData.find(m => m.name.toLowerCase() === liveHero.name.toLowerCase());
+            return {
+              ...liveHero,
+              counters: existing ? existing.counters : (liveHero.counters || ['Franco', 'Diggie', 'Khufra']),
+              tip: existing ? existing.tip : (liveHero.tip || 'Taktik moslashuv va to\'g\'ri itemizatsiya muhim.')
+            };
+          });
+          this.metaData = merged;
+          this.liveSource = json.source || 'moonton_live_api';
+          this.lastUpdated = json.updatedAt || new Date().toISOString();
+          this.renderActiveView();
+        }
+      }
+    } catch (e) {
+      console.warn("Live meta fetch fallback to patch database:", e);
+    }
   }
 
   initMetaDatabase() {
@@ -275,19 +303,22 @@ window.TierListManager = class TierListManager {
       <div class="card mb-4" style="background: linear-gradient(135deg, rgba(0,212,255,0.08) 0%, rgba(255,215,0,0.05) 50%, var(--bg-card-glass) 100%); border: 1px solid rgba(0,212,255,0.3); position:relative; overflow:hidden;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1.25rem;">
           <div>
-            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem;">
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem; flex-wrap:wrap;">
               <span class="badge" style="background:linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); color:#000; font-weight:900; font-size:0.75rem; padding:4px 10px; border-radius:6px; letter-spacing:0.05em;">
                 <i class="fa-solid fa-fire"></i> MLBB META PATCH 1.9.42
               </span>
-              <span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text-muted); font-size:0.75rem; border:1px solid var(--border-light);">
-                Moonton Live Data + Algorithm
+              <span class="badge" style="background:rgba(16,185,129,0.15); color:var(--success); font-size:0.75rem; border:1px solid rgba(16,185,129,0.4); font-weight:700;">
+                <i class="fa-solid fa-satellite-dish"></i> 🟢 JONLI MOONTON AVTO-SINXRONIZATSIYA
               </span>
+              <button class="btn btn-secondary btn-sm" id="refreshMetaDataBtn" title="Moonton serverlaridan yangilash" style="padding:2px 8px; font-size:0.7rem;">
+                <i class="fa-solid fa-arrows-rotate"></i> Yangilash
+              </button>
             </div>
             <h2 style="font-size:1.75rem; font-weight:800; color:var(--text-primary); margin:0;">
               Qahramonlar Meta Reytingi & Tier List
             </h2>
             <p style="color:var(--text-secondary); font-size:0.875rem; margin:0.35rem 0 0 0; max-width:640px;">
-              Win Rate, Pick Rate va Ban Rate asosida hisoblangan avtomatik <strong>Meta Score (0-100)</strong> algoritmi. Jamoa drafti va solo-q uchun eng kuchli qahramonlar tanlovi.
+              Moonton ochiq statistikasi hamda maxsus <strong>Meta Score (0-100)</strong> algoritmi asosida avtomatik hisoblanuvchi joriy meta reytingi.
             </p>
           </div>
 
@@ -368,8 +399,14 @@ window.TierListManager = class TierListManager {
     container.querySelectorAll('[data-rank]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         this.currentRank = e.currentTarget.dataset.rank;
+        this.fetchLiveMetaData(this.currentRank);
         this.renderTierListHub(containerId);
       });
+    });
+
+    document.getElementById('refreshMetaDataBtn')?.addEventListener('click', () => {
+      if (window.showToast) window.showToast("Moonton serverlaridan yangilanmoqda...", "info");
+      this.fetchLiveMetaData(this.currentRank);
     });
 
     container.querySelectorAll('[data-lane]').forEach(btn => {
