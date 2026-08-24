@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Eclipse Esports - MLBB Statistics Tracker. Track player stats, match history, and records.">
+    <title>Eclipse Esports — MLBB Stats Tracker</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <link rel="stylesheet" href="css/style.css">
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌑</text></svg>">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar" aria-label="Main Navigation">
+            <div class="sidebar-logo">
+                <span class="logo-icon" aria-hidden="true" style="color:var(--primary);"><i class="fa-solid fa-moon"></i></span>
+                <h1>Eclipse Esports</h1>
+                <span class="logo-subtitle">MLBB Stats Tracker</span>
+            </div>
+            <nav class="sidebar-nav" aria-label="Sidebar Menu">
+                <a href="#" class="nav-item active" data-page="dashboard" aria-current="page"><i class="fa-solid fa-chart-pie"></i> Dashboard <kbd>1</kbd></a>
+                <a href="#" class="nav-item" data-page="add-match"><i class="fa-solid fa-circle-plus"></i> Add Match <kbd>2</kbd></a>
+                <a href="#" class="nav-item" data-page="match-history"><i class="fa-solid fa-list-check"></i> Match History <kbd>3</kbd></a>
+                <a href="#" class="nav-item" data-page="players"><i class="fa-solid fa-users"></i> Players <kbd>4</kbd></a>
+                <a href="#" class="nav-item" data-page="statistics"><i class="fa-solid fa-chart-column"></i> Statistics <kbd>5</kbd></a>
+                <a href="#" class="nav-item" data-page="records"><i class="fa-solid fa-trophy"></i> Records & MVP Awards <kbd>6</kbd></a>
+                <a href="#" class="nav-item" data-page="heroes"><i class="fa-solid fa-shield-halved"></i> Heroes <kbd>7</kbd></a>
+                <a href="#" class="nav-item" data-page="training"><i class="fa-solid fa-graduation-cap"></i> Akademiya & Reja <kbd>8</kbd></a>
+                <a href="#" class="nav-item" data-page="settings"><i class="fa-solid fa-gear"></i> Settings <kbd>9</kbd></a>
+            </nav>
+            <div class="sidebar-footer">
+                <p>Eclipse Esports © 2026</p>
+                <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;"><kbd>Esc</kbd> Close modals &middot; <kbd>N</kbd> New match</p>
+            </div>
+        </aside>
+
+        <!-- Mobile overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <!-- Top bar -->
+            <header class="topbar">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <button class="hamburger" id="hamburgerBtn" aria-label="Toggle Navigation"><i class="fa-solid fa-bars"></i></button>
+                    <h2 class="topbar-title" id="pageTitle">Dashboard</h2>
+                </div>
+                <div id="topbarAuthContainer" style="margin-left:auto;"></div>
+            </header>
+
+            <!-- Toast container -->
+            <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+            <!-- Page sections -->
+            
+            <!-- DASHBOARD -->
+            <section class="page-section active" id="page-dashboard" aria-labelledby="pageTitle">
+                <div class="section-header">
+                    <h2>Team Overview</h2>
+                </div>
+                <div id="dashboardStats" class="stats-grid"></div>
+
+                <!-- PLAYER PERFORMANCE SPIKES & GROWTH TRENDS SECTION -->
+                <div class="card mt-3" style="border:1px solid var(--primary); background: linear-gradient(135deg, rgba(0,212,255,0.03) 0%, var(--bg-card-glass) 100%);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
+                        <h3 class="card-title" style="margin:0;"><i class="fa-solid fa-arrow-trend-up" style="color:var(--primary);"></i> Player Performance Spikes & Growth Trends</h3>
+                        <div class="tabs" id="dashTrendTabs" style="margin:0; border-bottom:none;">
+                            <button class="tab-btn active" data-period="week" style="padding:0.4rem 0.8rem; font-size:0.875rem;">This Week</button>
+                            <button class="tab-btn" data-period="month" style="padding:0.4rem 0.8rem; font-size:0.875rem;">This Month</button>
+                            <button class="tab-btn" data-period="year" style="padding:0.4rem 0.8rem; font-size:0.875rem;">This Year</button>
+                        </div>
+                    </div>
+                    <div id="dashTrendsContent"></div>
+                </div>
+
+                <div class="card mt-3" style="border:1px solid rgba(0,212,255,0.2);">
+                    <h3 class="card-title" style="margin-bottom:0.5rem;"><i class="fa-solid fa-chart-line" style="color:var(--primary);"></i> Performance Flow Chart</h3>
+                    <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:0.75rem;">Visual timeline of each player's performance score across recent matches</p>
+                    <div class="trend-chart-container">
+                        <canvas id="trendFlowChart" aria-label="Performance Flow Chart"></canvas>
+                    </div>
+                    <div class="trend-chart-legend" id="trendChartLegend"></div>
+                </div>
+
+                <div class="grid-2 mt-3">
+                    <div class="card">
+                        <h3 class="card-title">Win / Loss Ratio</h3>
+                        <div class="chart-container"><canvas id="dashWinLossChart" aria-label="Win Loss Chart"></canvas></div>
+                    </div>
+                    <div class="card">
+                        <h3 class="card-title">All-Time MVP</h3>
+                        <div id="dashMvpCard"></div>
+                    </div>
+                </div>
+                <div class="card mt-3">
+                    <h3 class="card-title">Recent Matches</h3>
+                    <div id="dashRecentMatches"></div>
+                </div>
+            </section>
+
+            <!-- ADD MATCH -->
+            <section class="page-section" id="page-add-match" aria-label="Add Match Result" hidden>
+                <div class="section-header">
+                    <h2>Add Match Result</h2>
+                </div>
+                <div id="matchFormContainer"></div>
+            </section>
+
+            <!-- MATCH HISTORY -->
+            <section class="page-section" id="page-match-history" aria-label="Match History" hidden>
+                <div class="section-header">
+                    <h2>Match History</h2>
+                </div>
+                <div class="filter-bar" id="matchFilterBar">
+                    <label><i class="fa-solid fa-filter"></i> Filter:</label>
+                    <button class="filter-chip active" data-filter="all">All</button>
+                    <button class="filter-chip" data-filter="ranked"><i class="fa-solid fa-ranking-star"></i> Ranked</button>
+                    <button class="filter-chip" data-filter="scrim"><i class="fa-solid fa-people-arrows"></i> Scrim</button>
+                    <button class="filter-chip" data-filter="tournament"><i class="fa-solid fa-trophy"></i> Tournament</button>
+                    <button class="filter-chip" data-filter="casual"><i class="fa-solid fa-gamepad"></i> Casual</button>
+                </div>
+                <div id="matchHistoryContainer"></div>
+            </section>
+
+            <!-- PLAYERS -->
+            <section class="page-section" id="page-players" aria-label="Player Roster & Analytics" hidden>
+                <div class="section-header">
+                    <h2>Roster & Player Intelligence</h2>
+                </div>
+
+                <div class="tabs mb-4" id="playerSubTabs" role="tablist">
+                    <button class="tab-btn active" data-subtab="roster"><i class="fa-solid fa-users"></i> Team Roster</button>
+                    <button class="tab-btn" data-subtab="compare"><i class="fa-solid fa-bolt"></i> 1v1 Player Comparison</button>
+                    <button class="tab-btn" data-subtab="synergy"><i class="fa-solid fa-handshake-angle"></i> Duo & Trio Synergy Matrix</button>
+                </div>
+
+                <!-- SUBVIEW 1: TEAM ROSTER -->
+                <div id="playerRosterSubView">
+                    <div id="addPlayerContainer"></div>
+                    <div id="playersListContainer"></div>
+                </div>
+
+                <!-- SUBVIEW 2: 1v1 HEAD-TO-HEAD COMPARISON -->
+                <div id="playerCompareSubView" class="hidden">
+                    <div id="playerCompareContainer"></div>
+                </div>
+
+                <!-- SUBVIEW 3: DUO & TRIO SYNERGY MATRIX -->
+                <div id="playerSynergySubView" class="hidden">
+                    <div id="playerSynergyContainer"></div>
+                </div>
+            </section>
+
+            <!-- PLAYER PROFILE -->
+            <section class="page-section" id="page-player-profile" aria-label="Player Profile" hidden>
+                <div id="playerProfileContainer"></div>
+            </section>
+
+            <!-- STATISTICS -->
+            <section class="page-section" id="page-statistics" aria-label="Statistics" hidden>
+                <div class="section-header">
+                    <h2>Statistics & Week Calendar</h2>
+                </div>
+                <div class="tabs" id="statsTabs" role="tablist">
+                    <button class="tab-btn active" data-period="week" role="tab" aria-selected="true"><i class="fa-regular fa-calendar-days"></i> Selected Week</button>
+                    <button class="tab-btn" data-period="month" role="tab" aria-selected="false"><i class="fa-solid fa-calendar-week"></i> This Month</button>
+                    <button class="tab-btn" data-period="year" role="tab" aria-selected="false"><i class="fa-solid fa-calendar"></i> This Year</button>
+                    <button class="tab-btn" data-period="all" role="tab" aria-selected="false"><i class="fa-solid fa-infinity"></i> All Time</button>
+                    <button class="tab-btn" data-period="custom" role="tab" aria-selected="false"><i class="fa-solid fa-sliders"></i> Custom Range</button>
+                </div>
+
+                <!-- Calendar Week Picker Controls -->
+                <div id="weekCalendarBox" class="card mb-4" style="background: var(--bg-card-glass); border: 1px solid var(--border-light); padding:1rem;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+                        <div style="display:flex; align-items:center; gap:0.75rem;">
+                            <label for="statsWeekPicker" class="form-label" style="margin:0; font-weight:600; color:var(--primary);">
+                                <i class="fa-regular fa-calendar-check"></i> Pick Week Date:
+                            </label>
+                            <input type="date" class="form-input date-input" id="statsWeekPicker" style="width: auto;">
+                            <button class="btn btn-secondary btn-sm" id="prevWeekBtn" title="Previous Week"><i class="fa-solid fa-chevron-left"></i> Prev Week</button>
+                            <button class="btn btn-secondary btn-sm" id="nextWeekBtn" title="Next Week">Next Week <i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                        <div id="weekDateLabel" style="font-weight:600; color:var(--secondary); font-size:1rem;">
+                            Week Range
+                        </div>
+                    </div>
+                </div>
+
+                <div id="customDateRange" class="custom-range hidden">
+                    <div class="form-group">
+                        <label for="statsDateFrom" class="form-label">From</label>
+                        <input type="date" class="form-input date-input" id="statsDateFrom">
+                    </div>
+                    <div class="form-group">
+                        <label for="statsDateTo" class="form-label">To</label>
+                        <input type="date" class="form-input date-input" id="statsDateTo">
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="applyCustomRange">Apply Range</button>
+                </div>
+
+                <div id="statsContent" role="tabpanel"></div>
+            </section>
+
+            <!-- RECORDS -->
+            <section class="page-section" id="page-records" aria-label="Records & Awards" hidden>
+                <div class="section-header">
+                    <h2>Records & MVP Hall of Fame</h2>
+                </div>
+                <div id="awardsContainer"></div>
+                <div id="recordsContainer"></div>
+                <div id="savageHallContainer"></div>
+                <div id="maniacHallContainer"></div>
+            </section>
+
+            <!-- HEROES -->
+            <section class="page-section" id="page-heroes" aria-label="Hero Database" hidden>
+                <div class="section-header">
+                    <h2>Hero Database</h2>
+                </div>
+                <div id="heroManageContainer"></div>
+            </section>
+
+            <!-- TRAINING & ACADEMY -->
+            <section class="page-section" id="page-training" aria-label="Akademiya & Mashg'ulot Rejasi" hidden>
+                <div class="section-header">
+                    <h2>Jamoa Akademiyasi & Shaxsiy Mashg'ulot</h2>
+                </div>
+                <div id="trainingContainer"></div>
+            </section>
+
+            <!-- SETTINGS -->
+            <section class="page-section" id="page-settings" aria-label="Settings" hidden>
+                <div class="section-header">
+                    <h2>Settings & Cloud Sync</h2>
+                </div>
+                <div id="settingsContainer" class="settings-page">
+                    <!-- CLOUD SYNC CARD -->
+                    <div class="card mb-4" style="background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, var(--bg-card-glass) 100%); border:1px solid var(--primary);">
+                        <h3 class="card-title"><i class="fa-solid fa-cloud-arrow-up" style="color:var(--primary);"></i> ☁️ Jonli Cloud Sinxronizatsiya (Firebase Realtime)</h3>
+                        <p class="text-secondary" style="font-size:0.875rem;">
+                            Barcha jamoadoshlar va kuzatuvchilar o'z telefonlarida natijalarni jonli ko'rib turishi uchun bepul Firebase Realtime Database havolasini kiriting.
+                        </p>
+                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;">
+                            <input type="text" id="firebaseUrlInput" class="form-input" placeholder="https://your-project-default-rtdb.firebaseio.com" style="flex:1; min-width:260px;" />
+                            <button class="btn btn-primary" id="saveCloudUrlBtn"><i class="fa-solid fa-floppy-disk"></i> Saqlash & Sinxronlash</button>
+                        </div>
+                        <div id="cloudSyncStatus" style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;"></div>
+                    </div>
+
+                    <!-- ADMIN PIN SECURITY CARD -->
+                    <div class="card mb-4">
+                        <h3 class="card-title"><i class="fa-solid fa-key" style="color:var(--secondary);"></i> 🔒 Murabbiy / Admin PIN-kodini O'zgartirish</h3>
+                        <p class="text-secondary" style="font-size:0.875rem;">
+                            Faqat siz matchlarni qo'sha olishingiz va tahrirlashingiz uchun himoya PIN-kodini yangilang. (Boshlang'ich default PIN: <strong>7777</strong>)
+                        </p>
+                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;">
+                            <input type="password" id="oldPinInput" class="form-input" placeholder="Eski PIN (masalan 7777)" maxlength="8" style="max-width:180px;" />
+                            <input type="password" id="newPinInput" class="form-input" placeholder="Yangi PIN (4+ raqam)" maxlength="8" style="max-width:180px;" />
+                            <button class="btn btn-secondary" id="changePinBtn"><i class="fa-solid fa-shield-halved"></i> PINni Yangilash</button>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="card">
+                            <h3 class="card-title"><i class="fa-solid fa-download" style="color:var(--primary);"></i> Export Data Backup</h3>
+                            <p class="text-secondary">Download all your team stats, players, matches, and training checklist as a `.json` backup file.</p>
+                            <button class="btn btn-primary mt-2" id="exportBtn"><i class="fa-solid fa-file-export"></i> Export Data</button>
+                        </div>
+                        <div class="card">
+                            <h3 class="card-title"><i class="fa-solid fa-upload" style="color:var(--secondary);"></i> Import Data Backup</h3>
+                            <p class="text-secondary">Restore team statistics and academy progress from a previously exported `.json` backup file.</p>
+                            <input type="file" id="importFile" accept=".json" class="form-input mt-2" aria-label="Import data file">
+                            <button class="btn btn-secondary mt-2" id="importBtn"><i class="fa-solid fa-file-import"></i> Import Data</button>
+                        </div>
+                    </div>
+
+                    <div class="card mt-4 admin-only">
+                        <h3 class="card-title"><i class="fa-solid fa-trash-can" style="color:var(--danger);"></i> Clear All Data</h3>
+                        <p class="text-secondary">Permanently delete all stats, players, and match history from this browser.</p>
+                        <button class="btn btn-danger mt-2" id="clearBtn"><i class="fa-solid fa-triangle-exclamation"></i> Clear All Data</button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Modal container -->
+    <div class="modal-overlay" id="modalOverlay" aria-hidden="true">
+        <div class="modal" id="modalContent" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
+    </div>
+
+    <script src="js/heroes.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/stats.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/players.js"></script>
+    <script src="js/match.js"></script>
+    <script src="js/training.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/cloud.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
