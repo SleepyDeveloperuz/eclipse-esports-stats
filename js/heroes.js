@@ -64,6 +64,7 @@ class HeroDatabase {
         { name: 'Cici', role: 'Fighter' },
         { name: 'Suyou', role: 'Fighter' },
         { name: 'Sora', role: 'Fighter' },
+        { name: 'Lukas', role: 'Fighter' },
         { name: 'Exor', role: 'Fighter' },
         { name: 'Yin', role: 'Fighter' },
         { name: 'Argus', role: 'Fighter' },
@@ -115,6 +116,7 @@ class HeroDatabase {
         { name: 'Harley', role: 'Mage' },
         { name: 'Mulan', role: 'Mage' },
         { name: 'Zetian', role: 'Mage' },
+        { name: 'Zhuxin', role: 'Mage' },
         { name: 'Gord', role: 'Mage' },
 
         // Marksmen (21)

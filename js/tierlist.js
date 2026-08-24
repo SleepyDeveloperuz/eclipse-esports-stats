@@ -47,9 +47,16 @@ window.TierListManager = class TierListManager {
   }
 
   initMetaDatabase() {
-    // Comprehensive MLBB Meta dataset (Latest Patch meta stats across Ranks)
+    // Comprehensive MLBB Meta dataset (Patch 2.1.95 Latest 2026 Meta stats across Ranks)
     // Structure: name, primaryRole, lane, wr (Mythic/Glory base), pr, br, counters, tip
     this.metaData = [
+      // --- PATCH 2.1.95 S+ GOD TIER CORE ---
+      { name: 'Zhuxin', role: 'Mage', lane: 'mid', wr: 55.6, pr: 7.2, br: 88.4, counters: ['Khufra', 'Lolita', 'Helcurt', 'Kadita'], tip: 'Patch 2.1.95 S+ God Mage. Lantern Flare cheksiz havodan sudrab stan qiladi va jamoaviy jangni yutadi.' },
+      { name: 'Suyou', role: 'Fighter', lane: 'jungle', wr: 55.8, pr: 6.9, br: 89.2, counters: ['Phoveus', 'Khufra', 'Minsitthar'], tip: 'Patch 2.1.95 1-raqamli Ban! Immortal va Mortal formalari bir soniyada dushmanni yakson qiladi.' },
+      { name: 'Sora', role: 'Fighter', lane: 'exp', wr: 54.9, pr: 5.5, br: 82.0, counters: ['Phoveus', 'Terizla', 'Dominance Ice'], tip: 'Patch 2.1.95 yangi qahramoni. Samoviy qilich kombolari va daxlsiz sakrashlar.' },
+      { name: 'Lukas', role: 'Fighter', lane: 'exp', wr: 54.4, pr: 5.1, br: 79.5, counters: ['Baxia', 'Karrie', 'Dominance Ice'], tip: 'Muqaddas Maxluq transformatsiyasi va ulkan portlash zarbasi.' },
+      { name: 'Gatotkaca', role: 'Tank', lane: 'exp', wr: 53.2, pr: 5.8, br: 48.0, counters: ['Karrie', 'Lunox', 'Dominance Ice'], tip: 'Thunder Belt + Concentration Energy bilan o\'lmas EXP brawler.' },
+
       // --- ROAMERS / TANKS & SUPPORTS ---
       { name: 'Mathilda', role: 'Support', lane: 'roam', wr: 54.8, pr: 5.2, br: 78.5, tierOverride: null, counters: ['Khufra', 'Franco', 'Minsitthar'], tip: 'S+ Roamer. Guiding Wind provides unmatched team mobility and dive peel.' },
       { name: 'Tigreal', role: 'Tank', lane: 'roam', wr: 52.4, pr: 6.8, br: 62.0, counters: ['Diggie', 'Valir', 'Wanwan'], tip: 'S+ CC initiator. S2 push + Ultimate flicker turns late game teamfights instantly.' },
@@ -305,7 +312,7 @@ window.TierListManager = class TierListManager {
           <div>
             <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem; flex-wrap:wrap;">
               <span class="badge" style="background:linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); color:#000; font-weight:900; font-size:0.75rem; padding:4px 10px; border-radius:6px; letter-spacing:0.05em;">
-                <i class="fa-solid fa-fire"></i> MLBB META PATCH 1.9.42
+                <i class="fa-solid fa-fire"></i> MLBB META PATCH 2.1.95 (2026)
               </span>
               <span class="badge" style="background:rgba(16,185,129,0.15); color:var(--success); font-size:0.75rem; border:1px solid rgba(16,185,129,0.4); font-weight:700;">
                 <i class="fa-solid fa-satellite-dish"></i> 🟢 JONLI MOONTON AVTO-SINXRONIZATSIYA
