@@ -223,28 +223,18 @@ window.EclipseApp = {
     }
 
     // Cloud Sync Setting Handlers
-    const saveCloudUrlBtn = document.getElementById('saveCloudUrlBtn');
-    const firebaseUrlInput = document.getElementById('firebaseUrlInput');
+    const forceSyncBtn = document.getElementById('forceSyncBtn');
     const cloudSyncStatus = document.getElementById('cloudSyncStatus');
 
-    if (firebaseUrlInput) {
-      firebaseUrlInput.value = this.cloudSync.getCloudUrl();
-    }
-
-    if (saveCloudUrlBtn && firebaseUrlInput) {
-      saveCloudUrlBtn.addEventListener('click', async () => {
-        const url = firebaseUrlInput.value.trim();
-        this.cloudSync.setCloudUrl(url);
-        if (url) {
-          if (cloudSyncStatus) cloudSyncStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sinxronlanmoqda...';
-          const success = await this.cloudSync.syncUp();
-          if (success && cloudSyncStatus) {
-            cloudSyncStatus.innerHTML = '<span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> Bulut muvaffaqiyatli ulandi va sinxronlandi!</span>';
-          } else if (cloudSyncStatus) {
-            cloudSyncStatus.innerHTML = '<span style="color:var(--danger);"><i class="fa-solid fa-circle-exclamation"></i> Ulanishda xatolik yuz berdi. Havolani tekshiring.</span>';
-          }
-        } else {
-          if (cloudSyncStatus) cloudSyncStatus.innerHTML = '<span style="color:var(--text-muted);">Bulut sinxronizatsiyasi o\'chirildi.</span>';
+    if (forceSyncBtn) {
+      forceSyncBtn.addEventListener('click', async () => {
+        forceSyncBtn.disabled = true;
+        forceSyncBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sinxronlanmoqda...';
+        const success = await this.cloudSync.syncUp();
+        forceSyncBtn.disabled = false;
+        forceSyncBtn.innerHTML = '<i class="fa-solid fa-rotate"></i> Hozir Sinxronlash';
+        if (success && cloudSyncStatus) {
+          cloudSyncStatus.innerHTML = '<span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> Barcha ma\'lumotlar bulutga muvaffaqiyatli saqlandi! (' + new Date().toLocaleTimeString() + ')</span>';
         }
       });
     }

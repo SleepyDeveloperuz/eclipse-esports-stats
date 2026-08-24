@@ -241,17 +241,29 @@
                     <h2>Settings & Cloud Sync</h2>
                 </div>
                 <div id="settingsContainer" class="settings-page">
-                    <!-- CLOUD SYNC CARD -->
-                    <div class="card mb-4" style="background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, var(--bg-card-glass) 100%); border:1px solid var(--primary);">
-                        <h3 class="card-title"><i class="fa-solid fa-cloud-arrow-up" style="color:var(--primary);"></i> ☁️ Jonli Cloud Sinxronizatsiya (Firebase Realtime)</h3>
-                        <p class="text-secondary" style="font-size:0.875rem;">
-                            Barcha jamoadoshlar va kuzatuvchilar o'z telefonlarida natijalarni jonli ko'rib turishi uchun bepul Firebase Realtime Database havolasini kiriting.
-                        </p>
-                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;">
-                            <input type="text" id="firebaseUrlInput" class="form-input" placeholder="https://your-project-default-rtdb.firebaseio.com" style="flex:1; min-width:260px;" />
-                            <button class="btn btn-primary" id="saveCloudUrlBtn"><i class="fa-solid fa-floppy-disk"></i> Saqlash & Sinxronlash</button>
+                    <!-- CLOUD SYNC LIVE STATUS CARD -->
+                    <div class="card mb-4" style="background: linear-gradient(135deg, rgba(16,185,129,0.06) 0%, var(--bg-card-glass) 100%); border:1px solid rgba(16,185,129,0.35);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+                            <div>
+                                <h3 class="card-title" style="margin-bottom:0.35rem;">
+                                    <i class="fa-solid fa-cloud-circle-check" style="color:var(--success);"></i> ☁️ Jonli Cloud Baza Holati
+                                </h3>
+                                <p class="text-secondary" style="font-size:0.875rem; margin:0;">
+                                    Bulutli baza <strong>Vercel Serverless Sync</strong> orqali to‘liq ulangan. Qo‘lda hech narsa kiritish shart emas — har bir o‘zgarish avtomatik saqlanadi.
+                                </p>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:0.75rem;">
+                                <span class="badge" style="background:rgba(16,185,129,0.15); color:var(--success); border:1px solid var(--success); font-weight:700; padding:6px 12px; font-size:0.8rem;">
+                                    <i class="fa-solid fa-circle" style="font-size:0.55rem; vertical-align:middle; margin-right:4px;"></i> JONLI ULANGAN
+                                </span>
+                                <button class="btn btn-primary btn-sm" id="forceSyncBtn">
+                                    <i class="fa-solid fa-rotate"></i> Hozir Sinxronlash
+                                </button>
+                            </div>
                         </div>
-                        <div id="cloudSyncStatus" style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;"></div>
+                        <div id="cloudSyncStatus" style="font-size:0.8rem; color:var(--text-muted); margin-top:0.75rem;">
+                            <i class="fa-solid fa-bolt" style="color:var(--secondary);"></i> Serverless API: <code>/api/sync</code> &middot; Avtomatik real-vaqt sinxronizatsiyasi faol
+                        </div>
                     </div>
 
                     <!-- ADMIN PASSWORD SECURITY CARD -->
