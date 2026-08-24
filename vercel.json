@@ -1,10 +1,3 @@
 {
-  "version": 2,
-  "name": "eclipse-esports-stats",
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
+  "version": 2
 }
