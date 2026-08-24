@@ -385,10 +385,18 @@ window.TrainingManager = class TrainingManager {
   }
 
   resetProgress() {
+    if (window.EclipseApp && window.EclipseApp.authManager && !window.EclipseApp.authManager.isAdmin()) {
+      if (window.showToast) window.showToast("Progressni tozalash uchun Admin paroli talab qilinadi", "warning");
+      window.EclipseApp.authManager.showLoginModal();
+      return;
+    }
     if (!confirm("Barcha mashg'ulot va reja progressini tozalashni xohlaysizmi? Bu amalni ortga qaytarib bo'lmaydi.")) return;
     this.state = {};
     this.saveState();
     this.renderTrainingHub('trainingContainer');
+    if (window.EclipseApp && window.EclipseApp.cloudSync) {
+      window.EclipseApp.cloudSync.syncUp();
+    }
     if (window.showToast) window.showToast("Mashg'ulot progressi tozalandi", "warning");
   }
 
@@ -397,10 +405,18 @@ window.TrainingManager = class TrainingManager {
   }
 
   toggleCheckItem(k, el) {
+    if (window.EclipseApp && window.EclipseApp.authManager && !window.EclipseApp.authManager.isAdmin()) {
+      if (window.showToast) window.showToast("Mashg'ulot rejasini belgilash uchun Admin paroli talab qilinadi", "warning");
+      window.EclipseApp.authManager.showLoginModal();
+      return;
+    }
     this.state[k] = !this.state[k];
     if (el) el.classList.toggle('checked', !!this.state[k]);
     this.saveState();
     this.updateProgressSummary();
+    if (window.EclipseApp && window.EclipseApp.cloudSync) {
+      window.EclipseApp.cloudSync.syncUp();
+    }
   }
 
   getTotalItemsCount() {

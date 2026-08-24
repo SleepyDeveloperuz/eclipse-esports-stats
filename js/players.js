@@ -93,8 +93,10 @@ window.PlayerManager = class PlayerManager {
 
           <div style="display:flex; gap:0.5rem; margin-top:1rem;">
             <button class="btn btn-primary btn-sm view-profile-btn" data-id="${p.id}" style="flex:1;"><i class="fa-solid fa-id-card"></i> Profile & Hero Pool</button>
-            <button class="btn btn-secondary btn-sm edit-player-btn" data-id="${p.id}"><i class="fa-solid fa-pen"></i></button>
-            <button class="btn btn-danger btn-sm delete-player-btn" data-id="${p.id}"><i class="fa-solid fa-trash"></i></button>
+            ${window.EclipseApp && window.EclipseApp.authManager && window.EclipseApp.authManager.isAdmin() ? `
+              <button class="btn btn-secondary btn-sm edit-player-btn" data-id="${p.id}"><i class="fa-solid fa-pen"></i></button>
+              <button class="btn btn-danger btn-sm delete-player-btn" data-id="${p.id}"><i class="fa-solid fa-trash"></i></button>
+            ` : ''}
           </div>
         </div>
       `;
@@ -113,6 +115,11 @@ window.PlayerManager = class PlayerManager {
   renderAddPlayerForm(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
+    const isAdmin = window.EclipseApp && window.EclipseApp.authManager && window.EclipseApp.authManager.isAdmin();
+    if (!isAdmin) {
+      container.innerHTML = '';
+      return;
+    }
     container.innerHTML = `
       <div class="card mb-4">
         <h3 class="card-title mb-3"><i class="fa-solid fa-user-plus"></i> Add New Teammate</h3>

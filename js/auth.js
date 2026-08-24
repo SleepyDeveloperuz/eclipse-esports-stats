@@ -203,6 +203,7 @@ window.AuthManager = class AuthManager {
         }
       } else if (pageId === 'players') {
         if (window.PlayerManager && window.EclipseApp && window.EclipseApp.playerManager) {
+          window.EclipseApp.playerManager.renderAddPlayerForm('addPlayerContainer');
           window.EclipseApp.playerManager.renderPlayersList('playersListContainer');
         }
       }

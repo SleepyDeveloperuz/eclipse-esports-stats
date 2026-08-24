@@ -302,6 +302,7 @@ window.EclipseApp = {
   },
 
   checkBackupReminder() {
+    if (!this.authManager.isAdmin()) return;
     const matchesSinceBackup = this.dataStore.getMatchesSinceLastBackup();
     if (matchesSinceBackup >= 5) {
       const dashSection = document.getElementById('page-dashboard');
@@ -345,10 +346,10 @@ window.EclipseApp = {
       window._eclipseUnsavedMatch = false;
     }
 
-    // Protect add-match route for Admin only
-    if (pageId === 'add-match' && !this.authManager.isAdmin()) {
+    // Protect add-match and settings routes for Admin only
+    if ((pageId === 'add-match' || pageId === 'settings') && !this.authManager.isAdmin()) {
       this.authManager.protectAction(() => {
-        this.navigate('add-match');
+        this.navigate(pageId);
       });
       return;
     }

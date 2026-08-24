@@ -581,8 +581,10 @@ window.MatchManager = class MatchManager {
             <div style="display:flex; gap:0.25rem; flex-wrap:wrap;">
               <button class="btn btn-sm btn-secondary view-match-btn" data-id="${m.id}"><i class="fa-solid fa-eye"></i> View</button>
               <button class="btn btn-sm btn-secondary share-match-btn" data-id="${m.id}" style="background:rgba(255,215,0,0.1); border-color:rgba(255,215,0,0.3); color:var(--secondary);"><i class="fa-solid fa-camera"></i> Card</button>
-              <button class="btn btn-sm btn-primary edit-match-btn" data-id="${m.id}"><i class="fa-solid fa-pen"></i></button>
-              <button class="btn btn-sm btn-danger delete-match-btn" data-id="${m.id}"><i class="fa-solid fa-trash"></i></button>
+              ${window.EclipseApp && window.EclipseApp.authManager && window.EclipseApp.authManager.isAdmin() ? `
+                <button class="btn btn-sm btn-primary edit-match-btn" data-id="${m.id}"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-sm btn-danger delete-match-btn" data-id="${m.id}"><i class="fa-solid fa-trash"></i></button>
+              ` : ''}
             </div>
           </td>
         </tr>
