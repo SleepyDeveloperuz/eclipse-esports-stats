@@ -3,6 +3,7 @@ window.MatchManager = class MatchManager {
     this.db = dataStore;
     this.heroDb = heroDb;
     this.quickAddMode = false;
+    this.ocrImages = [null, null];
   }
 
   static ROLES = ['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'];
@@ -41,7 +42,7 @@ window.MatchManager = class MatchManager {
     const matchNotesVal = isEditMode ? (existingMatch.notes || '') : '';
 
     let matchDurationMin = 15;
-    let matchDurationSec = 30;
+    let matchDurationSec = 0;
     if (isEditMode && existingMatch.durationSeconds) {
       matchDurationMin = Math.floor(existingMatch.durationSeconds / 60);
       matchDurationSec = existingMatch.durationSeconds % 60;
@@ -49,6 +50,65 @@ window.MatchManager = class MatchManager {
 
     let html = `
       <form id="match-entry-form">
+        <!-- AI SCREENSHOT OCR SCANNER CARD -->
+        ${!isEditMode ? `
+        <div class="card mb-4" id="aiOcrCard" style="background: linear-gradient(135deg, rgba(0, 240, 255, 0.07) 0%, var(--bg-card-glass) 100%); border: 1px solid rgba(0, 240, 255, 0.38); box-shadow: 0 8px 32px rgba(0, 240, 255, 0.08);">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; margin-bottom:1rem;">
+            <div>
+              <h3 class="card-title" style="margin:0; color:var(--primary); font-size:1.15rem;">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> 📸 AI Skrinshot Orqali Avtomatik Kiritish
+              </h3>
+              <p style="color:var(--text-secondary); margin:0.25rem 0 0 0; font-size:0.85rem;">
+                Match tugaganidagi 1 yoki 2 ta skrinshotni tashlang (yoki to'g'ridan-to'g'ri <kbd>Ctrl+V</kbd> / <kbd>Cmd+V</kbd> qilib rasm qo'ying) — AI hamma ma'lumotlarni o'zi to'ldiradi!
+              </p>
+            </div>
+            <span class="badge" style="background:rgba(0,240,255,0.15); color:var(--primary); border:1px solid rgba(0,240,255,0.4); font-weight:700; padding:6px 12px;">
+              <i class="fa-solid fa-bolt"></i> Gemini Flash Vision
+            </span>
+          </div>
+
+          <div class="ocr-drop-grid">
+            <!-- Slot 1: Scoreboard / KDA -->
+            <div class="ocr-drop-box" id="ocrDropSlot1" data-slot="0">
+              <input type="file" id="ocrFileInput1" accept="image/*" class="hidden" />
+              <div class="ocr-drop-content" id="ocrDropContent1">
+                <i class="fa-solid fa-image" style="font-size:1.8rem; color:var(--primary); margin-bottom:0.35rem;"></i>
+                <strong style="color:var(--text-primary); font-size:0.88rem;">1-Skrinshot (Scoreboard)</strong>
+                <span style="font-size:0.75rem; color:var(--text-muted);">G'alaba/Mag'lubiyat, Vaqt, Qahramonlar, K/D/A, Medallar</span>
+              </div>
+              <div class="ocr-preview-wrap hidden" id="ocrPreviewWrap1">
+                <img id="ocrPreviewImg1" src="" alt="Screenshot 1" />
+                <button type="button" class="ocr-remove-btn" id="ocrRemoveBtn1" title="O'chirish">&times;</button>
+              </div>
+            </div>
+
+            <!-- Slot 2: Damage / Data -->
+            <div class="ocr-drop-box" id="ocrDropSlot2" data-slot="1">
+              <input type="file" id="ocrFileInput2" accept="image/*" class="hidden" />
+              <div class="ocr-drop-content" id="ocrDropContent2">
+                <i class="fa-solid fa-chart-column" style="font-size:1.8rem; color:var(--secondary); margin-bottom:0.35rem;"></i>
+                <strong style="color:var(--text-primary); font-size:0.88rem;">2-Skrinshot (Data / Damage — ixtiyoriy)</strong>
+                <span style="font-size:0.75rem; color:var(--text-muted);">Hero Damage, Zarba olish, Minora, TF %, Gold</span>
+              </div>
+              <div class="ocr-preview-wrap hidden" id="ocrPreviewWrap2">
+                <img id="ocrPreviewImg2" src="" alt="Screenshot 2" />
+                <button type="button" class="ocr-remove-btn" id="ocrRemoveBtn2" title="O'chirish">&times;</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; margin-top:0.5rem;">
+            <div style="font-size:0.8rem; color:var(--text-muted);">
+              <i class="fa-solid fa-paste" style="color:var(--primary);"></i> Skrinshotni nusxalab to'g'ridan-to'g'ri <kbd>Ctrl+V</kbd> bilan tashlashingiz mumkin
+            </div>
+            <button type="button" class="btn ocr-scan-btn" id="startOcrScanBtn" disabled>
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Skanerlash & Formani To'ldirish
+            </button>
+          </div>
+          <div id="ocrStatusMsg" style="margin-top:0.75rem; font-size:0.85rem;" class="hidden"></div>
+        </div>
+        ` : ''}
+
         <div class="quick-add-banner">
           <div>
             <span class="badge">${this.quickAddMode ? '⚡ QUICK ADD' : '📋 FULL DETAIL'}</span>
@@ -363,6 +423,11 @@ window.MatchManager = class MatchManager {
       this.quickAddMode = !this.quickAddMode;
       this.renderMatchForm(containerId, players, editingMatchId);
     });
+
+    // Setup AI Screenshot OCR Handlers (only in Add mode)
+    if (!isEditMode) {
+      this.setupOcrHandlers(container, players);
+    }
 
     // Navigation guard: mark form as dirty on input
     const form = document.getElementById('match-entry-form');
@@ -820,5 +885,424 @@ window.MatchManager = class MatchManager {
     document.getElementById('posterCopyBtn')?.addEventListener('click', () => {
       window.ChartHelper.copyCanvasToClipboard(canvas);
     });
+  }
+
+  // =========================================================================
+  //  AI SCREENSHOT OCR AUTO-SCANNER SYSTEM
+  // =========================================================================
+
+  setupOcrHandlers(container, players) {
+    this.ocrImages = [null, null];
+
+    const slot1 = document.getElementById('ocrDropSlot1');
+    const slot2 = document.getElementById('ocrDropSlot2');
+    const fileInp1 = document.getElementById('ocrFileInput1');
+    const fileInp2 = document.getElementById('ocrFileInput2');
+    const scanBtn = document.getElementById('startOcrScanBtn');
+    const removeBtn1 = document.getElementById('ocrRemoveBtn1');
+    const removeBtn2 = document.getElementById('ocrRemoveBtn2');
+
+    const updateSlotDisplay = (slotIndex) => {
+      const isSlot1 = slotIndex === 0;
+      const slotBox = isSlot1 ? slot1 : slot2;
+      const dropContent = document.getElementById(isSlot1 ? 'ocrDropContent1' : 'ocrDropContent2');
+      const previewWrap = document.getElementById(isSlot1 ? 'ocrPreviewWrap1' : 'ocrPreviewWrap2');
+      const previewImg = document.getElementById(isSlot1 ? 'ocrPreviewImg1' : 'ocrPreviewImg2');
+      const imgData = this.ocrImages[slotIndex];
+
+      if (imgData) {
+        slotBox?.classList.add('has-file');
+        dropContent?.classList.add('hidden');
+        previewWrap?.classList.remove('hidden');
+        if (previewImg) previewImg.src = imgData;
+      } else {
+        slotBox?.classList.remove('has-file');
+        dropContent?.classList.remove('hidden');
+        previewWrap?.classList.add('hidden');
+        if (previewImg) previewImg.src = '';
+      }
+
+      const hasAnyImage = !!(this.ocrImages[0] || this.ocrImages[1]);
+      if (scanBtn) {
+        scanBtn.disabled = !hasAnyImage;
+      }
+    };
+
+    const handleFile = (file, slotIndex) => {
+      if (!file || !file.type.startsWith('image/')) {
+        if (window.showToast) window.showToast('Iltimos, faqat rasm (skrinshot) faylini tanlang!', 'warning');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.ocrImages[slotIndex] = e.target.result;
+        updateSlotDisplay(slotIndex);
+        if (window.showToast) {
+          window.showToast(`📸 ${slotIndex + 1}-Skrinshot muvaffaqiyatli yuklandi!`, 'info');
+        }
+      };
+      reader.readAsDataURL(file);
+    };
+
+    // Slot 1 click & file input
+    slot1?.addEventListener('click', (e) => {
+      if (e.target.closest('.ocr-remove-btn')) return;
+      fileInp1?.click();
+    });
+    fileInp1?.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleFile(e.target.files[0], 0);
+      }
+    });
+
+    // Slot 2 click & file input
+    slot2?.addEventListener('click', (e) => {
+      if (e.target.closest('.ocr-remove-btn')) return;
+      fileInp2?.click();
+    });
+    fileInp2?.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleFile(e.target.files[0], 1);
+      }
+    });
+
+    // Drag and Drop support
+    [slot1, slot2].forEach((slotBox, sIdx) => {
+      if (!slotBox) return;
+      slotBox.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        slotBox.classList.add('dragover');
+      });
+      slotBox.addEventListener('dragleave', () => {
+        slotBox.classList.remove('dragover');
+      });
+      slotBox.addEventListener('drop', (e) => {
+        e.preventDefault();
+        slotBox.classList.remove('dragover');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleFile(e.dataTransfer.files[0], sIdx);
+        }
+      });
+    });
+
+    // Remove buttons
+    removeBtn1?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.ocrImages[0] = null;
+      if (fileInp1) fileInp1.value = '';
+      updateSlotDisplay(0);
+    });
+    removeBtn2?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.ocrImages[1] = null;
+      if (fileInp2) fileInp2.value = '';
+      updateSlotDisplay(1);
+    });
+
+    // Global Paste Listener (Ctrl+V / Cmd+V anywhere on page when Add Match is active)
+    if (this._pasteListener) {
+      document.removeEventListener('paste', this._pasteListener);
+    }
+    this._pasteListener = (e) => {
+      const activeSection = document.querySelector('.page-section.active');
+      if (!activeSection || activeSection.id !== 'page-add-match') return;
+
+      const clipboardData = e.clipboardData || window.clipboardData;
+      if (!clipboardData || !clipboardData.items) return;
+
+      for (let i = 0; i < clipboardData.items.length; i++) {
+        const item = clipboardData.items[i];
+        if (item.type.indexOf('image') !== -1) {
+          const blob = item.getAsFile();
+          if (blob) {
+            e.preventDefault();
+            // Put into slot 0 if empty, else slot 1
+            const targetSlot = !this.ocrImages[0] ? 0 : (!this.ocrImages[1] ? 1 : 0);
+            handleFile(blob, targetSlot);
+            break;
+          }
+        }
+      }
+    };
+    document.addEventListener('paste', this._pasteListener);
+
+    // Scan Button Handler
+    scanBtn?.addEventListener('click', () => {
+      this.handleOcrScan(players);
+    });
+  }
+
+  async handleOcrScan(players) {
+    const scanBtn = document.getElementById('startOcrScanBtn');
+    const statusMsg = document.getElementById('ocrStatusMsg');
+    const imagesToProcess = this.ocrImages.filter(Boolean);
+
+    if (imagesToProcess.length === 0) {
+      if (window.showToast) window.showToast('Iltimos, avval kamida 1 ta skrinshot yuklang!', 'warning');
+      return;
+    }
+
+    const apiKey = localStorage.getItem('eclipse_gemini_api_key') || '';
+
+    if (scanBtn) {
+      scanBtn.disabled = true;
+      scanBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AI Skanerlamoqda...';
+    }
+    if (statusMsg) {
+      statusMsg.className = '';
+      statusMsg.innerHTML = '<span style="color:var(--primary);"><i class="fa-solid fa-spinner fa-spin"></i> Gemini Flash Vision skrinshotlarni tahlil qilmoqda (qahramonlar, K/D/A, zarbalar)...</span>';
+    }
+
+    try {
+      const response = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          images: imagesToProcess,
+          apiKey: apiKey,
+          rosterPlayers: players.map(p => ({ id: p.id, name: p.name, role: p.role }))
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success || !result.data) {
+        throw new Error(result.error || 'Skrinshotni o\'qishda xatolik yuz berdi');
+      }
+
+      if (statusMsg) {
+        statusMsg.innerHTML = '<span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> Muvaffaqiyatli tahlil qilindi! Forma to\'ldirildi.</span>';
+      }
+
+      this.populateFormFromOcr(result.data, players);
+
+    } catch (err) {
+      console.error('OCR Scan error:', err);
+      if (statusMsg) {
+        statusMsg.innerHTML = `<span style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Xatolik: ${err.message}</span>`;
+      }
+      if (window.showToast) {
+        window.showToast(`Xatolik: ${err.message}`, 'error');
+      }
+    } finally {
+      if (scanBtn) {
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Skanerlash & Formani To\'ldirish';
+      }
+    }
+  }
+
+  populateFormFromOcr(data, players) {
+    if (!data) return;
+
+    // 1. Result (win / loss)
+    if (data.result) {
+      const isWin = data.result.toLowerCase() === 'win';
+      const winRadio = document.querySelector('input[name="match-result"][value="win"]');
+      const lossRadio = document.querySelector('input[name="match-result"][value="loss"]');
+      if (isWin && winRadio) winRadio.checked = true;
+      if (!isWin && lossRadio) lossRadio.checked = true;
+    }
+
+    // 2. Duration (Min : Sec)
+    if (data.duration) {
+      let min = 15, sec = 0;
+      if (typeof data.duration === 'string' && data.duration.includes(':')) {
+        const parts = data.duration.split(':');
+        min = parseInt(parts[0]) || 0;
+        sec = parseInt(parts[1]) || 0;
+      } else if (typeof data.duration === 'number') {
+        min = Math.floor(data.duration / 60);
+        sec = data.duration % 60;
+      }
+      const minInput = document.getElementById('match-duration-min');
+      const secInput = document.getElementById('match-duration-sec');
+      if (minInput) minInput.value = min;
+      if (secInput) secInput.value = sec < 10 ? '0' + sec : sec;
+    }
+
+    // 3. Match Type
+    if (data.matchType) {
+      const typeSelect = document.getElementById('match-type');
+      if (typeSelect) {
+        const matchTypeLower = data.matchType.toLowerCase();
+        const matchedOption = Array.from(typeSelect.options).find(o => o.value === matchTypeLower);
+        if (matchedOption) typeSelect.value = matchedOption.value;
+      }
+    }
+
+    // 4. Team Objectives (if recognized)
+    if (typeof data.teamTurtles === 'number' && data.teamTurtles > 0) {
+      const el = document.getElementById('team-turtles');
+      if (el) el.value = data.teamTurtles;
+    }
+    if (typeof data.teamLords === 'number' && data.teamLords > 0) {
+      const el = document.getElementById('team-lords');
+      if (el) el.value = data.teamLords;
+    }
+    if (typeof data.teamTurrets === 'number' && data.teamTurrets > 0) {
+      const el = document.getElementById('team-turrets');
+      if (el) el.value = data.teamTurrets;
+    }
+
+    // 5. Populate Players
+    if (Array.isArray(data.players) && data.players.length > 0) {
+      const allRows = Array.from(document.querySelectorAll('.player-stat-row'));
+      const matchedRows = [];
+      const usedExtracted = new Set();
+
+      // Pass 1: Match by matchedPlayerId or IGN similarity
+      data.players.forEach((pExt, extIdx) => {
+        let targetRow = null;
+        if (pExt.matchedPlayerId) {
+          targetRow = allRows.find(r => r.dataset.playerId === pExt.matchedPlayerId);
+        }
+        if (!targetRow && pExt.detectedName) {
+          const cleanDetected = pExt.detectedName.toLowerCase().replace(/[^a-z0-9]/g, '');
+          targetRow = allRows.find(r => {
+            const pObj = players.find(p => p.id === r.dataset.playerId);
+            if (!pObj) return false;
+            const cleanRoster = pObj.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return cleanRoster === cleanDetected || cleanRoster.includes(cleanDetected) || cleanDetected.includes(cleanRoster);
+          });
+        }
+        if (targetRow && !matchedRows.includes(targetRow)) {
+          matchedRows.push(targetRow);
+          usedExtracted.add(extIdx);
+          this.fillPlayerRow(targetRow, pExt);
+        }
+      });
+
+      // Pass 2: Assign any remaining extracted stats to available free rows
+      data.players.forEach((pExt, extIdx) => {
+        if (usedExtracted.has(extIdx)) return;
+        const freeRow = allRows.find(r => !matchedRows.includes(r));
+        if (freeRow) {
+          matchedRows.push(freeRow);
+          usedExtracted.add(extIdx);
+          this.fillPlayerRow(freeRow, pExt);
+        }
+      });
+
+      // Activate matched rows and bench unmatched extras (if team size is 5)
+      allRows.forEach(r => {
+        const toggleBtn = r.querySelector('.sub-toggle');
+        if (matchedRows.includes(r)) {
+          if (r.classList.contains('benched') && toggleBtn) {
+            toggleBtn.click();
+          }
+        } else {
+          if (!r.classList.contains('benched') && toggleBtn && matchedRows.length >= 5) {
+            toggleBtn.click();
+          }
+        }
+      });
+
+      // Visual flash animation on populated rows
+      matchedRows.forEach(r => {
+        r.style.transition = 'all 0.4s ease';
+        r.style.boxShadow = '0 0 30px rgba(0, 240, 255, 0.45)';
+        r.style.borderColor = 'var(--primary)';
+        setTimeout(() => {
+          r.style.boxShadow = '';
+          r.style.borderColor = '';
+        }, 3000);
+      });
+    }
+
+    // Scroll smoothly to team details / players
+    const detailsSection = document.getElementById('match-entry-form');
+    if (detailsSection) {
+      detailsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    if (window.showToast) {
+      window.showToast('✨ 5 ta o\'yinchi statistikasi avtomatik to\'ldirildi! Faqat Lord, Toshbaqa va Minoralar sonini tekshiring.', 'success');
+    }
+  }
+
+  fillPlayerRow(row, pExt) {
+    if (!row || !pExt) return;
+
+    // Hero Used
+    if (pExt.heroUsed) {
+      const heroInput = row.querySelector('.stat-hero');
+      if (heroInput) heroInput.value = pExt.heroUsed;
+    }
+
+    // Role / Lane
+    if (pExt.rolePlayed) {
+      const roleSelect = row.querySelector('.stat-role');
+      if (roleSelect) {
+        const pRoleNorm = pExt.rolePlayed.toLowerCase().replace(/[^a-z]/g, '');
+        const matchedOption = Array.from(roleSelect.options).find(o => {
+          const oNorm = o.value.toLowerCase().replace(/[^a-z]/g, '');
+          return oNorm === pRoleNorm || pRoleNorm.includes(oNorm) || oNorm.includes(pRoleNorm);
+        });
+        if (matchedOption) roleSelect.value = matchedOption.value;
+      }
+    }
+
+    // Kills, Deaths, Assists
+    if (typeof pExt.kills === 'number') {
+      const el = row.querySelector('.stat-kills');
+      if (el) el.value = pExt.kills;
+    }
+    if (typeof pExt.deaths === 'number') {
+      const el = row.querySelector('.stat-deaths');
+      if (el) el.value = pExt.deaths;
+    }
+    if (typeof pExt.assists === 'number') {
+      const el = row.querySelector('.stat-assists');
+      if (el) el.value = pExt.assists;
+    }
+
+    // In-Game Score
+    if (typeof pExt.inGameScore === 'number' || pExt.inGameScore) {
+      const el = row.querySelector('.stat-score');
+      if (el) el.value = parseFloat(pExt.inGameScore) || 0;
+    }
+
+    // Medal
+    if (pExt.medal) {
+      const el = row.querySelector('.stat-medal');
+      if (el) {
+        const medalVal = pExt.medal.toLowerCase();
+        const validMedals = ['mvp', 'gold', 'silver', 'bronze', 'none'];
+        if (validMedals.includes(medalVal)) {
+          el.value = medalVal;
+        } else if (medalVal === 'choco' || medalVal === 'chocolate') {
+          el.value = 'bronze';
+        }
+      }
+    }
+
+    // Savage / Maniac
+    const savEl = row.querySelector('.stat-savage');
+    if (savEl) savEl.checked = !!pExt.savage;
+    const manEl = row.querySelector('.stat-maniac');
+    if (manEl) manEl.checked = !!pExt.maniac;
+
+    // Damage Dealt, Damage Received, Turret Dmg, TF %, Gold
+    if (typeof pExt.damageDealt === 'number' && pExt.damageDealt > 0) {
+      const el = row.querySelector('.stat-dmg-dealt');
+      if (el) el.value = pExt.damageDealt;
+    }
+    if (typeof pExt.damageReceived === 'number' && pExt.damageReceived > 0) {
+      const el = row.querySelector('.stat-dmg-received');
+      if (el) el.value = pExt.damageReceived;
+    }
+    if (typeof pExt.turretDamage === 'number' && pExt.turretDamage > 0) {
+      const el = row.querySelector('.stat-turret-dmg');
+      if (el) el.value = pExt.turretDamage;
+    }
+    if (typeof pExt.teamfightParticipation === 'number' && pExt.teamfightParticipation > 0) {
+      const el = row.querySelector('.stat-tf');
+      if (el) el.value = pExt.teamfightParticipation;
+    }
+    if (typeof pExt.goldEarned === 'number' && pExt.goldEarned > 0) {
+      const el = row.querySelector('.stat-gold');
+      if (el) el.value = pExt.goldEarned;
+    }
   }
 };

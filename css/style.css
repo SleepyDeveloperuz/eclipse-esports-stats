@@ -1948,3 +1948,119 @@ kbd {
     justify-content: center;
   }
 }
+
+
+/* ==========================================================================
+   AI Vision Screenshot OCR Scanner Component
+   ========================================================================== */
+.ocr-drop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+  margin: 1rem 0;
+}
+
+.ocr-drop-box {
+  background: rgba(9, 13, 24, 0.75);
+  backdrop-filter: blur(12px);
+  border: 2px dashed rgba(0, 240, 255, 0.25);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ocr-drop-box:hover,
+.ocr-drop-box.dragover {
+  border-color: var(--primary);
+  background: rgba(0, 240, 255, 0.06);
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.18), inset 0 0 15px rgba(0, 240, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.ocr-drop-box.has-file {
+  border-style: solid;
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.ocr-drop-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  pointer-events: none;
+}
+
+.ocr-preview-wrap {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ocr-preview-wrap img {
+  max-height: 130px;
+  max-width: 100%;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.ocr-remove-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  border: 2px solid #06080d;
+  font-size: 1rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.6);
+  z-index: 5;
+}
+
+.ocr-remove-btn:hover {
+  transform: scale(1.15);
+  background: #e11d48;
+}
+
+.ocr-scan-btn {
+  background: linear-gradient(135deg, #00f0ff 0%, #a855f7 100%);
+  color: #06080d;
+  font-weight: 800;
+  border: none;
+  box-shadow: 0 4px 20px rgba(0, 240, 255, 0.4);
+  transition: all var(--transition-fast);
+}
+
+.ocr-scan-btn:hover:not(:disabled) {
+  box-shadow: 0 6px 28px rgba(168, 85, 247, 0.6);
+  transform: translateY(-2px);
+  color: #000;
+}
+
+.ocr-scan-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}

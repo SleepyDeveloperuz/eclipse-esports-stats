@@ -253,6 +253,70 @@ window.EclipseApp = {
         }
       });
     }
+
+    // Gemini API Key Handlers
+    const geminiInput = document.getElementById('geminiApiKeyInput');
+    const saveGeminiBtn = document.getElementById('saveGeminiKeyBtn');
+    const testGeminiBtn = document.getElementById('testGeminiKeyBtn');
+    const geminiStatus = document.getElementById('geminiKeyStatus');
+
+    if (geminiInput) {
+      const savedKey = localStorage.getItem('eclipse_gemini_api_key') || '';
+      geminiInput.value = savedKey;
+      if (savedKey && geminiStatus) {
+        geminiStatus.innerHTML = '<span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> Gemini API kaliti saqlangan. AI skaneri faol.</span>';
+      }
+    }
+
+    if (saveGeminiBtn && geminiInput) {
+      saveGeminiBtn.addEventListener('click', () => {
+        const keyVal = geminiInput.value.trim();
+        if (!keyVal) {
+          localStorage.removeItem('eclipse_gemini_api_key');
+          if (geminiStatus) geminiStatus.innerHTML = '<span style="color:var(--warning);"><i class="fa-solid fa-circle-info"></i> API kaliti o\'chirildi.</span>';
+          if (window.showToast) window.showToast('Gemini API kaliti tozalandi', 'info');
+          return;
+        }
+        localStorage.setItem('eclipse_gemini_api_key', keyVal);
+        if (geminiStatus) geminiStatus.innerHTML = '<span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> Gemini API kaliti muvaffaqiyatli saqlandi!</span>';
+        if (window.showToast) window.showToast('✅ Gemini API kaliti saqlandi!', 'success');
+      });
+    }
+
+    if (testGeminiBtn && geminiInput) {
+      testGeminiBtn.addEventListener('click', async () => {
+        const keyVal = geminiInput.value.trim() || localStorage.getItem('eclipse_gemini_api_key');
+        if (!keyVal) {
+          if (window.showToast) window.showToast('Iltimos, avval API kalitni kiriting!', 'warning');
+          return;
+        }
+        testGeminiBtn.disabled = true;
+        testGeminiBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Tekshirilmoqda...';
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${keyVal}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: "Respond with JSON: {\"status\":\"ok\"}" }] }]
+            })
+          });
+          if (res.ok) {
+            if (geminiStatus) geminiStatus.innerHTML = '<span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> Ulanish muvaffaqiyatli! Gemini Flash Vision to\'liq ishlamoqda.</span>';
+            if (window.showToast) window.showToast('🎉 Gemini Vision muvaffaqiyatli ulandi!', 'success');
+          } else {
+            const errTxt = await res.text();
+            if (geminiStatus) geminiStatus.innerHTML = `<span style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Xatolik (${res.status}): Kalit yaroqsiz yoki ruxsat yo'q.</span>`;
+            if (window.showToast) window.showToast('Kalitni tekshirishda xatolik yuz berdi', 'error');
+          }
+        } catch (e) {
+          if (geminiStatus) geminiStatus.innerHTML = `<span style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Tarmoq xatosi: ${e.message}</span>`;
+          if (window.showToast) window.showToast('Ulanishda xatolik', 'error');
+        } finally {
+          testGeminiBtn.disabled = false;
+          testGeminiBtn.innerHTML = '<i class="fa-solid fa-vial"></i> Test Qilish';
+        }
+      });
+    }
   },
 
   bindKeyboardShortcuts() {

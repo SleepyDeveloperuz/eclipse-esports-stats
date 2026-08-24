@@ -274,6 +274,22 @@
                         </div>
                     </div>
 
+                    <!-- GEMINI AI VISION KEY CARD -->
+                    <div class="card mb-4" style="background: linear-gradient(135deg, rgba(0,240,255,0.06) 0%, var(--bg-card-glass) 100%); border:1px solid rgba(0,240,255,0.35);">
+                        <h3 class="card-title" style="margin-bottom:0.35rem;">
+                            <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--primary);"></i> 🤖 AI Skrinshot Tahlili (Gemini Vision)
+                        </h3>
+                        <p class="text-secondary" style="font-size:0.875rem; margin:0 0 0.75rem 0;">
+                            Match skrinshotlarini avtomatik o'qish uchun bepul Google Gemini API kalitini kiriting. Kalitni <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="color:var(--primary); font-weight:700; text-decoration:underline;">Google AI Studio (aistudio.google.com)</a> dan mutlaqo bepul olishingiz mumkin.
+                        </p>
+                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                            <input type="password" id="geminiApiKeyInput" class="form-input" placeholder="AIzaSy... (Gemini API Key)" style="max-width:340px;" />
+                            <button class="btn btn-primary" id="saveGeminiKeyBtn"><i class="fa-solid fa-floppy-disk"></i> Kalitni Saqlash</button>
+                            <button class="btn btn-secondary" id="testGeminiKeyBtn"><i class="fa-solid fa-vial"></i> Test Qilish</button>
+                        </div>
+                        <div id="geminiKeyStatus" style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;"></div>
+                    </div>
+
                     <!-- ADMIN PASSWORD SECURITY CARD -->
                     <div class="card mb-4">
                         <h3 class="card-title"><i class="fa-solid fa-key" style="color:var(--secondary);"></i> 🔒 Murabbiy / Admin Parolini O'zgartirish</h3>
