@@ -132,6 +132,7 @@ function getVerifiedPatchDataset(rank) {
   // Sources: mobilelegends.com, mlbbhub.com, draftmeta.com, community data
   const base = [
     // ── S+ / GOD TIER ──
+    { name: 'Hirara', role: 'Assassin', lane: 'jungle', wr: 56.5, pr: 7.5, br: 82.5 },
     { name: 'Marcel', role: 'Fighter', lane: 'exp', wr: 58.8, pr: 0.28, br: 32.2 },
     { name: 'Rafaela', role: 'Support', lane: 'roam', wr: 57.8, pr: 1.5, br: 10.6 },
     { name: 'Masha', role: 'Fighter', lane: 'exp', wr: 56.7, pr: 2.1, br: 0.3 },
@@ -172,7 +173,6 @@ function getVerifiedPatchDataset(rank) {
     // ── A TIER ──
     { name: 'Tigreal', role: 'Tank', lane: 'roam', wr: 52.5, pr: 6.8, br: 63.0 },
     { name: 'Minotaur', role: 'Tank', lane: 'roam', wr: 52.8, pr: 3.5, br: 38.4 },
-    { name: 'Hirara', role: 'Assassin', lane: 'jungle', wr: 52.5, pr: 2.8, br: 35.0 },
     { name: 'Vexana', role: 'Mage', lane: 'mid', wr: 52.5, pr: 7.0, br: 40.0 },
     { name: 'Joy', role: 'Assassin', lane: 'jungle', wr: 52.5, pr: 2.2, br: 42.0 },
     { name: 'Natan', role: 'Marksman', lane: 'gold', wr: 52.5, pr: 3.8, br: 35.0 },

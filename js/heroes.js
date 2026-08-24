@@ -171,7 +171,18 @@ class HeroDatabase {
             if (savedData) {
                 const parsed = JSON.parse(savedData);
                 const cleaned = parsed.filter(h => h.name.toLowerCase() !== 'azuma');
-                if (cleaned.length !== parsed.length) {
+                
+                // Auto-merge: Ensure all new default heroes (like Hirara, Zhuxin, Suyou, Sora, Lukas, Marcel) are always included
+                const existingNames = new Set(cleaned.map(h => h.name.toLowerCase()));
+                let updated = false;
+                HeroDatabase.DEFAULT_HEROES.forEach(defHero => {
+                    if (!existingNames.has(defHero.name.toLowerCase())) {
+                        cleaned.push({ ...defHero });
+                        updated = true;
+                    }
+                });
+                
+                if (updated || cleaned.length !== parsed.length) {
                     localStorage.setItem(HeroDatabase.STORAGE_KEY, JSON.stringify(cleaned));
                 }
                 return cleaned;

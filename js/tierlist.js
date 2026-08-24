@@ -90,6 +90,7 @@ window.TierListManager = class TierListManager {
   initMetaDatabase() {
     this.metaData = [
       // S+ GOD TIER
+      { name: 'Hirara', role: 'Assassin', lane: 'jungle', wr: 56.5, pr: 7.5, br: 82.5, counters: ['Khufra', 'Saber', 'Franco', 'Kaja'], tip: '🔥 2026 Yangi Assassin (Fallen Scarlet)! Egizak qizil yelpig\'ichlar, nishonga olinmaslik (Untargetable) daxlsizligi va bir lahzada orqa chiziqni yo\'q qilish qobiliyati.' },
       { name: 'Marcel', role: 'Fighter', lane: 'exp', wr: 58.8, pr: 0.28, br: 32.2, counters: ['Phoveus', 'Terizla', 'Dominance Ice'], tip: 'Patch 2.1.95.1206.1 eng yuqori WR (58.8%). Kam tanilgan lekin juda xavfli.' },
       { name: 'Rafaela', role: 'Support', lane: 'roam', wr: 57.8, pr: 1.5, br: 10.6, counters: ['Saber', 'Helcurt', 'Natalia'], tip: 'Patch 2.1.95.1206.1 2-o\'rinda WR (57.8%). Tezlik va davolash buffi o\'ta kuchli.' },
       { name: 'Masha', role: 'Fighter', lane: 'exp', wr: 56.7, pr: 2.1, br: 0.3, counters: ['Karrie', 'Dominance Ice', 'Phoveus'], tip: 'Yashirin meta gem! 56.7% WR. 3 ta HP bar bilan o\'ldirib bo\'lmaydi.' },
@@ -132,7 +133,6 @@ window.TierListManager = class TierListManager {
       // A TIER
       { name: 'Tigreal', role: 'Tank', lane: 'roam', wr: 52.5, pr: 6.8, br: 63.0, counters: ['Diggie', 'Valir', 'Wanwan'], tip: 'S2 surish + Flicker Ultimate kechki o\'yinda jamoaviy g\'alaba kafolati.' },
       { name: 'Minotaur', role: 'Tank', lane: 'roam', wr: 52.8, pr: 3.5, br: 38.4, counters: ['Diggie', 'Karrie', 'Lunox'], tip: 'Davolash va havodan uzluksiz zarba bilan maydonni nazorat qiladi.' },
-      { name: 'Hirara', role: 'Assassin', lane: 'jungle', wr: 52.5, pr: 2.8, br: 35.0, counters: ['Khufra', 'Franco', 'Saber'], tip: 'Patch 2.1.95 yangi assassin. Egizak yelpig\'ich bilan daxlsizlik.' },
       { name: 'Vexana', role: 'Mage', lane: 'mid', wr: 52.5, pr: 7.0, br: 40.0, counters: ['Radiant Armor', 'Ling', 'Hayabusa'], tip: 'Ulkan ritsar chaqiruvchi va ommaviy qo\'rquv soluvchi.' },
       { name: 'Joy', role: 'Assassin', lane: 'jungle', wr: 52.5, pr: 2.2, br: 42.0, counters: ['Minsitthar', 'Franco', 'Kaja'], tip: 'Ritmik sakrash — sekinlik immunitetli va katta AOE sehrli zarar.' },
       { name: 'Natan', role: 'Marksman', lane: 'gold', wr: 52.5, pr: 3.8, br: 35.0, counters: ['Radiant Armor', 'Blade Armor', 'Lolita'], tip: 'Sehrli oddiy zarba va klon orqali 2 barobar DPS.' },
