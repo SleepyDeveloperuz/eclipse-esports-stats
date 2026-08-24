@@ -3,14 +3,20 @@ window.AuthManager = class AuthManager {
     this.db = dataStore;
     this.PIN_KEY = 'eclipse_admin_pin';
     this.SESSION_KEY = 'eclipse_admin_session';
-    this.DEFAULT_PIN = '7777';
+    this.DEFAULT_PIN = 'XolvaQant';
     
     // Check if session is currently active
     this.authenticated = sessionStorage.getItem(this.SESSION_KEY) === 'true';
   }
 
   getStoredPin() {
-    return localStorage.getItem(this.PIN_KEY) || this.DEFAULT_PIN;
+    const pin = localStorage.getItem(this.PIN_KEY);
+    // If no pin or if it was still the old '7777', upgrade to XolvaQant
+    if (!pin || pin === '7777') {
+      localStorage.setItem(this.PIN_KEY, this.DEFAULT_PIN);
+      return this.DEFAULT_PIN;
+    }
+    return pin;
   }
 
   isAdmin() {
@@ -26,7 +32,7 @@ window.AuthManager = class AuthManager {
       if (window.showToast) window.showToast("Admin rejimi faollashdi! Barcha boshqaruv tugmalari ochildi.", "success");
       return true;
     } else {
-      if (window.showToast) window.showToast("Xato PIN-kod! Qaytadan urinib ko'ring.", "error");
+      if (window.showToast) window.showToast("Xato parol! Qaytadan urinib ko'ring.", "error");
       return false;
     }
   }
@@ -47,16 +53,16 @@ window.AuthManager = class AuthManager {
   setNewPin(oldPin, newPin) {
     const currentPin = this.getStoredPin();
     if (oldPin !== currentPin) {
-      if (window.showToast) window.showToast("Eski PIN-kod noto'g'ri!", "error");
+      if (window.showToast) window.showToast("Eski parol noto'g'ri!", "error");
       return false;
     }
     if (!newPin || newPin.length < 4) {
-      if (window.showToast) window.showToast("Yangi PIN-kod kamida 4 ta raqamdan iborat bo'lishi kerak!", "warning");
+      if (window.showToast) window.showToast("Yangi parol kamida 4 ta belgidan iborat bo'lishi kerak!", "warning");
       return false;
     }
 
     localStorage.setItem(this.PIN_KEY, newPin);
-    if (window.showToast) window.showToast("Yangi PIN-kod muvaffaqiyatli saqlandi!", "success");
+    if (window.showToast) window.showToast("Yangi parol muvaffaqiyatli saqlandi!", "success");
     return true;
   }
 
@@ -66,36 +72,58 @@ window.AuthManager = class AuthManager {
     if (!modalOverlay || !modalContent) return;
 
     modalContent.innerHTML = `
-      <div style="text-align:center; padding:1rem;">
-        <div style="width:64px; height:64px; border-radius:50%; background:rgba(255,215,0,0.15); color:var(--secondary); display:flex; align-items:center; justify-content:center; margin:0 auto 1rem auto; font-size:1.75rem; border:2px solid rgba(255,215,0,0.4);">
+      <div style="text-align:center; padding:1.5rem 1rem;">
+        <div style="width:68px; height:68px; border-radius:50%; background:rgba(255,215,0,0.15); color:var(--secondary); display:flex; align-items:center; justify-content:center; margin:0 auto 1.25rem auto; font-size:2rem; border:2px solid rgba(255,215,0,0.4); box-shadow:0 0 25px rgba(255,215,0,0.25);">
           <i class="fa-solid fa-lock"></i>
         </div>
-        <h3 style="font-size:1.5rem; color:var(--text-primary); margin:0 0 0.5rem 0;">Murabbiy / Admin Kirish</h3>
-        <p style="color:var(--text-secondary); font-size:0.875rem; margin:0 0 1.5rem 0;">
-          Matchlarni qo'shish, tahrirlash va jamoani boshqarish uchun <strong>PIN-kod</strong>ni kiriting.
+        <h3 style="font-size:1.6rem; color:var(--text-primary); margin:0 0 0.5rem 0; font-weight:700;">Murabbiy / Admin Kirish</h3>
+        <p style="color:var(--text-secondary); font-size:0.9rem; margin:0 0 1.5rem 0; max-width:340px; margin-left:auto; margin-right:auto; line-height:1.4;">
+          Matchlarni qo'shish, tahrirlash va jamoani boshqarish uchun <strong>Admin Paroli</strong>ni kiriting.
         </p>
 
         <form id="admin-pin-form">
           <div class="form-group" style="margin-bottom:1.5rem;">
-            <input type="password" id="admin-pin-input" class="form-input" placeholder="••••" maxlength="8" style="text-align:center; font-size:1.75rem; letter-spacing:0.5em; max-width:200px; margin:0 auto; font-family:monospace;" autofocus required />
-            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">Boshlang'ich default PIN: <strong>7777</strong></div>
+            <div style="position:relative; max-width:300px; margin:0 auto;">
+              <input type="password" id="admin-pin-input" class="form-input" placeholder="Parolni kiriting..." style="text-align:center; font-size:1.15rem; padding:0.8rem 1rem; border-color:var(--primary); background:rgba(0,0,0,0.5); letter-spacing:0.1em;" autofocus required autocomplete="current-password" />
+              <button type="button" id="toggle-pw-btn" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1rem; padding:4px;" title="Parolni ko'rsatish">
+                <i class="fa-regular fa-eye" id="toggle-pw-icon"></i>
+              </button>
+            </div>
           </div>
 
           <div style="display:flex; justify-content:center; gap:0.75rem;">
-            <button type="button" class="btn btn-secondary" id="cancel-pin-btn">Bekor qilish</button>
-            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-key"></i> Kirish</button>
+            <button type="button" class="btn btn-secondary" id="cancel-pin-btn" style="min-width:110px;">Bekor qilish</button>
+            <button type="submit" class="btn btn-primary" style="min-width:120px;"><i class="fa-solid fa-key"></i> Kirish</button>
           </div>
         </form>
       </div>
     `;
 
+    modalOverlay.classList.add('active');
     modalOverlay.removeAttribute('hidden');
-    modalOverlay.removeAttribute('aria-hidden');
+    modalOverlay.setAttribute('aria-hidden', 'false');
     modalOverlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
-    const input = document.getElementById('admin-pin-input');
-    if (input) input.focus();
+    // Show/hide password toggle
+    const toggleBtn = document.getElementById('toggle-pw-btn');
+    const pwInput = document.getElementById('admin-pin-input');
+    const pwIcon = document.getElementById('toggle-pw-icon');
+    if (toggleBtn && pwInput && pwIcon) {
+      toggleBtn.addEventListener('click', () => {
+        if (pwInput.type === 'password') {
+          pwInput.type = 'text';
+          pwIcon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+          pwInput.type = 'password';
+          pwIcon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+      });
+    }
+
+    setTimeout(() => {
+      if (pwInput) pwInput.focus();
+    }, 50);
 
     document.getElementById('cancel-pin-btn')?.addEventListener('click', () => {
       this.closeModal();
@@ -113,6 +141,7 @@ window.AuthManager = class AuthManager {
   closeModal() {
     const modalOverlay = document.getElementById('modalOverlay');
     if (modalOverlay) {
+      modalOverlay.classList.remove('active');
       modalOverlay.setAttribute('aria-hidden', 'true');
       modalOverlay.style.display = 'none';
       document.body.style.overflow = '';
@@ -144,7 +173,7 @@ window.AuthManager = class AuthManager {
             <span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text-muted); font-size:0.75rem; border:1px solid var(--border-light);">
               <i class="fa-solid fa-eye"></i> KUZATUVCHI
             </span>
-            <button id="authLoginBtn" class="btn btn-sm btn-secondary" style="border-color:var(--secondary); color:var(--secondary); font-weight:600; padding:4px 12px;">
+            <button id="authLoginBtn" class="btn btn-sm btn-secondary" style="border-color:var(--secondary); color:var(--secondary); font-weight:600; padding:4px 12px; cursor:pointer;">
               <i class="fa-solid fa-lock"></i> <span>Admin Kirish</span>
             </button>
           </div>
@@ -169,11 +198,11 @@ window.AuthManager = class AuthManager {
       if (pageId === 'match-history') {
         const matches = this.db.getMatches();
         const players = this.db.getPlayers();
-        if (window.MatchManager && window.EclipseApp.matchManager) {
+        if (window.MatchManager && window.EclipseApp && window.EclipseApp.matchManager) {
           window.EclipseApp.matchManager.renderMatchHistory('matchHistoryContainer', matches, players);
         }
       } else if (pageId === 'players') {
-        if (window.PlayerManager && window.EclipseApp.playerManager) {
+        if (window.PlayerManager && window.EclipseApp && window.EclipseApp.playerManager) {
           window.EclipseApp.playerManager.renderPlayersList('playersListContainer');
         }
       }
@@ -184,7 +213,7 @@ window.AuthManager = class AuthManager {
     if (this.isAdmin()) {
       callback();
     } else {
-      if (window.showToast) window.showToast("Bu amalni bajarish uchun Admin / Murabbiy parolini kiriting", "warning");
+      if (window.showToast) window.showToast("Bu amalni bajarish uchun Admin parolini kiriting", "warning");
       this.showLoginModal();
     }
   }
