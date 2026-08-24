@@ -1,5 +1,3 @@
-import crypto from "crypto";
-
 const DEFAULT_GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
 export default async function handler(req, res) {
@@ -150,8 +148,8 @@ OUTPUT FORMAT: Return strictly valid JSON with no markdown wrapping or text outs
       }
     };
 
-    // Try Gemini 2.5-flash first, fallback to 1.5-flash
-    const models = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"];
+    // Try Gemini 3.6-flash first, fallback to 3.7-flash and 3.5-flash
+    const models = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
     let lastError = null;
     let geminiResponse = null;
 
