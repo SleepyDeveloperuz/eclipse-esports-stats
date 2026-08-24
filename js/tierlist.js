@@ -49,6 +49,7 @@ window.TierListManager = class TierListManager {
             };
           });
           this.metaData = merged;
+          if (json.patch) this.patchVersion = json.patch;
           this.liveSource = json.source || 'moonton_live_api';
           this.lastUpdated = json.updatedAt || new Date().toISOString();
           this.nextRefresh = json.nextRefresh || new Date(Date.now() + 24 * 3600 * 1000).toISOString();

@@ -53,6 +53,8 @@ export default async function handler(req, res) {
     let liveFetched = false;
     let heroes = [];
 
+    let currentPatch = PATCH_VERSION;
+
     for (const url of endpoints) {
       if (liveFetched) break;
       const controller = new AbortController();
@@ -71,6 +73,9 @@ export default async function handler(req, res) {
 
         if (response.ok) {
           const json = await response.json();
+          if (json.patch || json.patch_version || json.version) {
+            currentPatch = json.patch || json.patch_version || json.version;
+          }
           const rawList = json.data || json.heroes || json.list || (Array.isArray(json) ? json : null);
           if (rawList && Array.isArray(rawList) && rawList.length > 0) {
             heroes = formatMoontonData(rawList);
@@ -94,8 +99,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      source: liveFetched ? 'moonton_live_api' : `verified_patch_${PATCH_VERSION}`,
-      patch: PATCH_VERSION,
+      source: liveFetched ? 'moonton_live_api' : `verified_patch_${currentPatch}`,
+      patch: currentPatch,
       rank,
       updatedAt: new Date().toISOString(),
       nextRefresh: new Date(now + CACHE_TTL_MS).toISOString(),
