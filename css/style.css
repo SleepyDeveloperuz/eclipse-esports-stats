@@ -1704,23 +1704,6 @@ p {
 }
 
 /* ==========================================================================
-   Backup Reminder
-   ========================================================================== */
-.backup-reminder {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(239, 68, 68, 0.05));
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  border-radius: 10px;
-  padding: 0.75rem 1.25rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  animation: fadeIn 0.4s ease;
-  flex-wrap: wrap;
-}
-
-/* ==========================================================================
    Keyboard Shortcut Hints
    ========================================================================== */
 kbd {
@@ -1939,10 +1922,5 @@ kbd {
 
   .filter-bar {
     justify-content: center;
-  }
-
-  .backup-reminder {
-    flex-direction: column;
-    text-align: center;
   }
 }

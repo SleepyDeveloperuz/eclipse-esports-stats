@@ -26,7 +26,6 @@ window.EclipseApp = {
     this.bindKeyboardShortcuts();
     this.navigate('dashboard');
     this.authManager.updateUI();
-    this.checkBackupReminder();
 
     // Background cloud sync down if configured
     if (this.cloudSync.isConfigured()) {
@@ -289,43 +288,6 @@ window.EclipseApp = {
         return;
       }
     });
-  },
-
-  checkBackupReminder() {
-    if (!this.authManager.isAdmin()) return;
-    const matchesSinceBackup = this.dataStore.getMatchesSinceLastBackup();
-    if (matchesSinceBackup >= 5) {
-      const dashSection = document.getElementById('page-dashboard');
-      if (dashSection) {
-        const existingReminder = dashSection.querySelector('.backup-reminder');
-        if (existingReminder) existingReminder.remove();
-
-        const banner = document.createElement('div');
-        banner.className = 'backup-reminder';
-        banner.innerHTML = `
-          <div style="display:flex; align-items:center; gap:0.75rem;">
-            <i class="fa-solid fa-triangle-exclamation" style="color:var(--warning); font-size:1.25rem;"></i>
-            <div>
-              <strong style="color:var(--warning);">Data Safety Reminder</strong>
-              <p style="margin:0; font-size:0.8rem; color:var(--text-secondary);">You have <strong>${matchesSinceBackup}</strong> matches recorded since your last backup file. Download a backup to protect your data!</p>
-            </div>
-          </div>
-          <div style="display:flex; gap:0.5rem;">
-            <button class="btn btn-primary btn-sm" id="backupNowBtn"><i class="fa-solid fa-download"></i> Backup Now</button>
-            <button class="btn btn-secondary btn-sm" id="dismissBackupBtn"><i class="fa-solid fa-xmark"></i></button>
-          </div>
-        `;
-        dashSection.insertBefore(banner, dashSection.firstChild);
-
-        document.getElementById('backupNowBtn')?.addEventListener('click', () => {
-          this.navigate('settings');
-          banner.remove();
-        });
-        document.getElementById('dismissBackupBtn')?.addEventListener('click', () => {
-          banner.remove();
-        });
-      }
-    }
   },
 
   navigate(pageId) {

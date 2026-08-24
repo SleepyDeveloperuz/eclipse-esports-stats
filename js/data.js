@@ -161,23 +161,6 @@ window.DataStore = class DataStore {
     this.saveMatches(filtered);
   }
 
-  // --- BACKUP TRACKING ---
-  getLastBackupTime() {
-    return localStorage.getItem('eclipse_last_backup') || null;
-  }
-
-  setLastBackupTime() {
-    localStorage.setItem('eclipse_last_backup', new Date().toISOString());
-  }
-
-  getMatchesSinceLastBackup() {
-    const lastBackup = this.getLastBackupTime();
-    const matches = this.getMatches();
-    if (!lastBackup) return matches.length;
-    const backupDate = new Date(lastBackup);
-    return matches.filter(m => new Date(m.createdAt || m.date) > backupDate).length;
-  }
-
   // --- FILTERS ---
   getMatchesByDateRange(startDate, endDate) {
     const matches = this.getMatches();
@@ -217,7 +200,6 @@ window.DataStore = class DataStore {
 
   // --- DATA MANAGEMENT ---
   exportData() {
-    this.setLastBackupTime();
     return JSON.stringify({
       players: this.getPlayers(),
       matches: this.getMatches(),
