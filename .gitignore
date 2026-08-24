@@ -1,4 +1,6 @@
 .DS_Store
 *.pyc
 __pycache__/
-.vercel
+*.log
+firebase-debug.log
+initial_seed.json
