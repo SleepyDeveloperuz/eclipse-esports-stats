@@ -390,11 +390,24 @@ window.ChartHelper = class ChartHelper {
       const role = ps.rolePlayed || 'EXP Laner';
       const roleColor = roleColors[role] || '#00d4ff';
       const isMvp = ps.medal === 'mvp';
+      const isGold = ps.medal === 'gold';
+      const isSilver = ps.medal === 'silver';
+      const isBronze = ps.medal === 'bronze';
+      const hasMedal = isMvp || isGold || isSilver || isBronze;
 
-      // Card Background Glass
+      // Card Background Glass — tinted by medal
       const cardGrad = ctx.createLinearGradient(x, startY, x, startY + cardHeight);
       if (isMvp) {
-        cardGrad.addColorStop(0, 'rgba(255, 215, 0, 0.12)');
+        cardGrad.addColorStop(0, 'rgba(255, 215, 0, 0.14)');
+        cardGrad.addColorStop(1, 'rgba(15, 23, 42, 0.95)');
+      } else if (isGold) {
+        cardGrad.addColorStop(0, 'rgba(255, 215, 0, 0.08)');
+        cardGrad.addColorStop(1, 'rgba(15, 23, 42, 0.95)');
+      } else if (isSilver) {
+        cardGrad.addColorStop(0, 'rgba(203, 213, 225, 0.08)');
+        cardGrad.addColorStop(1, 'rgba(15, 23, 42, 0.95)');
+      } else if (isBronze) {
+        cardGrad.addColorStop(0, 'rgba(180, 120, 60, 0.08)');
         cardGrad.addColorStop(1, 'rgba(15, 23, 42, 0.95)');
       } else {
         cardGrad.addColorStop(0, 'rgba(30, 41, 59, 0.7)');
@@ -405,9 +418,23 @@ window.ChartHelper = class ChartHelper {
       ctx.roundRect(x, startY, cardWidth, cardHeight, 10);
       ctx.fill();
 
-      // Card Border
-      ctx.strokeStyle = isMvp ? 'rgba(255, 215, 0, 0.7)' : 'rgba(255, 255, 255, 0.1)';
-      ctx.lineWidth = isMvp ? 2 : 1;
+      // Card Border — colored by medal
+      if (isMvp) {
+        ctx.strokeStyle = 'rgba(255, 215, 0, 0.7)';
+        ctx.lineWidth = 2;
+      } else if (isGold) {
+        ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+        ctx.lineWidth = 1.5;
+      } else if (isSilver) {
+        ctx.strokeStyle = 'rgba(203, 213, 225, 0.4)';
+        ctx.lineWidth = 1.5;
+      } else if (isBronze) {
+        ctx.strokeStyle = 'rgba(180, 120, 60, 0.4)';
+        ctx.lineWidth = 1.5;
+      } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+      }
       ctx.stroke();
 
       // Role Pill Top
@@ -421,37 +448,81 @@ window.ChartHelper = class ChartHelper {
       ctx.textAlign = 'center';
       ctx.fillText(role.toUpperCase(), x + cardWidth / 2, startY + 23);
 
-      // Player Name
+      // Player Name — auto-shrink for long IGNs
+      const nameMaxW = cardWidth - 28;
+      let nameFontSize = 18;
+      ctx.font = `800 ${nameFontSize}px Inter, Arial, sans-serif`;
+      while (ctx.measureText(pObj.name).width > nameMaxW && nameFontSize > 11) {
+        nameFontSize -= 1;
+        ctx.font = `800 ${nameFontSize}px Inter, Arial, sans-serif`;
+      }
       ctx.fillStyle = '#ffffff';
-      ctx.font = '800 18px Inter, Arial, sans-serif';
-      ctx.fillText(pObj.name, x + cardWidth / 2, startY + 58);
+      ctx.textAlign = 'center';
+      ctx.fillText(pObj.name, x + cardWidth / 2, startY + 58, nameMaxW);
 
-      // Hero Used Name
+      // Hero Used Name — also constrained
       ctx.fillStyle = '#94a3b8';
       ctx.font = '600 13px Inter, Arial, sans-serif';
-      ctx.fillText(ps.heroUsed || 'Unknown', x + cardWidth / 2, startY + 80);
+      ctx.fillText(ps.heroUsed || 'Unknown', x + cardWidth / 2, startY + 80, nameMaxW);
 
-      // MVP / Medal Crown Banner
+      // Medal Banner — prominent visual pill for all medal types
+      const medalBannerY = startY + 96;
+      const medalBannerH = 28;
+      const medalPillX = x + 14;
+      const medalPillW = cardWidth - 28;
+
       if (isMvp) {
-        ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
+        // MVP — golden glow banner
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.22)';
         ctx.beginPath();
-        ctx.roundRect(x + 20, startY + 102, cardWidth - 40, 24, 6);
+        ctx.roundRect(medalPillX, medalBannerY, medalPillW, medalBannerH, 6);
         ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
         ctx.fillStyle = winGold;
         ctx.font = '800 12px Inter, Arial, sans-serif';
-        ctx.fillText('👑 MVP OF THE MATCH', x + cardWidth / 2, startY + 114);
-      } else if (ps.medal === 'gold') {
-        ctx.fillStyle = winGold;
-        ctx.font = '700 12px Inter, Arial, sans-serif';
-        ctx.fillText('🥇 GOLD MEDAL', x + cardWidth / 2, startY + 114);
-      } else if (ps.medal === 'silver') {
-        ctx.fillStyle = '#cbd5e1';
-        ctx.font = '700 12px Inter, Arial, sans-serif';
-        ctx.fillText('🥈 SILVER MEDAL', x + cardWidth / 2, startY + 114);
-      } else if (ps.medal === 'bronze') {
+        ctx.textAlign = 'center';
+        ctx.fillText('👑 MVP OF THE MATCH', x + cardWidth / 2, medalBannerY + medalBannerH / 2 + 1);
+      } else if (isGold) {
+        // Gold Medal — warm gold banner
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+        ctx.beginPath();
+        ctx.roundRect(medalPillX, medalBannerY, medalPillW, medalBannerH, 6);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 215, 0, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = '#ffd700';
+        ctx.font = '800 12px Inter, Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🥇 GOLD MEDAL', x + cardWidth / 2, medalBannerY + medalBannerH / 2 + 1);
+      } else if (isSilver) {
+        // Silver Medal — cool silver banner
+        ctx.fillStyle = 'rgba(203, 213, 225, 0.12)';
+        ctx.beginPath();
+        ctx.roundRect(medalPillX, medalBannerY, medalPillW, medalBannerH, 6);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(203, 213, 225, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '800 12px Inter, Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🥈 SILVER MEDAL', x + cardWidth / 2, medalBannerY + medalBannerH / 2 + 1);
+      } else if (isBronze) {
+        // Chocolate/Bronze — warm brown banner
+        ctx.fillStyle = 'rgba(180, 120, 60, 0.15)';
+        ctx.beginPath();
+        ctx.roundRect(medalPillX, medalBannerY, medalPillW, medalBannerH, 6);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(217, 119, 6, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
         ctx.fillStyle = '#d97706';
-        ctx.font = '700 12px Inter, Arial, sans-serif';
-        ctx.fillText('🍫 BRONZE', x + cardWidth / 2, startY + 114);
+        ctx.font = '800 12px Inter, Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🍫 CHOCOLATE MEDAL', x + cardWidth / 2, medalBannerY + medalBannerH / 2 + 1);
       }
 
       // K / D / A Main Box
@@ -479,7 +550,7 @@ window.ChartHelper = class ChartHelper {
       ctx.fillText('Match Score:', x + 20, scoreY);
       ctx.textAlign = 'right';
       ctx.font = '800 14px Inter, Arial, sans-serif';
-      ctx.fillStyle = isMvp ? winGold : '#00d4ff';
+      ctx.fillStyle = (isMvp || isGold) ? winGold : isSilver ? '#e2e8f0' : isBronze ? '#d97706' : '#00d4ff';
       ctx.fillText(Number(ps.inGameScore || 0).toFixed(1), x + cardWidth - 20, scoreY);
 
       // Hero Damage Dealt
