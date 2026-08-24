@@ -1926,7 +1926,7 @@ kbd {
 }
 
 /* ==========================================================================
-   MLBB Tier List & Meta Hub Styles
+   MLBB Tier List, Emblems & Items Hub Styles
    ========================================================================== */
 .tier-hero-card:hover {
   transform: translateY(-3px) scale(1.03);
@@ -1938,3 +1938,72 @@ kbd {
 .tier-table-row:hover {
   background: rgba(0, 212, 255, 0.05) !important;
 }
+
+.item-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.item-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--primary) !important;
+  box-shadow: 0 10px 25px rgba(0, 212, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.emblem-card {
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.emblem-card:hover, .emblem-card.active {
+  border-color: var(--secondary) !important;
+  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.15);
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.08) 0%, var(--bg-card-glass) 100%) !important;
+}
+
+.talent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.talent-badge.tier3 {
+  border-color: rgba(255, 215, 0, 0.4);
+  background: rgba(255, 215, 0, 0.1);
+  color: var(--secondary);
+}
+
+.live-pulse {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: live-pulse-anim 2s infinite;
+}
+
+@keyframes live-pulse-anim {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
