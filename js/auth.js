@@ -1,69 +1,61 @@
 window.AuthManager = class AuthManager {
   constructor(dataStore) {
     this.db = dataStore;
-    this.PIN_KEY = 'eclipse_admin_pin';
+    this.TOKEN_KEY = 'eclipse_admin_token';
     this.SESSION_KEY = 'eclipse_admin_session';
-    this.DEFAULT_PIN = 'XolvaQant';
-    
-    // Check if session is currently active
-    this.authenticated = sessionStorage.getItem(this.SESSION_KEY) === 'true';
   }
 
-  getStoredPin() {
-    const pin = localStorage.getItem(this.PIN_KEY);
-    // If no pin or if it was still the old '7777', upgrade to XolvaQant
-    if (!pin || pin === '7777') {
-      localStorage.setItem(this.PIN_KEY, this.DEFAULT_PIN);
-      return this.DEFAULT_PIN;
-    }
-    return pin;
+  getToken() {
+    return sessionStorage.getItem(this.TOKEN_KEY) || '';
   }
 
   isAdmin() {
-    return this.authenticated;
+    return !!this.getToken() && sessionStorage.getItem(this.SESSION_KEY) === 'true';
   }
 
-  login(enteredPin) {
-    const correctPin = this.getStoredPin();
-    if (enteredPin === correctPin) {
-      this.authenticated = true;
-      sessionStorage.setItem(this.SESSION_KEY, 'true');
-      this.updateUI();
-      if (window.showToast) window.showToast("Admin rejimi faollashdi! Barcha boshqaruv tugmalari ochildi.", "success");
-      return true;
-    } else {
-      if (window.showToast) window.showToast("Xato parol! Qaytadan urinib ko'ring.", "error");
+  async login(enteredPassword) {
+    if (!enteredPassword || !enteredPassword.trim()) {
+      if (window.showToast) window.showToast("Parolni kiriting!", "warning");
+      return false;
+    }
+
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: enteredPassword.trim() })
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.token) {
+        sessionStorage.setItem(this.TOKEN_KEY, data.token);
+        sessionStorage.setItem(this.SESSION_KEY, 'true');
+        this.updateUI();
+        if (window.showToast) window.showToast("👑 Admin rejimi faollashdi! Xavfsiz server sessiyasi ochildi.", "success");
+        return true;
+      } else {
+        if (window.showToast) window.showToast(data.error || "Noto'g'ri parol! Qaytadan urinib ko'ring.", "error");
+        return false;
+      }
+    } catch (err) {
+      console.error("Login request failed:", err);
+      if (window.showToast) window.showToast("Server bilan bog'lanishda xatolik yuz berdi.", "error");
       return false;
     }
   }
 
   logout() {
-    this.authenticated = false;
+    sessionStorage.removeItem(this.TOKEN_KEY);
     sessionStorage.removeItem(this.SESSION_KEY);
     this.updateUI();
     if (window.showToast) window.showToast("Kuzatuvchi rejimiga o'tildi (Faqat ko'rish).", "info");
     
-    // If currently on add-match page, navigate to dashboard
+    // If currently on admin-only page, navigate to dashboard
     const activeSection = document.querySelector('.page-section.active');
-    if (activeSection && activeSection.id === 'page-add-match') {
+    if (activeSection && (activeSection.id === 'page-add-match' || activeSection.id === 'page-settings')) {
       window.EclipseApp.navigate('dashboard');
     }
-  }
-
-  setNewPin(oldPin, newPin) {
-    const currentPin = this.getStoredPin();
-    if (oldPin !== currentPin) {
-      if (window.showToast) window.showToast("Eski parol noto'g'ri!", "error");
-      return false;
-    }
-    if (!newPin || newPin.length < 4) {
-      if (window.showToast) window.showToast("Yangi parol kamida 4 ta belgidan iborat bo'lishi kerak!", "warning");
-      return false;
-    }
-
-    localStorage.setItem(this.PIN_KEY, newPin);
-    if (window.showToast) window.showToast("Yangi parol muvaffaqiyatli saqlandi!", "success");
-    return true;
   }
 
   showLoginModal() {
@@ -74,7 +66,7 @@ window.AuthManager = class AuthManager {
     modalContent.innerHTML = `
       <div style="text-align:center; padding:1.5rem 1rem;">
         <div style="width:68px; height:68px; border-radius:50%; background:rgba(255,215,0,0.15); color:var(--secondary); display:flex; align-items:center; justify-content:center; margin:0 auto 1.25rem auto; font-size:2rem; border:2px solid rgba(255,215,0,0.4); box-shadow:0 0 25px rgba(255,215,0,0.25);">
-          <i class="fa-solid fa-lock"></i>
+          <i class="fa-solid fa-shield-halved"></i>
         </div>
         <h3 style="font-size:1.6rem; color:var(--text-primary); margin:0 0 0.5rem 0; font-weight:700;">Murabbiy / Admin Kirish</h3>
         <p style="color:var(--text-secondary); font-size:0.9rem; margin:0 0 1.5rem 0; max-width:340px; margin-left:auto; margin-right:auto; line-height:1.4;">
@@ -89,11 +81,12 @@ window.AuthManager = class AuthManager {
                 <i class="fa-regular fa-eye" id="toggle-pw-icon"></i>
               </button>
             </div>
+            <div id="login-error-msg" style="color:var(--danger); font-size:0.8rem; margin-top:0.5rem; display:none;"></div>
           </div>
 
           <div style="display:flex; justify-content:center; gap:0.75rem;">
             <button type="button" class="btn btn-secondary" id="cancel-pin-btn" style="min-width:110px;">Bekor qilish</button>
-            <button type="submit" class="btn btn-primary" style="min-width:120px;"><i class="fa-solid fa-key"></i> Kirish</button>
+            <button type="submit" class="btn btn-primary" id="submit-login-btn" style="min-width:120px;"><i class="fa-solid fa-key"></i> Kirish</button>
           </div>
         </form>
       </div>
@@ -129,11 +122,34 @@ window.AuthManager = class AuthManager {
       this.closeModal();
     });
 
-    document.getElementById('admin-pin-form')?.addEventListener('submit', (e) => {
+    document.getElementById('admin-pin-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const submitBtn = document.getElementById('submit-login-btn');
+      const errorMsg = document.getElementById('login-error-msg');
       const pin = document.getElementById('admin-pin-input').value.trim();
-      if (this.login(pin)) {
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Tekshirilmoqda...';
+      }
+      if (errorMsg) errorMsg.style.display = 'none';
+
+      const success = await this.login(pin);
+
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-key"></i> Kirish';
+      }
+
+      if (success) {
         this.closeModal();
+      } else if (errorMsg) {
+        errorMsg.textContent = "Xato parol! Qaytadan urinib ko'ring.";
+        errorMsg.style.display = 'block';
+        if (pwInput) {
+          pwInput.value = '';
+          pwInput.focus();
+        }
       }
     });
   }
@@ -161,7 +177,7 @@ window.AuthManager = class AuthManager {
             <span class="badge" style="background:linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%); color:#000; font-weight:800; font-size:0.75rem; padding:4px 10px; border-radius:6px; box-shadow:0 0 10px rgba(255,215,0,0.3);">
               <i class="fa-solid fa-crown"></i> ADMIN REJIMI
             </span>
-            <button id="authLogoutBtn" class="btn btn-sm btn-secondary" title="Kuzatuvchi rejimiga o'tish" style="border-color:rgba(239,68,68,0.4); color:var(--danger); padding:4px 10px;">
+            <button id="authLogoutBtn" class="btn btn-sm btn-secondary" title="Kuzatuvchi rejimiga o'tish" style="border-color:rgba(239,68,68,0.4); color:var(--danger); padding:4px 10px; cursor:pointer;">
               <i class="fa-solid fa-right-from-bracket"></i> Chiqish
             </button>
           </div>
@@ -186,8 +202,10 @@ window.AuthManager = class AuthManager {
     document.querySelectorAll('.admin-only').forEach(el => {
       if (isAdmin) {
         el.classList.remove('hidden');
+        el.style.display = '';
       } else {
         el.classList.add('hidden');
+        el.style.display = 'none';
       }
     });
 

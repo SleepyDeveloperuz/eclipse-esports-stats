@@ -87,9 +87,15 @@ window.CloudSync = class CloudSync {
       const isCustomFirebase = url.includes('firebaseio.com') || url.endsWith('.json');
       const method = isCustomFirebase ? 'PUT' : 'POST';
 
+      const token = window.EclipseApp && window.EclipseApp.authManager ? window.EclipseApp.authManager.getToken() : '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(url, {
         method: method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify(payload)
       });
 
@@ -97,6 +103,13 @@ window.CloudSync = class CloudSync {
         localStorage.setItem(this.LAST_SYNC_KEY, new Date().toISOString());
         if (window.showToast) window.showToast("Ma'lumotlar bulutga avtomatik saqlandi! ☁️", "success");
         return true;
+      } else if (res.status === 401) {
+        if (window.showToast) window.showToast("Sessiya eskirgan yoki ruxsat yo'q. Iltimos Admin sifatida kiring.", "warning");
+        if (window.EclipseApp && window.EclipseApp.authManager) {
+          window.EclipseApp.authManager.logout();
+          window.EclipseApp.authManager.showLoginModal();
+        }
+        return false;
       }
       return false;
     } catch (e) {
