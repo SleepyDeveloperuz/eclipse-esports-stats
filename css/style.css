@@ -1924,3 +1924,17 @@ kbd {
     justify-content: center;
   }
 }
+
+/* ==========================================================================
+   MLBB Tier List & Meta Hub Styles
+   ========================================================================== */
+.tier-hero-card:hover {
+  transform: translateY(-3px) scale(1.03);
+  border-color: var(--primary) !important;
+  background: rgba(0, 212, 255, 0.08) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.tier-table-row:hover {
+  background: rgba(0, 212, 255, 0.05) !important;
+}

@@ -31,7 +31,7 @@
                 <a href="#" class="nav-item" data-page="players"><i class="fa-solid fa-users"></i> Players <kbd>4</kbd></a>
                 <a href="#" class="nav-item" data-page="statistics"><i class="fa-solid fa-chart-column"></i> Statistics <kbd>5</kbd></a>
                 <a href="#" class="nav-item" data-page="records"><i class="fa-solid fa-trophy"></i> Records & MVP Awards <kbd>6</kbd></a>
-                <a href="#" class="nav-item" data-page="heroes"><i class="fa-solid fa-shield-halved"></i> Heroes <kbd>7</kbd></a>
+                <a href="#" class="nav-item" data-page="heroes"><i class="fa-solid fa-layer-group"></i> Meta & Tier List <kbd>7</kbd></a>
                 <a href="#" class="nav-item" data-page="training"><i class="fa-solid fa-graduation-cap"></i> Akademiya & Reja <kbd>8</kbd></a>
                 <a href="#" class="nav-item admin-only" data-page="settings"><i class="fa-solid fa-gear"></i> Settings <kbd>9</kbd></a>
             </nav>
@@ -219,12 +219,13 @@
                 <div id="maniacHallContainer"></div>
             </section>
 
-            <!-- HEROES -->
-            <section class="page-section" id="page-heroes" aria-label="Hero Database" hidden>
+            <!-- HEROES & META TIER LIST -->
+            <section class="page-section" id="page-heroes" aria-label="Meta & Tier List" hidden>
                 <div class="section-header">
-                    <h2>Hero Database</h2>
+                    <h2>MLBB Meta, Tier List & Qahramonlar Statistikasi</h2>
                 </div>
-                <div id="heroManageContainer"></div>
+                <div id="tierListHubContainer"></div>
+                <div id="heroManageContainer" style="margin-top:2rem;"></div>
             </section>
 
             <!-- TRAINING & ACADEMY -->
@@ -310,6 +311,7 @@
     </div>
 
     <script src="js/heroes.js"></script>
+    <script src="js/tierlist.js"></script>
     <script src="js/data.js"></script>
     <script src="js/stats.js"></script>
     <script src="js/charts.js"></script>

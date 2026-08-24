@@ -17,6 +17,7 @@ window.EclipseApp = {
     this.trainingManager = new window.TrainingManager(this.dataStore);
     this.authManager = new window.AuthManager(this.dataStore);
     this.cloudSync = new window.CloudSync(this.dataStore);
+    this.tierListManager = new window.TierListManager(this.heroDb);
 
     this.bindSidebarNav();
     this.bindMobileNav();
@@ -1387,63 +1388,36 @@ window.EclipseApp = {
   //  HEROES PAGE
   // =====================================================================
   renderHeroesPage() {
+    if (this.tierListManager) {
+      this.tierListManager.renderTierListHub('tierListHubContainer');
+    }
+
     const container = document.getElementById('heroManageContainer');
     if (!container) return;
 
-    const heroes = this.heroDb.getAll();
+    const isAdmin = this.authManager && this.authManager.isAdmin();
+    if (!isAdmin) {
+      container.innerHTML = '';
+      return;
+    }
+
     const roles = this.heroDb.getRoles();
 
     let html = `
-      <div class="card mb-4">
-        <h3 class="card-title mb-3"><i class="fa-solid fa-plus-circle"></i> Add New Hero to Database</h3>
+      <div class="card mb-4" style="border:1px solid rgba(255,215,0,0.3); background:rgba(0,0,0,0.25);">
+        <h3 class="card-title mb-2" style="color:var(--secondary); font-size:1.1rem;"><i class="fa-solid fa-crown"></i> Admin: Yangi Qahramon Qo'shish</h3>
+        <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:1rem;">Yangi patchda chiqqan qahramonlarni bazaga kiritish.</p>
         <div style="display:flex; gap:1rem; flex-wrap:wrap;">
-          <input type="text" id="newHeroName" class="form-input" placeholder="Hero Name (e.g. Sora)" style="flex:1; min-width:200px;" />
+          <input type="text" id="newHeroName" class="form-input" placeholder="Qahramon nomi (masalan Sora)" style="flex:1; min-width:200px;" />
           <select id="newHeroRole" class="form-select" style="flex:1; min-width:150px;">
             ${roles.map(r => `<option value="${r}">${r}</option>`).join('')}
           </select>
-          <button class="btn btn-primary" id="addHeroBtn"><i class="fa-solid fa-plus"></i> Add Hero</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:1rem;">
-          <h3 class="card-title" style="margin:0;"><i class="fa-solid fa-shield-halved"></i> All Heroes (${heroes.length})</h3>
-          <div class="search-input" style="max-width:300px; width:100%;">
-            <input type="text" id="heroSearchInput" class="form-input" placeholder="Search hero..." />
-          </div>
-        </div>
-        <div id="heroGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem;">
-    `;
-
-    heroes.forEach(h => {
-      html += `
-        <div class="hero-card" data-name="${h.name.toLowerCase()}" style="padding:0.75rem; background:rgba(255,255,255,0.02); border:1px solid var(--border-light); border-radius:8px; text-align:center; position:relative;">
-          <div style="font-weight:bold; color:var(--text-primary); margin-bottom:0.25rem;">${h.name}</div>
-          <span class="badge" style="background:rgba(0,212,255,0.1); color:var(--primary); font-size:0.75rem;">${h.role}</span>
-          <button class="delete-hero-btn" data-hero="${h.name}" title="Delete hero" style="position:absolute; top:4px; right:4px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.75rem; padding:2px 4px; border-radius:4px; opacity:0.6; transition:all 0.2s ease;">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-      `;
-    });
-
-    html += `
+          <button class="btn btn-primary" id="addHeroBtn"><i class="fa-solid fa-plus"></i> Bazaga Qo'shish</button>
         </div>
       </div>
     `;
 
     container.innerHTML = html;
-
-    container.querySelectorAll('.delete-hero-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const heroName = e.currentTarget.dataset.hero;
-        if (confirm(`Remove hero '${heroName}' from database?`)) {
-          this.heroDb.removeHero(heroName);
-          window.showToast(`Hero '${heroName}' removed`, 'warning');
-          this.renderHeroesPage();
-        }
-      });
-    });
 
     document.getElementById('addHeroBtn')?.addEventListener('click', () => {
       const name = document.getElementById('newHeroName').value.trim();
@@ -1453,14 +1427,6 @@ window.EclipseApp = {
         window.showToast(`Hero '${name}' added to database!`, 'success');
         this.renderHeroesPage();
       }
-    });
-
-    document.getElementById('heroSearchInput')?.addEventListener('input', (e) => {
-      const q = e.target.value.toLowerCase().trim();
-      document.querySelectorAll('#heroGrid .hero-card').forEach(card => {
-        const hName = card.getAttribute('data-name');
-        card.style.display = hName.includes(q) ? 'block' : 'none';
-      });
     });
   }
 };
