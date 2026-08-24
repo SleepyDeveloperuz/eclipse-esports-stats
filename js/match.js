@@ -661,9 +661,11 @@ window.MatchManager = class MatchManager {
                          ps.medal === 'silver' ? '<span class="medal medal-silver">🥈</span>' :
                          ps.medal === 'bronze' ? '<span class="medal medal-choco">🍫</span>' : '-';
 
+      const isHeavenlyyy = pName.toLowerCase().includes('heavenlyyy');
+
       playerRows += `
         <tr>
-          <td><strong>${pName}</strong></td>
+          <td><strong>${pName}${isHeavenlyyy ? ' <i class="fa-solid fa-crown" style="color:var(--secondary); font-size:0.75rem;" title="IGL & Captain"></i>' : ''}</strong></td>
           <td><span class="badge" style="background:rgba(255,255,255,0.05); border:1px solid ${roleColor}; color:${roleColor}; font-size:0.7rem;">${role}</span></td>
           <td><span class="badge" style="background:rgba(255,255,255,0.05);">${ps.heroUsed}</span></td>
           <td><strong>${ps.kills}/${ps.deaths}/${ps.assists}</strong></td>

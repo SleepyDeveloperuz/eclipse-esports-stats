@@ -68,14 +68,32 @@ window.PlayerManager = class PlayerManager {
         `;
       }
 
+      const isHeavenlyyy = p.name.toLowerCase().includes('heavenlyyy');
+      const titleBadge = isHeavenlyyy ? `
+        <span class="badge" style="background:linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); color:#000; font-weight:800; font-size:0.68rem; padding:3px 8px; border-radius:4px; box-shadow:0 0 10px rgba(255,215,0,0.35); letter-spacing:0.04em;">
+          <i class="fa-solid fa-crown"></i> IGL & CAPTAIN &bull; CREATOR
+        </span>
+      ` : '';
+
+      const cardStyle = isHeavenlyyy 
+        ? `flex-direction:column; align-items:stretch; position:relative; overflow:hidden; border: 1px solid rgba(255,215,0,0.45); background: linear-gradient(135deg, rgba(255,215,0,0.03) 0%, var(--bg-card-glass) 100%); box-shadow: 0 0 20px rgba(255,215,0,0.08);`
+        : `flex-direction:column; align-items:stretch; position:relative; overflow:hidden;`;
+
       html += `
-        <div class="player-card" data-id="${p.id}" style="flex-direction:column; align-items:stretch; position:relative; overflow:hidden;">
+        <div class="player-card" data-id="${p.id}" style="${cardStyle}">
           <div style="display:flex; align-items:center; gap:1rem;">
-            <div class="player-avatar">${initials}</div>
+            <div class="player-avatar" style="${isHeavenlyyy ? 'border-color:var(--secondary); color:var(--secondary); box-shadow:0 0 12px rgba(255,215,0,0.3);' : ''}">${initials}</div>
             <div class="player-info">
-              <div class="player-name">${p.name}</div>
+              <div style="display:flex; align-items:center; flex-wrap:wrap; gap:0.4rem;">
+                <div class="player-name">${p.name}</div>
+                ${titleBadge}
+              </div>
               <div class="player-role" style="display:flex; align-items:center; gap:0.4rem;">
-                Best Lane: <span class="badge" style="background:rgba(255,255,255,0.05); border:1px solid ${bestRoleColor}; color:${bestRoleColor}; font-size:0.75rem;"><i class="fa-solid ${bestRoleIcon}"></i> ${roleBreakdown.bestRole}</span>
+                ${isHeavenlyyy ? `
+                  Role: <span class="badge" style="background:rgba(255,215,0,0.15); border:1px solid #ffd700; color:#ffd700; font-size:0.75rem; font-weight:700;"><i class="fa-solid fa-chess-king"></i> Roamer / IGL & Captain</span>
+                ` : `
+                  Best Lane: <span class="badge" style="background:rgba(255,255,255,0.05); border:1px solid ${bestRoleColor}; color:${bestRoleColor}; font-size:0.75rem;"><i class="fa-solid ${bestRoleIcon}"></i> ${roleBreakdown.bestRole}</span>
+                `}
               </div>
             </div>
           </div>
@@ -257,11 +275,17 @@ window.PlayerManager = class PlayerManager {
           </div>
           <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
             <select id="compare-p1-select" class="form-select" style="min-width:160px; border-color:var(--primary); font-weight:700; color:var(--primary);">
-              ${players.map(p => `<option value="${p.id}" ${p.id === this.selectedP1 ? 'selected' : ''}>🔵 ${p.name}</option>`).join('')}
+              ${players.map(p => {
+                const label = p.name.toLowerCase().includes('heavenlyyy') ? `👑 ${p.name} (IGL & Captain)` : `🔵 ${p.name}`;
+                return `<option value="${p.id}" ${p.id === this.selectedP1 ? 'selected' : ''}>${label}</option>`;
+              }).join('')}
             </select>
             <div class="vs-badge">VS</div>
             <select id="compare-p2-select" class="form-select" style="min-width:160px; border-color:#a855f7; font-weight:700; color:#a855f7;">
-              ${players.map(p => `<option value="${p.id}" ${p.id === this.selectedP2 ? 'selected' : ''}>🟣 ${p.name}</option>`).join('')}
+              ${players.map(p => {
+                const label = p.name.toLowerCase().includes('heavenlyyy') ? `👑 ${p.name} (IGL & Captain)` : `🟣 ${p.name}`;
+                return `<option value="${p.id}" ${p.id === this.selectedP2 ? 'selected' : ''}>${label}</option>`;
+              }).join('')}
             </select>
           </div>
         </div>
@@ -578,19 +602,29 @@ window.PlayerManager = class PlayerManager {
       `;
     });
 
+    const isHeavenlyyy = player.name.toLowerCase().includes('heavenlyyy');
+    const titleBadge = isHeavenlyyy ? `
+      <span class="badge" style="background:linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); color:#000; font-weight:800; font-size:0.75rem; padding:4px 10px; border-radius:6px; box-shadow:0 0 12px rgba(255,215,0,0.4); margin-left:0.5rem; letter-spacing:0.04em;">
+        <i class="fa-solid fa-crown"></i> IGL & CAPTAIN &bull; CREATOR
+      </span>
+    ` : '';
+
     container.innerHTML = `
       <div style="margin-bottom: 1.5rem; display:flex; align-items:center; justify-content:space-between;">
         <button class="btn btn-secondary back-to-players"><i class="fa-solid fa-arrow-left"></i> Back to Roster</button>
       </div>
 
-      <div class="card mb-4" style="background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, var(--bg-card-glass) 100%); border: 1px solid var(--primary);">
+      <div class="card mb-4" style="background: linear-gradient(135deg, ${isHeavenlyyy ? 'rgba(255,215,0,0.08)' : 'rgba(0,212,255,0.05)'} 0%, var(--bg-card-glass) 100%); border: 1px solid ${isHeavenlyyy ? 'rgba(255,215,0,0.5)' : 'var(--primary)'};">
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1.5rem;">
           <div style="display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap;">
-            <div class="player-avatar" style="width:80px; height:80px; font-size:2rem; border-color:var(--primary); color:var(--primary);">${player.name.substring(0, 2).toUpperCase()}</div>
+            <div class="player-avatar" style="width:80px; height:80px; font-size:2rem; border-color:${isHeavenlyyy ? 'var(--secondary)' : 'var(--primary)'}; color:${isHeavenlyyy ? 'var(--secondary)' : 'var(--primary)'}; box-shadow:0 0 20px ${isHeavenlyyy ? 'rgba(255,215,0,0.3)' : 'rgba(0,212,255,0.2)'};">${player.name.substring(0, 2).toUpperCase()}</div>
             <div>
-              <h2 style="font-size:2rem; color:var(--text-primary); margin:0;">${player.name}</h2>
+              <div style="display:flex; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                <h2 style="font-size:2rem; color:var(--text-primary); margin:0;">${player.name}</h2>
+                ${titleBadge}
+              </div>
               <p style="color:var(--text-secondary); margin:0.25rem 0 0 0;">
-                Hero Pool: <strong>${heroAnalytics.uniqueHeroesCount} Heroes Played</strong> | Matches: <strong>${stats.matchesPlayed}</strong> (${stats.winRate}% WR)
+                ${isHeavenlyyy ? `<strong style="color:var(--secondary);"><i class="fa-solid fa-chess-king"></i> In-Game Leader, Team Captain & Stats Creator</strong> &middot; ` : ''}Hero Pool: <strong>${heroAnalytics.uniqueHeroesCount} Heroes Played</strong> | Matches: <strong>${stats.matchesPlayed}</strong> (${stats.winRate}% WR)
               </p>
             </div>
           </div>
