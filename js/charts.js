@@ -1,11 +1,11 @@
 window.ChartHelper = class ChartHelper {
   static PLAYER_COLORS = [
-    '#00d4ff', // cyan (primary)
-    '#ffd700', // gold (secondary)
-    '#10b981', // green (success)
-    '#ef4444', // red (danger)
-    '#a855f7', // purple
-    '#f97316', // orange
+    '#00f0ff', // neon cyan (primary)
+    '#fbbf24', // cyber gold (secondary)
+    '#10b981', // emerald green (success)
+    '#f43f5e', // rose red (danger)
+    '#a855f7', // electric purple
+    '#f97316', // bright orange
   ];
 
   static setupCanvas(canvasId) {
@@ -43,12 +43,21 @@ window.ChartHelper = class ChartHelper {
       ctx.arc(cx, cy, radius, startAngle, startAngle + sliceAngle);
       ctx.fillStyle = slice.color;
       ctx.fill();
+      ctx.strokeStyle = '#0c101c';
+      ctx.lineWidth = 2;
+      ctx.stroke();
       startAngle += sliceAngle;
     });
 
+    // Draw inner hole for clean donut look
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius * 0.55, 0, Math.PI * 2);
+    ctx.fillStyle = '#0c101c';
+    ctx.fill();
+
     if (title) {
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '14px Arial';
+      ctx.font = '600 13px Plus Jakarta Sans, Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(title, cx, 20);
     }
@@ -61,30 +70,36 @@ window.ChartHelper = class ChartHelper {
     ctx.clearRect(0, 0, width, height);
 
     const padding = 40;
-    const barWidth = (width - padding * 2) / data.length - 10;
+    const barWidth = (width - padding * 2) / data.length - 12;
     const maxVal = Math.max(...data.map(d => d.value), 1);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
     ctx.fillRect(padding, height - padding, width - padding * 2, 1); // X axis
 
     data.forEach((item, i) => {
-      const barHeight = (item.value / maxVal) * (height - padding * 2 - 20);
-      const x = padding + i * (barWidth + 10) + 5;
+      const barHeight = (item.value / maxVal) * (height - padding * 2 - 24);
+      const x = padding + i * (barWidth + 12) + 6;
       const y = height - padding - barHeight;
 
+      // Rounded top bar
       ctx.fillStyle = item.color;
-      ctx.fillRect(x, y, barWidth, barHeight);
+      ctx.beginPath();
+      ctx.roundRect(x, y, barWidth, barHeight, [4, 4, 0, 0]);
+      ctx.fill();
 
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '12px Arial';
+      ctx.font = '600 11px Plus Jakarta Sans, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(item.label, x + barWidth / 2, height - padding + 15);
-      ctx.fillText(item.value.toString(), x + barWidth / 2, y - 5);
+      ctx.fillText(item.label, x + barWidth / 2, height - padding + 16);
+
+      ctx.font = '700 11px JetBrains Mono, monospace';
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText(item.value.toString(), x + barWidth / 2, y - 6);
     });
 
     if (title) {
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '14px Arial';
+      ctx.font = '600 13px Plus Jakarta Sans, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(title, width / 2, 20);
     }
@@ -100,7 +115,7 @@ window.ChartHelper = class ChartHelper {
     const padding = 30;
     const maxVal = Math.max(...data.map(d => d.value), 1);
     
-    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
     ctx.beginPath();
     ctx.moveTo(padding, height - padding);
     ctx.lineTo(width - padding, height - padding);
@@ -119,19 +134,21 @@ window.ChartHelper = class ChartHelper {
     ctx.stroke();
 
     // Draw points
-    ctx.fillStyle = '#1e293b'; // Assuming dark theme bg
     data.forEach((item, i) => {
       const x = padding + (i / (data.length - 1)) * (width - padding * 2);
       const y = height - padding - (item.value / maxVal) * (height - padding * 2 - 20);
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = color;
       ctx.fill();
+      ctx.strokeStyle = '#0c101c';
+      ctx.lineWidth = 2;
       ctx.stroke();
     });
 
     if (title) {
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '14px Arial';
+      ctx.font = '600 13px Plus Jakarta Sans, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(title, width / 2, 20);
     }
@@ -171,8 +188,8 @@ window.ChartHelper = class ChartHelper {
     
     // Draw horizontal grid lines and Y-axis labels
     const gridLinesCount = 5;
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '12px Arial';
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 11px JetBrains Mono, monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     ctx.strokeStyle = 'rgba(255,255,255,0.06)';
@@ -193,6 +210,8 @@ window.ChartHelper = class ChartHelper {
     }
 
     // Draw X-axis labels
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '600 11px Plus Jakarta Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     const numPoints = Math.max(longestLabels.length, 2);
@@ -203,21 +222,21 @@ window.ChartHelper = class ChartHelper {
 
     // Draw Title
     if (title) {
-      ctx.fillStyle = '#e2e8f0';
-      ctx.font = 'bold 14px Arial';
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = '700 14px Plus Jakarta Sans, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText(title, width / 2, 10);
     }
 
-    // Draw Lines
+    // Draw Lines with smooth styling
     datasets.forEach(ds => {
       if (!ds.data || ds.data.length < 2) return;
       
       ctx.beginPath();
       ctx.strokeStyle = ds.color || '#ffffff';
       ctx.lineWidth = 3;
-      ctx.globalAlpha = 0.9; // Allow overlap visibility
+      ctx.globalAlpha = 0.95;
       
       ds.data.forEach((item, i) => {
         const xPos = padding.left + (i / (numPoints - 1)) * chartWidth;
@@ -230,7 +249,7 @@ window.ChartHelper = class ChartHelper {
       ctx.globalAlpha = 1.0;
     });
 
-    // Draw Points
+    // Draw Points with outer ring
     datasets.forEach(ds => {
       if (!ds.data) return;
       ctx.fillStyle = ds.color || '#ffffff';
@@ -240,11 +259,10 @@ window.ChartHelper = class ChartHelper {
         const yPos = padding.top + chartHeight - (item.value / maxVal) * chartHeight;
         
         ctx.beginPath();
-        ctx.arc(xPos, yPos, 6, 0, Math.PI * 2);
+        ctx.arc(xPos, yPos, 5, 0, Math.PI * 2);
         ctx.fill();
         
-        // Use player color fill and background stroke
-        ctx.strokeStyle = '#1e293b'; 
+        ctx.strokeStyle = '#06080d'; 
         ctx.lineWidth = 2;
         ctx.stroke();
       });
@@ -318,22 +336,22 @@ window.ChartHelper = class ChartHelper {
     // Team Logo Text
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.font = '900 28px Inter, Arial, sans-serif';
+    ctx.font = '900 28px Plus Jakarta Sans, Inter, Arial, sans-serif';
     ctx.fillStyle = '#ffffff';
     ctx.fillText('🌑 ECLIPSE ESPORTS', 40, 40);
 
-    ctx.font = '600 13px Inter, Arial, sans-serif';
+    ctx.font = '700 13px Plus Jakarta Sans, Inter, Arial, sans-serif';
     ctx.fillStyle = mainAccent;
     ctx.fillText('MOBILE LEGENDS: BANG BANG • MATCH REPORT', 40, 75);
 
     // Match Result Badge
     ctx.textAlign = 'right';
-    ctx.font = '900 36px Inter, Arial, sans-serif';
+    ctx.font = '900 36px Plus Jakarta Sans, Inter, Arial, sans-serif';
     ctx.fillStyle = isWin ? '#10b981' : '#ef4444';
     ctx.fillText(isWin ? 'VICTORY' : 'DEFEAT', W - 40, 35);
 
     // Date & Duration Subtitle
-    ctx.font = '500 14px Inter, Arial, sans-serif';
+    ctx.font = '600 13px Plus Jakarta Sans, Inter, Arial, sans-serif';
     ctx.fillStyle = '#94a3b8';
     const durStr = match.durationFormatted || (match.durationSeconds ? window.StatsEngine.formatDuration(match.durationSeconds) : '');
     const dateStr = window.StatsEngine.formatDateFormatted(match.date);
@@ -349,7 +367,7 @@ window.ChartHelper = class ChartHelper {
     ctx.stroke();
 
     ctx.textBaseline = 'middle';
-    ctx.font = '600 14px Inter, Arial, sans-serif';
+    ctx.font = '700 13px Plus Jakarta Sans, Inter, Arial, sans-serif';
     ctx.fillStyle = '#e2e8f0';
     ctx.textAlign = 'left';
 
@@ -444,17 +462,17 @@ window.ChartHelper = class ChartHelper {
       ctx.fill();
 
       ctx.fillStyle = '#000000';
-      ctx.font = '800 11px Inter, Arial, sans-serif';
+      ctx.font = '800 11px Plus Jakarta Sans, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(role.toUpperCase(), x + cardWidth / 2, startY + 23);
 
       // Player Name — auto-shrink for long IGNs
       const nameMaxW = cardWidth - 28;
       let nameFontSize = 18;
-      ctx.font = `800 ${nameFontSize}px Inter, Arial, sans-serif`;
+      ctx.font = `800 ${nameFontSize}px Plus Jakarta Sans, sans-serif`;
       while (ctx.measureText(pObj.name).width > nameMaxW && nameFontSize > 11) {
         nameFontSize -= 1;
-        ctx.font = `800 ${nameFontSize}px Inter, Arial, sans-serif`;
+        ctx.font = `800 ${nameFontSize}px Plus Jakarta Sans, sans-serif`;
       }
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
@@ -462,7 +480,7 @@ window.ChartHelper = class ChartHelper {
 
       // Hero Used Name — also constrained
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '600 13px Inter, Arial, sans-serif';
+      ctx.font = '600 13px Plus Jakarta Sans, sans-serif';
       ctx.fillText(ps.heroUsed || 'Unknown', x + cardWidth / 2, startY + 80, nameMaxW);
 
       // Medal Banner — prominent visual pill for all medal types
@@ -481,7 +499,7 @@ window.ChartHelper = class ChartHelper {
         ctx.lineWidth = 1;
         ctx.stroke();
         ctx.fillStyle = winGold;
-        ctx.font = '800 12px Inter, Arial, sans-serif';
+        ctx.font = '800 12px Plus Jakarta Sans, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('👑 MVP OF THE MATCH', x + cardWidth / 2, medalBannerY + medalBannerH / 2 + 1);
       } else if (isGold) {
@@ -494,7 +512,7 @@ window.ChartHelper = class ChartHelper {
         ctx.lineWidth = 1;
         ctx.stroke();
         ctx.fillStyle = '#ffd700';
-        ctx.font = '800 12px Inter, Arial, sans-serif';
+        ctx.font = '800 12px Plus Jakarta Sans, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('🥇 GOLD MEDAL', x + cardWidth / 2, medalBannerY + medalBannerH / 2 + 1);
       } else if (isSilver) {
@@ -507,7 +525,7 @@ window.ChartHelper = class ChartHelper {
         ctx.lineWidth = 1;
         ctx.stroke();
         ctx.fillStyle = '#e2e8f0';
-        ctx.font = '800 12px Inter, Arial, sans-serif';
+        ctx.font = '800 12px Plus Jakarta Sans, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('🥈 SILVER MEDAL', x + cardWidth / 2, medalBannerY + medalBannerH / 2 + 1);
       } else if (isBronze) {
@@ -520,7 +538,7 @@ window.ChartHelper = class ChartHelper {
         ctx.lineWidth = 1;
         ctx.stroke();
         ctx.fillStyle = '#d97706';
-        ctx.font = '800 12px Inter, Arial, sans-serif';
+        ctx.font = '800 12px Plus Jakarta Sans, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('🍫 CHOCOLATE MEDAL', x + cardWidth / 2, medalBannerY + medalBannerH / 2 + 1);
       }
@@ -535,65 +553,65 @@ window.ChartHelper = class ChartHelper {
       ctx.stroke();
 
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '500 10px Inter, Arial, sans-serif';
+      ctx.font = '600 10px Plus Jakarta Sans, sans-serif';
       ctx.fillText('KILLS / DEATHS / ASSISTS', x + cardWidth / 2, kdaY + 16);
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = '900 20px Inter, Arial, sans-serif';
+      ctx.font = '800 20px JetBrains Mono, monospace';
       ctx.fillText(`${ps.kills || 0} / ${ps.deaths || 0} / ${ps.assists || 0}`, x + cardWidth / 2, kdaY + 42);
 
       // In-Game Rating Score
       const scoreY = kdaY + 75;
       ctx.textAlign = 'left';
-      ctx.font = '500 12px Inter, Arial, sans-serif';
+      ctx.font = '600 12px Plus Jakarta Sans, sans-serif';
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('Match Score:', x + 20, scoreY);
       ctx.textAlign = 'right';
-      ctx.font = '800 14px Inter, Arial, sans-serif';
+      ctx.font = '800 14px JetBrains Mono, monospace';
       ctx.fillStyle = (isMvp || isGold) ? winGold : isSilver ? '#e2e8f0' : isBronze ? '#d97706' : '#00d4ff';
       ctx.fillText(Number(ps.inGameScore || 0).toFixed(1), x + cardWidth - 20, scoreY);
 
       // Hero Damage Dealt
       const dmgY = scoreY + 26;
       ctx.textAlign = 'left';
-      ctx.font = '500 12px Inter, Arial, sans-serif';
+      ctx.font = '600 12px Plus Jakarta Sans, sans-serif';
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('Hero Damage:', x + 20, dmgY);
       ctx.textAlign = 'right';
-      ctx.font = '700 13px Inter, Arial, sans-serif';
+      ctx.font = '700 13px JetBrains Mono, monospace';
       ctx.fillStyle = '#f59e0b';
       ctx.fillText(window.StatsEngine.formatLargeNumber(ps.damageDealt), x + cardWidth - 20, dmgY);
 
       // Turret Damage
       const turrY = dmgY + 26;
       ctx.textAlign = 'left';
-      ctx.font = '500 12px Inter, Arial, sans-serif';
+      ctx.font = '600 12px Plus Jakarta Sans, sans-serif';
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('Turret Dmg:', x + 20, turrY);
       ctx.textAlign = 'right';
-      ctx.font = '700 13px Inter, Arial, sans-serif';
+      ctx.font = '700 13px JetBrains Mono, monospace';
       ctx.fillStyle = '#10b981';
       ctx.fillText(window.StatsEngine.formatLargeNumber(ps.turretDamage), x + cardWidth - 20, turrY);
 
       // Teamfight Part.
       const tfY = turrY + 26;
       ctx.textAlign = 'left';
-      ctx.font = '500 12px Inter, Arial, sans-serif';
+      ctx.font = '600 12px Plus Jakarta Sans, sans-serif';
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('TF Part.:', x + 20, tfY);
       ctx.textAlign = 'right';
-      ctx.font = '700 13px Inter, Arial, sans-serif';
+      ctx.font = '700 13px JetBrains Mono, monospace';
       ctx.fillStyle = '#00d4ff';
       ctx.fillText(`${ps.teamfightParticipation || 0}%`, x + cardWidth - 20, tfY);
 
       // Gold Earned
       const goldY = tfY + 26;
       ctx.textAlign = 'left';
-      ctx.font = '500 12px Inter, Arial, sans-serif';
+      ctx.font = '600 12px Plus Jakarta Sans, sans-serif';
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('Gold Earned:', x + 20, goldY);
       ctx.textAlign = 'right';
-      ctx.font = '700 13px Inter, Arial, sans-serif';
+      ctx.font = '700 13px JetBrains Mono, monospace';
       ctx.fillStyle = winGold;
       ctx.fillText(window.StatsEngine.formatLargeNumber(ps.goldEarned), x + cardWidth - 20, goldY);
 
@@ -601,7 +619,7 @@ window.ChartHelper = class ChartHelper {
       if (ps.savage || ps.maniac) {
         const achY = goldY + 28;
         ctx.textAlign = 'center';
-        ctx.font = '800 11px Inter, Arial, sans-serif';
+        ctx.font = '800 11px Plus Jakarta Sans, sans-serif';
         if (ps.savage) {
           ctx.fillStyle = '#ef4444';
           ctx.fillText('🔥 SAVAGE ACHIEVED', x + cardWidth / 2, achY);
@@ -615,7 +633,7 @@ window.ChartHelper = class ChartHelper {
     // 6. Watermark Footer
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.font = '600 11px Inter, Arial, sans-serif';
+    ctx.font = '600 11px Plus Jakarta Sans, sans-serif';
     ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
     ctx.fillText('ECLIPSE ESPORTS STATS TRACKER • OFFICIAL PRO REPORT', W / 2, H - 22);
   }

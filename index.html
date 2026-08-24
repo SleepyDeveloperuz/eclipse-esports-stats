@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uz">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Eclipse Esports - MLBB Statistics Tracker. Track player stats, match history, and records.">
-    <title>Eclipse Esports — MLBB Stats Tracker</title>
+    <meta name="description" content="Eclipse Esports - MLBB Professional Statistics & Analytics Platform">
+    <title>Eclipse Esports — Pro MLBB Stats Tracker</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     
     <link rel="stylesheet" href="css/style.css">
     
@@ -20,24 +20,32 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar" aria-label="Main Navigation">
             <div class="sidebar-logo">
-                <span class="logo-icon" aria-hidden="true" style="color:var(--primary);"><i class="fa-solid fa-moon"></i></span>
-                <h1>Eclipse Esports</h1>
-                <span class="logo-subtitle">MLBB Stats Tracker</span>
+                <div class="logo-emblem-wrap">
+                    <span class="logo-icon" aria-hidden="true"><i class="fa-solid fa-moon"></i></span>
+                    <span class="logo-pulse"></span>
+                </div>
+                <div class="logo-text-wrap">
+                    <h1>Eclipse Esports</h1>
+                    <span class="logo-subtitle"><i class="fa-solid fa-bolt-lightning" style="font-size:0.6rem; color:var(--primary); margin-right:3px;"></i> Pro MLBB Analytics</span>
+                </div>
             </div>
             <nav class="sidebar-nav" aria-label="Sidebar Menu">
-                <a href="#" class="nav-item active" data-page="dashboard" aria-current="page"><i class="fa-solid fa-chart-pie"></i> Dashboard <kbd>1</kbd></a>
-                <a href="#" class="nav-item admin-only" data-page="add-match"><i class="fa-solid fa-circle-plus"></i> Add Match <kbd>2</kbd></a>
-                <a href="#" class="nav-item" data-page="match-history"><i class="fa-solid fa-list-check"></i> Match History <kbd>3</kbd></a>
-                <a href="#" class="nav-item" data-page="players"><i class="fa-solid fa-users"></i> Players <kbd>4</kbd></a>
-                <a href="#" class="nav-item" data-page="statistics"><i class="fa-solid fa-chart-column"></i> Statistics <kbd>5</kbd></a>
-                <a href="#" class="nav-item" data-page="records"><i class="fa-solid fa-trophy"></i> Records & MVP Awards <kbd>6</kbd></a>
+                <a href="#" class="nav-item active" data-page="dashboard" aria-current="page"><i class="fa-solid fa-gauge-high"></i> Dashboard <kbd>1</kbd></a>
+                <a href="#" class="nav-item admin-only" data-page="add-match"><i class="fa-solid fa-square-plus"></i> Add Match <kbd>2</kbd></a>
+                <a href="#" class="nav-item" data-page="match-history"><i class="fa-solid fa-clock-rotate-left"></i> Match History <kbd>3</kbd></a>
+                <a href="#" class="nav-item" data-page="players"><i class="fa-solid fa-users-viewfinder"></i> Players <kbd>4</kbd></a>
+                <a href="#" class="nav-item" data-page="statistics"><i class="fa-solid fa-chart-simple"></i> Statistics <kbd>5</kbd></a>
+                <a href="#" class="nav-item" data-page="records"><i class="fa-solid fa-trophy"></i> Records & Awards <kbd>6</kbd></a>
                 <a href="#" class="nav-item" data-page="heroes"><i class="fa-solid fa-shield-halved"></i> Heroes <kbd>7</kbd></a>
-                <a href="#" class="nav-item" data-page="training"><i class="fa-solid fa-graduation-cap"></i> Akademiya & Reja <kbd>8</kbd></a>
-                <a href="#" class="nav-item admin-only" data-page="settings"><i class="fa-solid fa-gear"></i> Settings <kbd>9</kbd></a>
+                <a href="#" class="nav-item" data-page="training"><i class="fa-solid fa-compass-drafting"></i> Akademiya & Reja <kbd>8</kbd></a>
+                <a href="#" class="nav-item admin-only" data-page="settings"><i class="fa-solid fa-sliders"></i> Settings <kbd>9</kbd></a>
             </nav>
             <div class="sidebar-footer">
-                <p>Eclipse Esports © 2026</p>
-                <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;"><kbd>Esc</kbd> Close modals &middot; <kbd>N</kbd> New match</p>
+                <div class="sidebar-status-pill">
+                    <span class="status-dot"></span>
+                    <span>Eclipse Live System v2.5</span>
+                </div>
+                <p class="sidebar-shortcuts-hint"><kbd>Esc</kbd> Yopish &middot; <kbd>N</kbd> Yangi Match</p>
             </div>
         </aside>
 
