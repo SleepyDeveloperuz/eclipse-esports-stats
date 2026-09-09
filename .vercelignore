@@ -1,0 +1,11 @@
+.git
+.agents
+archive
+.DS_Store
+.env*
+DEPLOYMENT.md
+initial_seed.json
+*.log
+tests
+scripts
+*.md

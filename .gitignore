@@ -1,6 +1,22 @@
 .DS_Store
+.env*
+!.env.example
 *.pyc
 __pycache__/
 *.log
 firebase-debug.log
 initial_seed.json
+
+# Local tooling, generated dependencies and deployment links
+node_modules/
+/.agents/
+/.codex/
+/.vercel/
+/skills-lock.json
+
+# Private team exports, recovery copies and machine-specific handoff notes
+/archive/
+/IMPLEMENTATION-*.md
+/eclipse_esports_stats_*.json
+*.pem
+*.key

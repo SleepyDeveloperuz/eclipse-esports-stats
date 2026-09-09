@@ -1,0 +1,10 @@
+.sync-conflict-dialog { color: var(--text-primary); background: var(--bg-card, #12120d); border: 1px solid var(--primary); border-radius: 20px; width: min(880px, 94vw); max-height: 85dvh; padding: 24px; }
+.sync-conflict-dialog::backdrop { background: rgb(0 0 0 / .75); }
+.sync-conflict-dialog fieldset { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin-block: 20px; border: 1px solid var(--border-color, #353329); }
+.sync-conflict-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; font-size: .8rem; }
+.sync-conflict-dialog input[type=radio] { width: auto; }
+.sync-conflict-dialog button { margin: 8px; }
+.match-review-quality { padding: 14px; margin-block: 12px; border-left: 2px solid var(--primary); background: rgb(231 195 107 / .045); }
+.match-review-quality p { color: var(--text-secondary); font-size: .85rem; margin-block: 6px; }
+.match-review-quality button { margin: 4px; }
+@media (max-width: 600px) { .sync-conflict-dialog fieldset { grid-template-columns: 1fr; } }

@@ -1,11 +1,11 @@
 window.ChartHelper = class ChartHelper {
   static PLAYER_COLORS = [
-    '#00f0ff', // neon cyan (primary)
-    '#fbbf24', // cyber gold (secondary)
-    '#10b981', // emerald green (success)
-    '#f43f5e', // rose red (danger)
-    '#a855f7', // electric purple
-    '#f97316', // bright orange
+    '#e7c36b', // corona gold (primary)
+    '#d98245', // solar flare (secondary)
+    '#63b99d', // muted success
+    '#d76578', // muted danger
+    '#9b7bb8', // lunar violet
+    '#c78154', // solar copper
   ];
 
   static setupCanvas(canvasId) {
@@ -33,33 +33,43 @@ window.ChartHelper = class ChartHelper {
 
     let startAngle = -0.5 * Math.PI;
     const cx = width / 2;
-    const cy = height / 2 + 10;
-    const radius = Math.min(width, height) / 2.5;
+    const cy = height / 2;
+    const radius = Math.min(width, height) / 2.55;
+    const ringWidth = Math.max(14, radius * 0.28);
+
+    // Solar-orbit track: the result ring reads as one instrument, not a generic pie chart.
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.055)';
+    ctx.lineWidth = ringWidth;
+    ctx.stroke();
 
     data.forEach(slice => {
       const sliceAngle = (slice.value / total) * 2 * Math.PI;
+      const gap = data.length > 1 ? Math.min(0.025, sliceAngle * 0.12) : 0;
       ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, radius, startAngle, startAngle + sliceAngle);
-      ctx.fillStyle = slice.color;
-      ctx.fill();
-      ctx.strokeStyle = '#0c101c';
-      ctx.lineWidth = 2;
+      ctx.arc(cx, cy, radius, startAngle + gap, startAngle + sliceAngle - gap);
+      ctx.strokeStyle = slice.color;
+      ctx.lineWidth = ringWidth;
+      ctx.lineCap = 'butt';
       ctx.stroke();
       startAngle += sliceAngle;
     });
 
-    // Draw inner hole for clean donut look
+    // Subtle corona inside the ring.
+    const corona = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 0.7);
+    corona.addColorStop(0, 'rgba(231,195,107,0.055)');
+    corona.addColorStop(1, 'rgba(231,195,107,0)');
     ctx.beginPath();
-    ctx.arc(cx, cy, radius * 0.55, 0, Math.PI * 2);
-    ctx.fillStyle = '#0c101c';
+    ctx.arc(cx, cy, radius * 0.73, 0, Math.PI * 2);
+    ctx.fillStyle = corona;
     ctx.fill();
 
     if (title) {
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '600 13px Plus Jakarta Sans, Inter, sans-serif';
+      ctx.fillStyle = '#857d6c';
+      ctx.font = '700 11px JetBrains Mono, monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(title, cx, 20);
+      ctx.fillText(title.toUpperCase(), cx, 14);
     }
   }
 
@@ -165,107 +175,123 @@ window.ChartHelper = class ChartHelper {
     if (!info) return;
     const { ctx, width, height } = info;
     ctx.clearRect(0, 0, width, height);
-    if (!datasets || datasets.length === 0) return;
+    if (!Array.isArray(datasets) || datasets.length === 0) return;
 
-    const padding = { top: 40, right: 30, bottom: 40, left: 50 };
+    const compact = width < 620;
+    const padding = { top: title ? 38 : 18, right: compact ? 14 : 24, bottom: 34, left: compact ? 38 : 46 };
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
+    const pointKey = (point, fallbackIndex) => point?.matchId || point?.key || `index:${fallbackIndex}`;
+    const timelineMap = new Map();
 
-    // Find overall max value and longest labels array
-    let maxVal = 1;
-    let longestLabels = [];
-    
-    datasets.forEach(ds => {
-      ds.data.forEach(d => {
-        if (d.value > maxVal) maxVal = d.value;
+    datasets.forEach(dataset => {
+      (dataset.data || []).forEach((point, index) => {
+        const key = pointKey(point, index);
+        if (!timelineMap.has(key)) {
+          timelineMap.set(key, {
+            key,
+            label: point?.matchLabel || '',
+            order: Number.isFinite(point?.timelineIndex) ? point.timelineIndex : timelineMap.size
+          });
+        }
       });
-      if (ds.data.length > longestLabels.length) {
-        longestLabels = ds.data.map(item => item.matchLabel);
-      }
     });
-    // Give maxVal a little headroom
-    maxVal = Math.ceil(maxVal * 1.1);
-    
-    // Draw horizontal grid lines and Y-axis labels
+
+    const timeline = [...timelineMap.values()].sort((a, b) => a.order - b.order);
+    const timelineIndex = new Map(timeline.map((point, index) => [point.key, index]));
+    const values = datasets.flatMap(dataset => (dataset.data || [])
+      .map(point => Number(point?.value))
+      .filter(value => Number.isFinite(value)));
+    if (!timeline.length || !values.length) return;
+
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+    const spread = Math.max(maxValue - minValue, 10);
+    const yMin = Math.max(0, Math.floor((minValue - spread * 0.12) / 5) * 5);
+    const yMax = Math.ceil((maxValue + spread * 0.12) / 5) * 5 || 10;
+    const yRange = Math.max(1, yMax - yMin);
+    const numPoints = Math.max(timeline.length, 2);
+    const xFor = index => padding.left + (index / (numPoints - 1)) * chartWidth;
+    const yFor = value => padding.top + chartHeight - ((value - yMin) / yRange) * chartHeight;
+
     const gridLinesCount = 5;
-    ctx.fillStyle = '#64748b';
-    ctx.font = '600 11px JetBrains Mono, monospace';
+    ctx.font = `${compact ? 9 : 10}px JetBrains Mono, monospace`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.045)';
     ctx.lineWidth = 1;
-
-    for (let i = 0; i < gridLinesCount; i++) {
-      const yPos = padding.top + (i / (gridLinesCount - 1)) * chartHeight;
-      const val = Math.round(maxVal - (i / (gridLinesCount - 1)) * maxVal);
-      
-      // grid line
+    for (let index = 0; index < gridLinesCount; index += 1) {
+      const ratio = index / (gridLinesCount - 1);
+      const y = padding.top + ratio * chartHeight;
+      const value = Math.round(yMax - ratio * yRange);
       ctx.beginPath();
-      ctx.moveTo(padding.left, yPos);
-      ctx.lineTo(width - padding.right, yPos);
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
       ctx.stroke();
-      
-      // label
-      ctx.fillText(val.toString(), padding.left - 10, yPos);
+      ctx.fillStyle = '#8f897d';
+      ctx.fillText(String(value), padding.left - 9, y);
     }
 
-    // Draw X-axis labels
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '600 11px Plus Jakarta Sans, sans-serif';
+    ctx.fillStyle = '#8f897d';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    const numPoints = Math.max(longestLabels.length, 2);
-    longestLabels.forEach((label, i) => {
-      const xPos = padding.left + (i / (numPoints - 1)) * chartWidth;
-      ctx.fillText(label, xPos, height - padding.bottom + 10);
+    const labelStep = Math.max(1, Math.ceil(timeline.length / (compact ? 4 : 6)));
+    timeline.forEach((point, index) => {
+      const isEdge = index === 0 || index === timeline.length - 1;
+      if (!isEdge && index % labelStep !== 0) return;
+      ctx.fillText(point.label, xFor(index), height - padding.bottom + 10);
     });
 
-    // Draw Title
     if (title) {
       ctx.fillStyle = '#f8fafc';
-      ctx.font = '700 14px Plus Jakarta Sans, sans-serif';
+      ctx.font = '700 12px Plus Jakarta Sans, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText(title, width / 2, 10);
     }
 
-    // Draw Lines with smooth styling
-    datasets.forEach(ds => {
-      if (!ds.data || ds.data.length < 2) return;
-      
+    datasets.forEach(dataset => {
+      const aligned = new Map((dataset.data || []).map((point, index) => [pointKey(point, index), point]));
+      let pathOpen = false;
       ctx.beginPath();
-      ctx.strokeStyle = ds.color || '#ffffff';
-      ctx.lineWidth = 3;
-      ctx.globalAlpha = 0.95;
-      
-      ds.data.forEach((item, i) => {
-        const xPos = padding.left + (i / (numPoints - 1)) * chartWidth;
-        const yPos = padding.top + chartHeight - (item.value / maxVal) * chartHeight;
-        
-        if (i === 0) ctx.moveTo(xPos, yPos);
-        else ctx.lineTo(xPos, yPos);
+      ctx.strokeStyle = dataset.color || '#ffffff';
+      ctx.lineWidth = compact ? 1.65 : 2;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.globalAlpha = 0.76;
+
+      timeline.forEach((timelinePoint, index) => {
+        const point = aligned.get(timelinePoint.key);
+        const value = Number(point?.value);
+        if (!Number.isFinite(value)) {
+          pathOpen = false;
+          return;
+        }
+        const x = xFor(index);
+        const y = yFor(value);
+        if (!pathOpen) {
+          ctx.moveTo(x, y);
+          pathOpen = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
       });
       ctx.stroke();
-      ctx.globalAlpha = 1.0;
-    });
+      ctx.globalAlpha = 1;
 
-    // Draw Points with outer ring
-    datasets.forEach(ds => {
-      if (!ds.data) return;
-      ctx.fillStyle = ds.color || '#ffffff';
-      
-      ds.data.forEach((item, i) => {
-        const xPos = padding.left + (i / (numPoints - 1)) * chartWidth;
-        const yPos = padding.top + chartHeight - (item.value / maxVal) * chartHeight;
-        
-        ctx.beginPath();
-        ctx.arc(xPos, yPos, 5, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.strokeStyle = '#06080d'; 
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      });
+      const data = dataset.data || [];
+      const endpoint = [...data].reverse().find(point => Number.isFinite(Number(point?.value)));
+      if (!endpoint) return;
+      const endpointDataIndex = data.lastIndexOf(endpoint);
+      const endpointIndex = timelineIndex.get(pointKey(endpoint, endpointDataIndex));
+      if (!Number.isFinite(endpointIndex)) return;
+      ctx.beginPath();
+      ctx.arc(xFor(endpointIndex), yFor(Number(endpoint.value)), compact ? 3 : 4, 0, Math.PI * 2);
+      ctx.fillStyle = dataset.color || '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = '#090805';
+      ctx.lineWidth = 2;
+      ctx.stroke();
     });
   }
 
@@ -282,26 +308,27 @@ window.ChartHelper = class ChartHelper {
     canvas.height = H;
 
     const isWin = match.result === 'win';
-    const mainAccent = isWin ? '#00d4ff' : '#ef4444';
-    const winGold = '#ffd700';
+    const isLoss = match.result === 'loss';
+    const mainAccent = isWin ? '#e7c36b' : isLoss ? '#d76578' : '#c99555';
+    const winGold = '#e7c36b';
 
     // 1. Background Gradient
     const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-    bgGrad.addColorStop(0, '#0a0e1a');
-    bgGrad.addColorStop(0.5, '#0f172a');
-    bgGrad.addColorStop(1, '#05070e');
+    bgGrad.addColorStop(0, '#111008');
+    bgGrad.addColorStop(0.5, '#090907');
+    bgGrad.addColorStop(1, '#040403');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, H);
 
     // 2. Ambient Cyber Glow Spots
     const glow1 = ctx.createRadialGradient(W * 0.2, 80, 10, W * 0.2, 80, 350);
-    glow1.addColorStop(0, isWin ? 'rgba(0, 212, 255, 0.15)' : 'rgba(239, 68, 68, 0.15)');
+    glow1.addColorStop(0, isWin ? 'rgba(231, 195, 107, 0.14)' : 'rgba(215, 101, 120, 0.14)');
     glow1.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow1;
     ctx.fillRect(0, 0, W, H);
 
     const glow2 = ctx.createRadialGradient(W * 0.8, H * 0.7, 10, W * 0.8, H * 0.7, 400);
-    glow2.addColorStop(0, isWin ? 'rgba(255, 215, 0, 0.12)' : 'rgba(245, 158, 11, 0.1)');
+    glow2.addColorStop(0, isWin ? 'rgba(217, 130, 69, 0.11)' : 'rgba(201, 149, 85, 0.1)');
     glow2.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow2;
     ctx.fillRect(0, 0, W, H);
@@ -317,12 +344,12 @@ window.ChartHelper = class ChartHelper {
     }
 
     // Outer Border Frame
-    ctx.strokeStyle = isWin ? 'rgba(0, 212, 255, 0.4)' : 'rgba(239, 68, 68, 0.4)';
+    ctx.strokeStyle = isWin ? 'rgba(231, 195, 107, 0.38)' : 'rgba(215, 101, 120, 0.38)';
     ctx.lineWidth = 2;
     ctx.strokeRect(15, 15, W - 30, H - 30);
 
     // Corner Accents
-    ctx.fillStyle = isWin ? '#00d4ff' : '#ef4444';
+    ctx.fillStyle = isWin ? '#e7c36b' : '#d76578';
     ctx.fillRect(10, 10, 30, 4);
     ctx.fillRect(10, 10, 4, 30);
     ctx.fillRect(W - 40, 10, 30, 4);
@@ -338,7 +365,7 @@ window.ChartHelper = class ChartHelper {
     ctx.textBaseline = 'top';
     ctx.font = '900 28px Plus Jakarta Sans, Inter, Arial, sans-serif';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText('🌑 ECLIPSE ESPORTS', 40, 40);
+    ctx.fillText('ECLIPSE ESPORTS', 40, 40);
 
     ctx.font = '700 13px Plus Jakarta Sans, Inter, Arial, sans-serif';
     ctx.fillStyle = mainAccent;
@@ -347,8 +374,8 @@ window.ChartHelper = class ChartHelper {
     // Match Result Badge
     ctx.textAlign = 'right';
     ctx.font = '900 36px Plus Jakarta Sans, Inter, Arial, sans-serif';
-    ctx.fillStyle = isWin ? '#10b981' : '#ef4444';
-    ctx.fillText(isWin ? 'VICTORY' : 'DEFEAT', W - 40, 35);
+    ctx.fillStyle = isWin ? '#63b99d' : isLoss ? '#d76578' : '#c99555';
+    ctx.fillText(isWin ? 'VICTORY' : isLoss ? 'DEFEAT' : 'REVIEW', W - 40, 35);
 
     // Date & Duration Subtitle
     ctx.font = '600 13px Plus Jakarta Sans, Inter, Arial, sans-serif';
@@ -371,23 +398,33 @@ window.ChartHelper = class ChartHelper {
     ctx.fillStyle = '#e2e8f0';
     ctx.textAlign = 'left';
 
-    let tKills = 0, tDeaths = 0, tAssists = 0;
-    (match.playerStats || []).forEach(p => {
-      tKills += Number(p.kills) || 0;
-      tDeaths += Number(p.deaths) || 0;
-      tAssists += Number(p.assists) || 0;
-    });
+    const participants = [
+      ...(match.playerStats || []).map(stat => ({ ...stat, isGuest: false })),
+      ...(match.guestStats || []).map(stat => ({ ...stat, isGuest: true }))
+    ].slice(0, 5);
+    const hasCompleteKda = participants.length > 0 && participants.every(stat =>
+      ['kills', 'deaths', 'assists'].every(key => stat[key] !== null && stat[key] !== undefined && Number.isFinite(Number(stat[key]))));
+    const teamKda = hasCompleteKda
+      ? participants.reduce((total, stat) => ({
+        kills: total.kills + Number(stat.kills),
+        deaths: total.deaths + Number(stat.deaths),
+        assists: total.assists + Number(stat.assists)
+      }), { kills: 0, deaths: 0, assists: 0 })
+      : null;
 
-    const objText = `TEAM SCORE:  ${tKills} KILLS  /  ${tDeaths} DEATHS  /  ${tAssists} ASSISTS`;
+    const objText = teamKda
+      ? `TEAM SCORE:  ${teamKda.kills} KILLS  /  ${teamKda.deaths} DEATHS  /  ${teamKda.assists} ASSISTS`
+      : 'TEAM SCORE:  DATA UNAVAILABLE';
     ctx.fillText(objText, 60, objY + 21);
 
     ctx.textAlign = 'right';
-    const objDetails = `TURTLES: ${match.teamTurtles || 0}   •   LORDS: ${match.teamLords || 0}   •   TURRETS: ${match.teamTurrets || 0}`;
+    const optional = value => value === null || value === undefined ? '—' : String(value);
+    const objDetails = `TURTLES: ${optional(match.teamTurtles)}   •   LORDS: ${optional(match.teamLords)}   •   TURRETS: ${optional(match.teamTurrets)}`;
     ctx.fillStyle = winGold;
     ctx.fillText(objDetails, W - 60, objY + 21);
 
     // 5. 5 Player Column Cards
-    const activeStats = (match.playerStats || []).slice(0, 5);
+    const activeStats = participants;
     const cardWidth = 210;
     const cardGap = 16;
     const startX = 40;
@@ -397,16 +434,18 @@ window.ChartHelper = class ChartHelper {
     const roleColors = {
       'EXP Laner': '#f59e0b',
       'Jungler': '#a855f7',
-      'Mid Laner': '#00d4ff',
-      'Gold Laner': '#ffd700',
+      'Mid Laner': '#e7c36b',
+      'Gold Laner': '#d98245',
       'Roamer': '#10b981'
     };
 
     activeStats.forEach((ps, idx) => {
       const x = startX + idx * (cardWidth + cardGap);
-      const pObj = players.find(p => p.id === ps.playerId) || { name: `Player ${idx+1}` };
+      const pObj = ps.isGuest
+        ? { name: ps.guestName || `Guest ${idx + 1}` }
+        : (players.find(p => p.id === ps.playerId) || { name: ps.playerName || `Player ${idx + 1}` });
       const role = ps.rolePlayed || 'EXP Laner';
-      const roleColor = roleColors[role] || '#00d4ff';
+      const roleColor = roleColors[role] || '#e7c36b';
       const isMvp = ps.medal === 'mvp';
       const isGold = ps.medal === 'gold';
       const isSilver = ps.medal === 'silver';
@@ -416,20 +455,20 @@ window.ChartHelper = class ChartHelper {
       // Card Background Glass — tinted by medal
       const cardGrad = ctx.createLinearGradient(x, startY, x, startY + cardHeight);
       if (isMvp) {
-        cardGrad.addColorStop(0, 'rgba(255, 215, 0, 0.14)');
-        cardGrad.addColorStop(1, 'rgba(15, 23, 42, 0.95)');
+        cardGrad.addColorStop(0, 'rgba(231, 195, 107, 0.13)');
+        cardGrad.addColorStop(1, 'rgba(10, 10, 7, 0.97)');
       } else if (isGold) {
-        cardGrad.addColorStop(0, 'rgba(255, 215, 0, 0.08)');
-        cardGrad.addColorStop(1, 'rgba(15, 23, 42, 0.95)');
+        cardGrad.addColorStop(0, 'rgba(231, 195, 107, 0.075)');
+        cardGrad.addColorStop(1, 'rgba(10, 10, 7, 0.97)');
       } else if (isSilver) {
         cardGrad.addColorStop(0, 'rgba(203, 213, 225, 0.08)');
-        cardGrad.addColorStop(1, 'rgba(15, 23, 42, 0.95)');
+        cardGrad.addColorStop(1, 'rgba(10, 10, 7, 0.97)');
       } else if (isBronze) {
         cardGrad.addColorStop(0, 'rgba(180, 120, 60, 0.08)');
-        cardGrad.addColorStop(1, 'rgba(15, 23, 42, 0.95)');
+        cardGrad.addColorStop(1, 'rgba(10, 10, 7, 0.97)');
       } else {
-        cardGrad.addColorStop(0, 'rgba(30, 41, 59, 0.7)');
-        cardGrad.addColorStop(1, 'rgba(15, 23, 42, 0.95)');
+        cardGrad.addColorStop(0, 'rgba(31, 28, 18, 0.72)');
+        cardGrad.addColorStop(1, 'rgba(10, 10, 7, 0.97)');
       }
       ctx.fillStyle = cardGrad;
       ctx.beginPath();
@@ -438,10 +477,10 @@ window.ChartHelper = class ChartHelper {
 
       // Card Border — colored by medal
       if (isMvp) {
-        ctx.strokeStyle = 'rgba(255, 215, 0, 0.7)';
+        ctx.strokeStyle = 'rgba(231, 195, 107, 0.68)';
         ctx.lineWidth = 2;
       } else if (isGold) {
-        ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+        ctx.strokeStyle = 'rgba(231, 195, 107, 0.38)';
         ctx.lineWidth = 1.5;
       } else if (isSilver) {
         ctx.strokeStyle = 'rgba(203, 213, 225, 0.4)';
@@ -464,7 +503,7 @@ window.ChartHelper = class ChartHelper {
       ctx.fillStyle = '#000000';
       ctx.font = '800 11px Plus Jakarta Sans, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(role.toUpperCase(), x + cardWidth / 2, startY + 23);
+      ctx.fillText(`${ps.isGuest ? 'GUEST • ' : ''}${role.toUpperCase()}`, x + cardWidth / 2, startY + 23);
 
       // Player Name — auto-shrink for long IGNs
       const nameMaxW = cardWidth - 28;
@@ -491,11 +530,11 @@ window.ChartHelper = class ChartHelper {
 
       if (isMvp) {
         // MVP — golden glow banner
-        ctx.fillStyle = 'rgba(255, 215, 0, 0.22)';
+        ctx.fillStyle = 'rgba(231, 195, 107, 0.2)';
         ctx.beginPath();
         ctx.roundRect(medalPillX, medalBannerY, medalPillW, medalBannerH, 6);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+        ctx.strokeStyle = 'rgba(231, 195, 107, 0.48)';
         ctx.lineWidth = 1;
         ctx.stroke();
         ctx.fillStyle = winGold;
@@ -504,14 +543,14 @@ window.ChartHelper = class ChartHelper {
         ctx.fillText('👑 MVP OF THE MATCH', x + cardWidth / 2, medalBannerY + medalBannerH / 2 + 1);
       } else if (isGold) {
         // Gold Medal — warm gold banner
-        ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+        ctx.fillStyle = 'rgba(231, 195, 107, 0.14)';
         ctx.beginPath();
         ctx.roundRect(medalPillX, medalBannerY, medalPillW, medalBannerH, 6);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 215, 0, 0.35)';
+        ctx.strokeStyle = 'rgba(231, 195, 107, 0.33)';
         ctx.lineWidth = 1;
         ctx.stroke();
-        ctx.fillStyle = '#ffd700';
+        ctx.fillStyle = '#e7c36b';
         ctx.font = '800 12px Plus Jakarta Sans, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('🥇 GOLD MEDAL', x + cardWidth / 2, medalBannerY + medalBannerH / 2 + 1);
@@ -558,7 +597,10 @@ window.ChartHelper = class ChartHelper {
 
       ctx.fillStyle = '#ffffff';
       ctx.font = '800 20px JetBrains Mono, monospace';
-      ctx.fillText(`${ps.kills || 0} / ${ps.deaths || 0} / ${ps.assists || 0}`, x + cardWidth / 2, kdaY + 42);
+      const kdaText = ['kills', 'deaths', 'assists'].every(key => ps[key] !== null && ps[key] !== undefined)
+        ? `${ps.kills} / ${ps.deaths} / ${ps.assists}`
+        : '— / — / —';
+      ctx.fillText(kdaText, x + cardWidth / 2, kdaY + 42);
 
       // In-Game Rating Score
       const scoreY = kdaY + 75;
@@ -568,8 +610,9 @@ window.ChartHelper = class ChartHelper {
       ctx.fillText('Match Score:', x + 20, scoreY);
       ctx.textAlign = 'right';
       ctx.font = '800 14px JetBrains Mono, monospace';
-      ctx.fillStyle = (isMvp || isGold) ? winGold : isSilver ? '#e2e8f0' : isBronze ? '#d97706' : '#00d4ff';
-      ctx.fillText(Number(ps.inGameScore || 0).toFixed(1), x + cardWidth - 20, scoreY);
+      ctx.fillStyle = (isMvp || isGold) ? winGold : isSilver ? '#d9e2e5' : isBronze ? '#92703f' : '#e7c36b';
+      const score = window.StatsEngine.numberOrNull(ps.inGameScore);
+      ctx.fillText(score === null ? '—' : score.toFixed(1), x + cardWidth - 20, scoreY);
 
       // Hero Damage Dealt
       const dmgY = scoreY + 26;
@@ -601,8 +644,9 @@ window.ChartHelper = class ChartHelper {
       ctx.fillText('TF Part.:', x + 20, tfY);
       ctx.textAlign = 'right';
       ctx.font = '700 13px JetBrains Mono, monospace';
-      ctx.fillStyle = '#00d4ff';
-      ctx.fillText(`${ps.teamfightParticipation || 0}%`, x + cardWidth - 20, tfY);
+      ctx.fillStyle = '#e7c36b';
+      const teamfight = window.StatsEngine.numberOrNull(ps.teamfightParticipation);
+      ctx.fillText(teamfight === null ? '—' : `${teamfight}%`, x + cardWidth - 20, tfY);
 
       // Gold Earned
       const goldY = tfY + 26;
@@ -648,7 +692,7 @@ window.ChartHelper = class ChartHelper {
 
   static async copyCanvasToClipboard(canvas) {
     if (!canvas || !navigator.clipboard || !window.ClipboardItem) {
-      if (window.showToast) window.showToast('Direct image copy not supported in this browser. Please use Download PNG!', 'warning');
+      if (window.showToast) window.showToast('Bu brauzer rasmni to‘g‘ridan-to‘g‘ri nusxalamaydi. PNG yuklab oling.', 'warning');
       return false;
     }
     try {
@@ -656,13 +700,12 @@ window.ChartHelper = class ChartHelper {
         if (!blob) return;
         const item = new ClipboardItem({ 'image/png': blob });
         await navigator.clipboard.write([item]);
-        if (window.showToast) window.showToast('📋 Match card copied to clipboard! Paste directly into Discord or WhatsApp.', 'success');
+        if (window.showToast) window.showToast('Match kartasi nusxalandi — Discord yoki WhatsAppga joylang.', 'success');
       });
       return true;
     } catch (err) {
-      if (window.showToast) window.showToast('Could not copy to clipboard. Please use Download PNG!', 'warning');
+      if (window.showToast) window.showToast('Rasmni nusxalab bo‘lmadi. PNG yuklab olishdan foydalaning.', 'warning');
       return false;
     }
   }
 };
-

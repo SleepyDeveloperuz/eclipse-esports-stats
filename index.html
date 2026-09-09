@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="uz">
+<html lang="uz" class="access-locked">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Eclipse Esports - MLBB Professional Statistics & Analytics Platform">
+    <meta name="description" content="Eclipse Esports — Outwork. Outthink. Outplay. MLBB jamoa statistikasi va tahlil markazi.">
+    <meta name="theme-color" content="#080806">
     <title>Eclipse Esports — Pro MLBB Stats Tracker</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,17 +12,26 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=2.25.0">
+    <link rel="stylesheet" href="css/v221.css?v=2.25.0">
+    <link rel="stylesheet" href="css/v222.css?v=2.25.0">
+    <link rel="stylesheet" href="css/v225.css?v=2.25.0">
     
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌑</text></svg>">
+    <link rel="icon" type="image/svg+xml" href="assets/eclipse-mark.svg?v=2.16.0">
 </head>
 <body>
+    <a class="skip-link" href="#mainContent">Asosiy tarkibga o‘tish</a>
+    <div class="access-bootstrap" id="accessBootstrap" role="status" aria-live="polite">
+        <div class="access-bootstrap__orbit" aria-hidden="true"><span></span></div>
+        <p>ECLIPSE / PRIVATE SIGNAL</p>
+        <strong>Command Room tekshirilmoqda</strong>
+    </div>
     <div class="app-container">
         <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar" aria-label="Main Navigation">
+        <aside class="sidebar" id="sidebar" aria-label="Asosiy navigatsiya">
             <div class="sidebar-logo">
                 <div class="logo-emblem-wrap">
-                    <span class="logo-icon" aria-hidden="true"><i class="fa-solid fa-moon"></i></span>
+                    <svg class="logo-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-mark"></use></svg>
                     <span class="logo-pulse"></span>
                 </div>
                 <div class="logo-text-wrap">
@@ -29,23 +39,31 @@
                     <span class="logo-subtitle"><i class="fa-solid fa-bolt-lightning" style="font-size:0.6rem; color:var(--primary); margin-right:3px;"></i> Pro MLBB Analytics</span>
                 </div>
             </div>
-            <nav class="sidebar-nav" aria-label="Sidebar Menu">
-                <a href="#" class="nav-item active" data-page="dashboard" aria-current="page"><i class="fa-solid fa-gauge-high"></i> Dashboard <kbd>1</kbd></a>
-                <a href="#" class="nav-item admin-only" data-page="add-match"><i class="fa-solid fa-square-plus"></i> Add Match <kbd>2</kbd></a>
-                <a href="#" class="nav-item" data-page="match-history"><i class="fa-solid fa-clock-rotate-left"></i> Match History <kbd>3</kbd></a>
-                <a href="#" class="nav-item" data-page="players"><i class="fa-solid fa-users-viewfinder"></i> Players <kbd>4</kbd></a>
-                <a href="#" class="nav-item" data-page="statistics"><i class="fa-solid fa-chart-simple"></i> Statistics <kbd>5</kbd></a>
-                <a href="#" class="nav-item" data-page="records"><i class="fa-solid fa-trophy"></i> Records & Awards <kbd>6</kbd></a>
-                <a href="#" class="nav-item" data-page="heroes"><i class="fa-solid fa-shield-halved"></i> Heroes <kbd>7</kbd></a>
-                <a href="#" class="nav-item" data-page="training"><i class="fa-solid fa-compass-drafting"></i> Akademiya & Reja <kbd>8</kbd></a>
-                <a href="#" class="nav-item admin-only" data-page="settings"><i class="fa-solid fa-sliders"></i> Settings <kbd>9</kbd></a>
+            <nav class="sidebar-nav" aria-label="Sahifalar menyusi">
+                <p class="nav-group-label">Command room</p>
+                <a href="#" class="nav-item active" data-page="dashboard" aria-current="page"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-dashboard"></use></svg> Bosh sahifa <kbd>1</kbd></a>
+                <a href="#" class="nav-item" data-page="match-history"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-history"></use></svg> Matchlar <kbd>2</kbd></a>
+                <a href="#" class="nav-item" data-page="players"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-players"></use></svg> Jamoa <kbd>3</kbd></a>
+                <a href="#" class="nav-item" data-page="statistics"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-stats"></use></svg> Tahlil <kbd>4</kbd></a>
+                <a href="#" class="nav-item" data-page="briefing"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-briefing"></use></svg> Briefing <kbd>5</kbd></a>
+                <a href="#" class="nav-item" data-page="meta-lab"><i class="fa-solid fa-ranking-star" aria-hidden="true"></i> Meta Lab</a>
+                <div class="nav-team-input" aria-label="Jamoa yuborish vositalari">
+                    <p class="nav-group-label">Team input</p>
+                    <a href="#" class="nav-item nav-item--submission" data-page="submissions"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> Match yuborish <span class="nav-count" id="submissionPendingBadge" hidden>0</span><kbd>S</kbd></a>
+                </div>
+                <div class="admin-only nav-admin-tools" aria-label="Admin vositalari">
+                    <p class="nav-group-label">Admin vositalari</p>
+                    <a href="#" class="nav-item nav-item--utility" data-page="add-match"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-add"></use></svg> Match qo‘shish <kbd>N</kbd></a>
+                    <a href="#" class="nav-item nav-item--utility" data-page="settings"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-settings"></use></svg> Sozlamalar</a>
+                </div>
             </nav>
             <div class="sidebar-footer">
                 <div class="sidebar-status-pill">
                     <span class="status-dot"></span>
-                    <span>Eclipse Live System v2.5</span>
+                    <span>Eclipse Live System v2.25.0</span>
                 </div>
-                <p class="sidebar-shortcuts-hint"><kbd>Esc</kbd> Yopish &middot; <kbd>N</kbd> Yangi Match</p>
+                <p class="sidebar-shortcuts-hint"><kbd>Esc</kbd> Yopish &middot; <kbd>S</kbd> Practice</p>
+                <p id="foregroundSyncStatus" class="sidebar-shortcuts-hint" role="status">Ma’lumot tekshirilmoqda…</p>
             </div>
         </aside>
 
@@ -57,96 +75,92 @@
             <!-- Top bar -->
             <header class="topbar">
                 <div style="display:flex; align-items:center; gap:0.75rem;">
-                    <button class="hamburger" id="hamburgerBtn" aria-label="Toggle Navigation"><i class="fa-solid fa-bars"></i></button>
-                    <h2 class="topbar-title" id="pageTitle">Dashboard</h2>
+                    <button type="button" class="hamburger" id="hamburgerBtn" aria-label="Navigatsiyani ochish yoki yopish" aria-controls="sidebar" aria-expanded="false"><i class="fa-solid fa-bars"></i></button>
+                    <h2 class="topbar-title" id="pageTitle">Bosh sahifa</h2>
                 </div>
                 <div id="topbarAuthContainer" style="margin-left:auto;"></div>
             </header>
 
             <!-- Toast container -->
+            <section class="analytics-scope-console" id="teamContextBar" data-mode="team5" aria-labelledby="teamContextTitle" hidden>
+                <div class="analytics-scope-console__copy">
+                    <p class="section-eyebrow">STATISTIKA MANBASI</p>
+                    <h3 id="teamContextTitle">Team 5 statistikasi</h3>
+                    <p id="teamContextDescription">Faqat to‘liq 5 kishilik Eclipse tarkibi qatnashgan matchlar.</p>
+                </div>
+                <button type="button" class="analytics-scope-toggle" id="teamContextToggle" role="switch" aria-checked="false" aria-label="Practice Lite statistikasiga o‘tish">
+                    <span class="analytics-scope-toggle__option analytics-scope-toggle__option--team">
+                        <small>5 / 5</small><strong>Team 5</strong><em id="teamContextTeamCount">— match</em>
+                    </span>
+                    <span class="analytics-scope-toggle__track" aria-hidden="true"><i></i></span>
+                    <span class="analytics-scope-toggle__option analytics-scope-toggle__option--squad">
+                        <small>1 — 4</small><strong>Practice Lite</strong><em id="teamContextSquadCount">— match</em>
+                    </span>
+                </button>
+            </section>
             <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
             <!-- Page sections -->
             
             <!-- DASHBOARD -->
             <section class="page-section active" id="page-dashboard" aria-labelledby="pageTitle">
-                <div class="section-header">
-                    <h2>Team Overview</h2>
-                </div>
-                <div id="dashboardStats" class="stats-grid"></div>
-
-                <!-- PLAYER PERFORMANCE SPIKES & GROWTH TRENDS SECTION -->
-                <div class="card mt-3" style="border:1px solid var(--primary); background: linear-gradient(135deg, rgba(0,212,255,0.03) 0%, var(--bg-card-glass) 100%);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
-                        <h3 class="card-title" style="margin:0;"><i class="fa-solid fa-arrow-trend-up" style="color:var(--primary);"></i> Player Performance Spikes & Growth Trends</h3>
-                        <div class="tabs" id="dashTrendTabs" style="margin:0; border-bottom:none;">
-                            <button class="tab-btn active" data-period="week" style="padding:0.4rem 0.8rem; font-size:0.875rem;">This Week</button>
-                            <button class="tab-btn" data-period="month" style="padding:0.4rem 0.8rem; font-size:0.875rem;">This Month</button>
-                            <button class="tab-btn" data-period="year" style="padding:0.4rem 0.8rem; font-size:0.875rem;">This Year</button>
-                        </div>
+                <section class="eclipse-identity eclipse-identity--compact" aria-labelledby="eclipseIdentityTitle">
+                    <div class="eclipse-sigil" aria-hidden="true">
+                        <span class="eclipse-sigil__orbit eclipse-sigil__orbit--outer"></span>
+                        <span class="eclipse-sigil__orbit eclipse-sigil__orbit--inner"></span>
+                        <svg><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-mark"></use></svg>
                     </div>
-                    <div id="dashTrendsContent"></div>
-                </div>
-
-                <div class="card mt-3" style="border:1px solid rgba(0,212,255,0.2);">
-                    <h3 class="card-title" style="margin-bottom:0.5rem;"><i class="fa-solid fa-chart-line" style="color:var(--primary);"></i> Performance Flow Chart</h3>
-                    <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:0.75rem;">Visual timeline of each player's performance score across recent matches</p>
-                    <div class="trend-chart-container">
-                        <canvas id="trendFlowChart" aria-label="Performance Flow Chart"></canvas>
+                    <div class="eclipse-identity__copy">
+                        <p class="eclipse-identity__eyebrow">ECLIPSE ESPORTS / COMMAND ROOM</p>
+                        <h2 id="eclipseIdentityTitle">Outwork. Outthink. Outplay.</h2>
+                        <p class="eclipse-identity__statement">Bugungi fokus, oxirgi xulosa va navbatdagi qaror — bitta signalda.</p>
                     </div>
-                    <div class="trend-chart-legend" id="trendChartLegend"></div>
-                </div>
-
-                <div class="grid-2 mt-3">
-                    <div class="card">
-                        <h3 class="card-title">Win / Loss Ratio</h3>
-                        <div class="chart-container"><canvas id="dashWinLossChart" aria-label="Win Loss Chart"></canvas></div>
-                    </div>
-                    <div class="card">
-                        <h3 class="card-title">All-Time MVP</h3>
-                        <div id="dashMvpCard"></div>
-                    </div>
-                </div>
-                <div class="card mt-3">
-                    <h3 class="card-title">Recent Matches</h3>
-                    <div id="dashRecentMatches"></div>
+                    <ul class="eclipse-values" aria-label="Jamoa qadriyatlari">
+                        <li><strong>01</strong> Discipline</li>
+                        <li><strong>02</strong> Respect</li>
+                        <li><strong>03</strong> Growth</li>
+                        <li><strong>04</strong> Communication</li>
+                        <li><strong>05</strong> Consistency</li>
+                    </ul>
+                </section>
+                <div id="dashboardCommand" class="command-dashboard" aria-live="polite">
+                    <div class="command-skeleton"><span></span><span></span><span></span></div>
                 </div>
             </section>
 
             <!-- ADD MATCH -->
-            <section class="page-section" id="page-add-match" aria-label="Add Match Result" hidden>
+            <section class="page-section" id="page-add-match" aria-label="Match natijasini qo‘shish" hidden>
                 <div class="section-header">
-                    <h2>Add Match Result</h2>
+                    <h2>Match natijasini qo‘shish</h2>
                 </div>
                 <div id="matchFormContainer"></div>
             </section>
 
             <!-- MATCH HISTORY -->
-            <section class="page-section" id="page-match-history" aria-label="Match History" hidden>
+            <section class="page-section" id="page-match-history" aria-label="Matchlar tarixi" hidden>
                 <div class="section-header">
-                    <h2>Match History</h2>
+                    <div><p class="section-eyebrow">MATCH LEDGER</p><h2>Matchlar</h2><p>Tanlangan tarkib matchlari. Tekshiruv talab qiladigan yozuvlar tarixda qoladi, lekin statistikaga kirmaydi.</p><p class="admin-only text-muted">Tarkibi aniqlanmagan eski yozuvlar tuzatish uchun ikkala tanlovda ham ko‘rinadi.</p></div>
                 </div>
                 <div class="filter-bar" id="matchFilterBar">
-                    <label><i class="fa-solid fa-filter"></i> Filter:</label>
-                    <button class="filter-chip active" data-filter="all">All</button>
-                    <button class="filter-chip" data-filter="ranked"><i class="fa-solid fa-ranking-star"></i> Ranked</button>
-                    <button class="filter-chip" data-filter="scrim"><i class="fa-solid fa-people-arrows"></i> Scrim</button>
-                    <button class="filter-chip" data-filter="tournament"><i class="fa-solid fa-trophy"></i> Tournament</button>
-                    <button class="filter-chip" data-filter="casual"><i class="fa-solid fa-gamepad"></i> Casual</button>
+                    <label><i class="fa-solid fa-filter"></i> Filter</label>
+                    <button type="button" class="filter-chip active" data-filter="all" aria-pressed="true">Barchasi</button>
+                    <button type="button" class="filter-chip" data-filter="ranked" aria-pressed="false"><i class="fa-solid fa-ranking-star"></i> Ranked</button>
+                    <button type="button" class="filter-chip" data-filter="scrim" aria-pressed="false"><i class="fa-solid fa-people-arrows"></i> Scrim</button>
+                    <button type="button" class="filter-chip" data-filter="tournament" aria-pressed="false"><i class="fa-solid fa-trophy"></i> Turnir</button>
+                    <button type="button" class="filter-chip" data-filter="casual" aria-pressed="false"><i class="fa-solid fa-gamepad"></i> Oddiy</button>
                 </div>
                 <div id="matchHistoryContainer"></div>
             </section>
 
-            <!-- PLAYERS -->
-            <section class="page-section" id="page-players" aria-label="Player Roster & Analytics" hidden>
-                <div class="section-header">
-                    <h2>Roster & Player Intelligence</h2>
-                </div>
+            <!-- PRACTICE SUBMISSIONS -->
+            <section class="page-section" id="page-submissions" aria-label="Qisqa match yuborish va tasdiqlash" hidden>
+                <div id="submissionContainer"></div>
+            </section>
 
-                <div class="tabs mb-4" id="playerSubTabs" role="tablist">
-                    <button class="tab-btn active" data-subtab="roster"><i class="fa-solid fa-users"></i> Team Roster</button>
-                    <button class="tab-btn" data-subtab="compare"><i class="fa-solid fa-bolt"></i> 1v1 Player Comparison</button>
-                    <button class="tab-btn" data-subtab="synergy"><i class="fa-solid fa-handshake-angle"></i> Duo & Trio Synergy Matrix</button>
+            <!-- PLAYERS -->
+            <section class="page-section" id="page-players" aria-label="Jamoa tarkibi va o‘yinchilar tahlili" hidden>
+                <div class="section-header">
+                    <div><p class="section-eyebrow">ACTIVE UNIT</p><h2>Jamoa</h2><p>Faol tarkib, rollar va har bir o‘yinchining individual rivojlanishi.</p></div>
                 </div>
 
                 <!-- SUBVIEW 1: TEAM ROSTER -->
@@ -155,172 +169,163 @@
                     <div id="playersListContainer"></div>
                 </div>
 
-                <!-- SUBVIEW 2: 1v1 HEAD-TO-HEAD COMPARISON -->
-                <div id="playerCompareSubView" class="hidden">
-                    <div id="playerCompareContainer"></div>
-                </div>
-
-                <!-- SUBVIEW 3: DUO & TRIO SYNERGY MATRIX -->
-                <div id="playerSynergySubView" class="hidden">
-                    <div id="playerSynergyContainer"></div>
-                </div>
             </section>
 
             <!-- PLAYER PROFILE -->
-            <section class="page-section" id="page-player-profile" aria-label="Player Profile" hidden>
+            <section class="page-section" id="page-player-profile" aria-label="O‘yinchi profili" hidden>
                 <div id="playerProfileContainer"></div>
             </section>
 
             <!-- STATISTICS -->
-            <section class="page-section" id="page-statistics" aria-label="Statistics" hidden>
+            <section class="page-section" id="page-statistics" aria-label="Jamoa tahlili" hidden>
                 <div class="section-header">
-                    <h2>Statistics & Week Calendar</h2>
+                    <div><p class="section-eyebrow">ANALYTICS VA HALL OF FAME</p><h2>Tahlil</h2><p>Davr statistikasi, forma yo‘nalishi va barcha rekordlar bitta joyda.</p></div>
                 </div>
+                <section class="analytics-scope-console" id="analyticsScopeConsole" data-mode="team5" aria-labelledby="analyticsScopeTitle">
+                    <div class="analytics-scope-console__copy">
+                        <p class="section-eyebrow">STATISTIKA MANBASI</p>
+                        <h3 id="analyticsScopeTitle">Team 5 statistikasi</h3>
+                        <p id="analyticsScopeDescription">Faqat to‘liq 5 kishilik Eclipse tarkibi qatnashgan matchlar.</p>
+                    </div>
+                    <button type="button" class="analytics-scope-toggle" id="analyticsScopeToggle" role="switch" aria-checked="false" aria-labelledby="analyticsScopeTitle analyticsScopeDescription">
+                        <span class="analytics-scope-toggle__option analytics-scope-toggle__option--team">
+                            <small>5 / 5</small>
+                            <strong>Team 5</strong>
+                            <em id="analyticsTeamCount">— match</em>
+                        </span>
+                        <span class="analytics-scope-toggle__track" aria-hidden="true"><i></i></span>
+                        <span class="analytics-scope-toggle__option analytics-scope-toggle__option--squad">
+                            <small>1 — 4</small>
+                            <strong>Practice Lite</strong>
+                            <em id="analyticsSquadCount">— match</em>
+                        </span>
+                    </button>
+                </section>
+                <section id="analyticsScopeComparison" class="analytics-scope-comparison" aria-live="polite"></section>
                 <div class="tabs" id="statsTabs" role="tablist">
-                    <button class="tab-btn active" data-period="week" role="tab" aria-selected="true"><i class="fa-regular fa-calendar-days"></i> Selected Week</button>
-                    <button class="tab-btn" data-period="month" role="tab" aria-selected="false"><i class="fa-solid fa-calendar-week"></i> This Month</button>
-                    <button class="tab-btn" data-period="year" role="tab" aria-selected="false"><i class="fa-solid fa-calendar"></i> This Year</button>
-                    <button class="tab-btn" data-period="all" role="tab" aria-selected="false"><i class="fa-solid fa-infinity"></i> All Time</button>
-                    <button class="tab-btn" data-period="custom" role="tab" aria-selected="false"><i class="fa-solid fa-sliders"></i> Custom Range</button>
+                    <button type="button" class="tab-btn active" id="statsTabWeek" data-period="week" role="tab" aria-selected="true" aria-controls="statsContent" tabindex="0"><i class="fa-regular fa-calendar-days"></i> Tanlangan hafta</button>
+                    <button type="button" class="tab-btn" id="statsTabMonth" data-period="month" role="tab" aria-selected="false" aria-controls="statsContent" tabindex="-1"><i class="fa-solid fa-calendar-week"></i> Shu oy</button>
+                    <button type="button" class="tab-btn" id="statsTabYear" data-period="year" role="tab" aria-selected="false" aria-controls="statsContent" tabindex="-1"><i class="fa-solid fa-calendar"></i> Shu yil</button>
+                    <button type="button" class="tab-btn" id="statsTabAll" data-period="all" role="tab" aria-selected="false" aria-controls="statsContent" tabindex="-1"><i class="fa-solid fa-infinity"></i> Barcha vaqt</button>
+                    <button type="button" class="tab-btn" id="statsTabCustom" data-period="custom" role="tab" aria-selected="false" aria-controls="statsContent" tabindex="-1"><i class="fa-solid fa-sliders"></i> Sana oralig‘i</button>
                 </div>
 
                 <!-- Calendar Week Picker Controls -->
-                <div id="weekCalendarBox" class="card mb-4" style="background: var(--bg-card-glass); border: 1px solid var(--border-light); padding:1rem;">
-                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
-                        <div style="display:flex; align-items:center; gap:0.75rem;">
-                            <label for="statsWeekPicker" class="form-label" style="margin:0; font-weight:600; color:var(--primary);">
-                                <i class="fa-regular fa-calendar-check"></i> Pick Week Date:
-                            </label>
-                            <input type="date" class="form-input date-input" id="statsWeekPicker" style="width: auto;">
-                            <button class="btn btn-secondary btn-sm" id="prevWeekBtn" title="Previous Week"><i class="fa-solid fa-chevron-left"></i> Prev Week</button>
-                            <button class="btn btn-secondary btn-sm" id="nextWeekBtn" title="Next Week">Next Week <i class="fa-solid fa-chevron-right"></i></button>
-                        </div>
-                        <div id="weekDateLabel" style="font-weight:600; color:var(--secondary); font-size:1rem;">
-                            Week Range
+                <div id="weekCalendarBox" class="week-control mb-4">
+                    <div class="week-control__main">
+                        <label for="statsWeekPicker" class="week-control__label"><i class="fa-regular fa-calendar-check"></i> Hafta sanasi</label>
+                        <input type="date" class="form-input date-input" id="statsWeekPicker">
+                        <div class="week-control__nav">
+                            <button type="button" class="btn btn-secondary btn-sm" id="prevWeekBtn" title="Oldingi hafta"><i class="fa-solid fa-chevron-left"></i><span>Oldingi</span></button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="nextWeekBtn" title="Keyingi hafta"><span>Keyingi</span><i class="fa-solid fa-chevron-right"></i></button>
                         </div>
                     </div>
+                    <div id="weekDateLabel" class="week-control__range">Hafta oralig‘i</div>
                 </div>
 
                 <div id="customDateRange" class="custom-range hidden">
                     <div class="form-group">
-                        <label for="statsDateFrom" class="form-label">From</label>
+                        <label for="statsDateFrom" class="form-label">Boshlanish</label>
                         <input type="date" class="form-input date-input" id="statsDateFrom">
                     </div>
                     <div class="form-group">
-                        <label for="statsDateTo" class="form-label">To</label>
+                        <label for="statsDateTo" class="form-label">Tugash</label>
                         <input type="date" class="form-input date-input" id="statsDateTo">
                     </div>
-                    <button class="btn btn-primary btn-sm" id="applyCustomRange">Apply Range</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="applyCustomRange">Qo‘llash</button>
                 </div>
 
-                <div id="statsContent" role="tabpanel"></div>
+                <div id="statsContent" role="tabpanel" aria-labelledby="statsTabWeek" tabindex="0"></div>
+                <section class="analytics-deep-dive" aria-label="Chuqur tahlil">
+                    <header class="analytics-section-heading">
+                        <div><p class="section-eyebrow">FORM LAB</p><h3>Forma va ritm</h3><p>Bu bloklar kundalik dashboarddan ajratilgan chuqur tahlildir.</p></div>
+                    </header>
+                    <section class="form-pulse" aria-labelledby="formPulseTitle">
+                        <header class="form-pulse__header">
+                            <div><p class="form-pulse__eyebrow">PERFORMANCE SIGNAL</p><h3 id="formPulseTitle">O‘yinchilar formasi</h3><p id="formPulseDescription">Tanlangan davr va undan oldingi teng davrdagi forma signallari.</p></div>
+                            <div class="form-pulse__periods" id="dashTrendTabs" role="tablist" aria-label="Forma davri">
+                                <button type="button" class="form-pulse__period active" id="trendTabWeek" data-period="week" role="tab" aria-selected="true" aria-controls="dashTrendsContent" tabindex="0">Hafta</button>
+                                <button type="button" class="form-pulse__period" id="trendTabMonth" data-period="month" role="tab" aria-selected="false" aria-controls="dashTrendsContent" tabindex="-1">Oy</button>
+                                <button type="button" class="form-pulse__period" id="trendTabYear" data-period="year" role="tab" aria-selected="false" aria-controls="dashTrendsContent" tabindex="-1">Yil</button>
+                            </div>
+                        </header>
+                        <div id="dashTrendsContent" role="tabpanel" aria-labelledby="trendTabWeek" tabindex="0"></div>
+                    </section>
+                    <section class="form-trajectory mt-3" aria-labelledby="formTrajectoryTitle">
+                        <header class="form-trajectory__header">
+                            <div><p class="solar-eyebrow" id="formTrajectoryEyebrow">SHAXSIY FORMA / TANLANGAN DAVR</p><h3 id="formTrajectoryTitle">Forma yo‘nalishi</h3><p id="formTrajectoryDescription">O‘zining oldingi shu rol va tarkibdagi baholariga nisbatan o‘sish. Oldingi mediana = 100.</p></div>
+                            <div class="form-trajectory__readout" aria-label="Grafik ma’lumoti"><span><small>Oyna</small><strong id="formTrajectoryWindow">Tanlangan davr</strong></span><span><small>Signal</small><strong id="formTrajectorySignal"><i></i> Kutilmoqda</strong></span></div>
+                        </header>
+                        <div class="form-trajectory__stage"><span class="form-trajectory__axis">SHAXSIY FORMA · 100 = BASELINE</span><div class="trend-chart-container"><canvas id="trendFlowChart" aria-label="O‘yinchilar shaxsiy forma yo‘nalishi grafigi"></canvas></div></div>
+                        <div class="form-trajectory__footer"><span class="form-trajectory__legend-label">ROSTER SIGNALS</span><div class="trend-chart-legend" id="trendChartLegend"></div></div>
+                    </section>
+                    <section class="eclipse-results mt-3" aria-label="Barcha vaqt natijasi va MVP">
+                        <article class="outcome-module">
+                            <header class="outcome-module__header"><div><p class="solar-eyebrow">ALL-TIME OUTCOME</p><h3 id="analyticsOutcomeTitle">Jamoa natijasi</h3></div><span class="outcome-module__total"><strong id="dashTotalMatches">0</strong> match</span></header>
+                            <div class="outcome-module__body"><div class="outcome-orbit"><canvas id="dashWinLossChart" aria-label="G‘alaba va mag‘lubiyat nisbati"></canvas><div class="outcome-orbit__center"><strong id="dashWinRate">0%</strong><span>WIN RATE</span></div></div><div class="outcome-ledger"><div class="outcome-ledger__row outcome-ledger__row--win"><span><i></i> G‘alaba</span><strong id="dashWins">0</strong></div><div class="outcome-ledger__row outcome-ledger__row--loss"><span><i></i> Mag‘lubiyat</span><strong id="dashLosses">0</strong></div></div></div>
+                        </article>
+                        <article class="mvp-module" id="dashMvpCard" aria-live="polite"></article>
+                    </section>
+                    <section class="match-insights mt-3" id="analyticsMatchInsights" aria-live="polite"></section>
+                </section>
+                <section class="hall-of-fame" aria-labelledby="hallOfFameTitle">
+                    <header class="analytics-section-heading"><div><p class="section-eyebrow">ARCHIVE / ALL TIME</p><h3 id="hallOfFameTitle">Hall of Fame</h3><p>Rekordlar, MVP sovrinlari va tarixiy match cho‘qqilari.</p></div></header>
+                    <div id="awardsContainer"></div>
+                    <div id="recordsContainer"></div>
+                    <div id="savageHallContainer"></div>
+                    <div id="maniacHallContainer"></div>
+                </section>
             </section>
 
-            <!-- RECORDS -->
-            <section class="page-section" id="page-records" aria-label="Records & Awards" hidden>
-                <div class="section-header">
-                    <h2>Records & MVP Hall of Fame</h2>
-                </div>
-                <div id="awardsContainer"></div>
-                <div id="recordsContainer"></div>
-                <div id="savageHallContainer"></div>
-                <div id="maniacHallContainer"></div>
+            <!-- BRIEFING -->
+            <section class="page-section" id="page-briefing" aria-label="Eclipse jamoa briefingi" hidden>
+                <div id="briefingContainer"></div>
             </section>
 
-            <!-- HEROES -->
-            <section class="page-section" id="page-heroes" aria-label="Hero Database" hidden>
-                <div class="section-header">
-                    <h2>Hero Database</h2>
-                </div>
-                <div id="heroManageContainer"></div>
-            </section>
-
-            <!-- TRAINING & ACADEMY -->
-            <section class="page-section" id="page-training" aria-label="Akademiya & Mashg'ulot Rejasi" hidden>
-                <div class="section-header">
-                    <h2>Jamoa Akademiyasi & Shaxsiy Mashg'ulot</h2>
-                </div>
-                <div id="trainingContainer"></div>
+            <!-- META LAB / CANONICAL HERO INTELLIGENCE -->
+            <section class="page-section" id="page-meta-lab" aria-label="MLBB Meta Lab" hidden>
+                <div id="metaLabContainer"></div>
             </section>
 
             <!-- SETTINGS -->
-            <section class="page-section" id="page-settings" aria-label="Settings" hidden>
+            <section class="page-section" id="page-settings" aria-label="Sozlamalar" hidden>
                 <div class="section-header">
-                    <h2>Settings & Cloud Sync</h2>
+                    <h2>Sozlamalar</h2>
                 </div>
                 <div id="settingsContainer" class="settings-page">
-                    <!-- CLOUD SYNC LIVE STATUS CARD -->
-                    <div class="card mb-4" style="background: linear-gradient(135deg, rgba(16,185,129,0.06) 0%, var(--bg-card-glass) 100%); border:1px solid rgba(16,185,129,0.35);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
-                            <div>
-                                <h3 class="card-title" style="margin-bottom:0.35rem;">
-                                    <i class="fa-solid fa-cloud-circle-check" style="color:var(--success);"></i> ☁️ Jonli Cloud Baza Holati
-                                </h3>
-                                <p class="text-secondary" style="font-size:0.875rem; margin:0;">
-                                    Bulutli baza <strong>Vercel Serverless Sync</strong> orqali to‘liq ulangan. Qo‘lda hech narsa kiritish shart emas — har bir o‘zgarish avtomatik saqlanadi.
-                                </p>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:0.75rem;">
-                                <span class="badge" style="background:rgba(16,185,129,0.15); color:var(--success); border:1px solid var(--success); font-weight:700; padding:6px 12px; font-size:0.8rem;">
-                                    <i class="fa-solid fa-circle" style="font-size:0.55rem; vertical-align:middle; margin-right:4px;"></i> JONLI ULANGAN
-                                </span>
-                                <button class="btn btn-primary btn-sm" id="forceSyncBtn">
-                                    <i class="fa-solid fa-rotate"></i> Hozir Sinxronlash
-                                </button>
-                            </div>
+                    <div class="sync-console mb-4" id="syncConsole" data-state="idle">
+                        <div class="sync-console__signal" aria-hidden="true"><span></span><i class="fa-solid fa-cloud"></i></div>
+                        <div class="sync-console__copy">
+                            <p class="section-eyebrow">DATA LINK</p>
+                            <h3>Cloud sync</h3>
+                            <p id="cloudSyncStatus" role="status" aria-live="polite">Holat tekshirilmoqda...</p>
                         </div>
-                        <div id="cloudSyncStatus" style="font-size:0.8rem; color:var(--text-muted); margin-top:0.75rem;">
-                            <i class="fa-solid fa-bolt" style="color:var(--secondary);"></i> Serverless API: <code>/api/sync</code> &middot; Avtomatik real-vaqt sinxronizatsiyasi faol
-                        </div>
-                    </div>
-
-                    <!-- GEMINI AI VISION KEY CARD -->
-                    <div class="card mb-4" style="background: linear-gradient(135deg, rgba(0,240,255,0.06) 0%, var(--bg-card-glass) 100%); border:1px solid rgba(0,240,255,0.35);">
-                        <h3 class="card-title" style="margin-bottom:0.35rem;">
-                            <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--primary);"></i> 🤖 AI Skrinshot Tahlili (Gemini Vision)
-                        </h3>
-                        <p class="text-secondary" style="font-size:0.875rem; margin:0 0 0.75rem 0;">
-                            Match skrinshotlarini avtomatik o'qish uchun bepul Google Gemini API kalitini kiriting. Kalitni <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="color:var(--primary); font-weight:700; text-decoration:underline;">Google AI Studio (aistudio.google.com)</a> dan mutlaqo bepul olishingiz mumkin.
-                        </p>
-                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-                            <input type="password" id="geminiApiKeyInput" class="form-input" placeholder="AIzaSy... (Gemini API Key)" style="max-width:340px;" />
-                            <button class="btn btn-primary" id="saveGeminiKeyBtn"><i class="fa-solid fa-floppy-disk"></i> Kalitni Saqlash</button>
-                            <button class="btn btn-secondary" id="testGeminiKeyBtn"><i class="fa-solid fa-vial"></i> Test Qilish</button>
-                        </div>
-                        <div id="geminiKeyStatus" style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;"></div>
-                    </div>
-
-                    <!-- ADMIN PASSWORD SECURITY CARD -->
-                    <div class="card mb-4">
-                        <h3 class="card-title"><i class="fa-solid fa-key" style="color:var(--secondary);"></i> 🔒 Murabbiy / Admin Parolini O'zgartirish</h3>
-                        <p class="text-secondary" style="font-size:0.875rem;">
-                            Faqat siz matchlarni qo'sha olishingiz va tahrirlashingiz uchun himoya parolini yangilang.
-                        </p>
-                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;">
-                            <input type="password" id="oldPinInput" class="form-input" placeholder="Eski parol" style="max-width:200px;" />
-                            <input type="password" id="newPinInput" class="form-input" placeholder="Yangi parol (4+ belgi)" style="max-width:200px;" />
-                            <button class="btn btn-secondary" id="changePinBtn"><i class="fa-solid fa-shield-halved"></i> Parolni Yangilash</button>
+                        <div class="sync-console__actions">
+                            <span class="sync-state" id="cloudSyncBadge"><i class="fa-solid fa-circle"></i> Tekshirilmoqda</span>
+                            <button type="button" class="btn btn-primary btn-sm" id="forceSyncBtn"><i class="fa-solid fa-rotate"></i> Sinxronlash</button>
                         </div>
                     </div>
 
                     <div class="grid-2">
                         <div class="card">
-                            <h3 class="card-title"><i class="fa-solid fa-download" style="color:var(--primary);"></i> Export Data Backup</h3>
-                            <p class="text-secondary">Download all your team stats, players, matches, and training checklist as a `.json` backup file.</p>
-                            <button class="btn btn-primary mt-2" id="exportBtn"><i class="fa-solid fa-file-export"></i> Export Data</button>
+                            <h3 class="card-title"><i class="fa-solid fa-download" style="color:var(--primary);"></i> Zaxira nusxalar</h3>
+                            <p class="text-secondary">To‘liq server nusxasi: statistika, Briefing, ovozlar va yuborilgan matchlar. Bu shaxsiy fayl — ommaga ulashmang.</p>
+                            <button type="button" class="btn btn-primary mt-2 admin-only" id="fullBackupBtn"><i class="fa-solid fa-download"></i> To‘liq jamoa zaxirasi</button>
+                            <button type="button" class="btn btn-secondary mt-2 admin-only" id="revokeSessionsBtn">Barcha qurilmalardan chiqish</button>
+                            <button type="button" class="btn btn-secondary mt-2" id="exportBtn"><i class="fa-solid fa-file-export"></i> Faqat brauzer statistikasi</button>
                         </div>
                         <div class="card">
-                            <h3 class="card-title"><i class="fa-solid fa-upload" style="color:var(--secondary);"></i> Import Data Backup</h3>
-                            <p class="text-secondary">Restore team statistics and academy progress from a previously exported `.json` backup file.</p>
-                            <input type="file" id="importFile" accept=".json" class="form-input mt-2" aria-label="Import data file">
-                            <button class="btn btn-secondary mt-2" id="importBtn"><i class="fa-solid fa-file-import"></i> Import Data</button>
+                            <h3 class="card-title"><i class="fa-solid fa-upload" style="color:var(--secondary);"></i> Zaxira nusxani tiklash</h3>
+                            <p class="text-secondary">Faqat statistika JSON fayli uchun. To‘liq jamoa zaxirasi serverda alohida tiklanadi; bu forma uni qabul qilmaydi.</p>
+                            <input type="file" id="importFile" accept=".json" class="form-input mt-2" aria-label="Zaxira JSON faylini tanlash">
+                            <button type="button" class="btn btn-secondary mt-2" id="importBtn"><i class="fa-solid fa-file-import"></i> Tiklash</button>
                         </div>
                     </div>
 
                     <div class="card mt-4 admin-only">
-                        <h3 class="card-title"><i class="fa-solid fa-trash-can" style="color:var(--danger);"></i> Clear All Data</h3>
-                        <p class="text-secondary">Permanently delete all stats, players, and match history from this browser.</p>
-                        <button class="btn btn-danger mt-2" id="clearBtn"><i class="fa-solid fa-triangle-exclamation"></i> Clear All Data</button>
+                        <h3 class="card-title"><i class="fa-solid fa-trash-can" style="color:var(--danger);"></i> Barcha ma’lumotlarni tozalash</h3>
+                        <p class="text-secondary">Ushbu brauzerdagi statistika va match tarixini o‘chiradi.</p>
+                        <button type="button" class="btn btn-danger mt-2" id="clearBtn"><i class="fa-solid fa-triangle-exclamation"></i> Tozalash</button>
                     </div>
                 </div>
             </section>
@@ -329,19 +334,25 @@
     </div>
 
     <!-- Modal container -->
-    <div class="modal-overlay" id="modalOverlay" aria-hidden="true">
-        <div class="modal" id="modalContent" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
+    <div class="modal-overlay" id="modalOverlay" aria-hidden="true" hidden>
+        <div class="modal" id="modalContent" role="dialog" aria-modal="true" aria-label="Eclipse dialog oynasi"></div>
     </div>
 
-    <script src="js/heroes.js"></script>
-    <script src="js/data.js"></script>
-    <script src="js/stats.js"></script>
-    <script src="js/charts.js"></script>
-    <script src="js/players.js"></script>
-    <script src="js/match.js"></script>
-    <script src="js/training.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/cloud.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/heroes.js?v=2.25.0"></script>
+    <script src="js/date-utils.js?v=2.25.0"></script>
+    <script src="js/data.js?v=2.25.0"></script>
+    <script src="js/stats.js?v=2.25.0"></script>
+    <script src="js/charts.js?v=2.25.0"></script>
+    <script src="js/players.js?v=2.25.0"></script>
+    <script src="js/match.js?v=2.25.0"></script>
+    <script src="js/auth.js?v=2.25.0"></script>
+    <script src="js/cloud.js?v=2.25.0"></script>
+    <script src="js/mlbb.js?v=2.25.0"></script>
+    <script src="js/briefing.js?v=2.25.0"></script>
+    <script src="js/submissions.js?v=2.25.0"></script>
+    <script src="js/hero-matcher.js?v=2.25.0"></script>
+    <script src="js/match-desk.js?v=2.25.0"></script>
+    <script src="js/tier-board.js?v=2.25.0"></script>
+    <script src="js/app.js?v=2.25.0"></script>
 </body>
 </html>

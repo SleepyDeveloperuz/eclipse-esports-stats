@@ -6,9 +6,11 @@
  */
 class HeroDatabase {
     static STORAGE_KEY = 'eclipse_heroes';
+    static REMOVED_KEY = 'eclipse_removed_heroes';
+    static INVALID_HERO_NAMES = new Set(['azuma', 'exor', 'mulan']);
     
     // Complete list of MLBB heroes with their primary roles
-    // 131 heroes total
+    // Curated default roster; persisted data is merged and sanitized on load.
     static DEFAULT_HEROES = [
         // Tanks (16)
         { name: 'Tigreal', role: 'Tank' },
@@ -56,7 +58,6 @@ class HeroDatabase {
         { name: 'Suyou', role: 'Fighter' },
         { name: 'Sora', role: 'Fighter' },
         { name: 'Lukas', role: 'Fighter' },
-        { name: 'Exor', role: 'Fighter' },
         { name: 'Yin', role: 'Fighter' },
         { name: 'Argus', role: 'Fighter' },
         { name: 'Sun', role: 'Fighter' },
@@ -119,7 +120,6 @@ class HeroDatabase {
         { name: 'Vale', role: 'Mage' },
         { name: 'Gord', role: 'Mage' },
         { name: 'Zhuxin', role: 'Mage' },
-        { name: 'Mulan', role: 'Mage' },
         { name: 'Zetian', role: 'Mage' },
 
         // Marksmen (19)
@@ -161,6 +161,63 @@ class HeroDatabase {
         this.heroes = this.load();
     }
 
+    static cleanText(value, maxLength = 80) {
+        return String(value || '')
+            .replace(/[\u0000-\u001f\u007f<>\"]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, maxLength);
+    }
+
+    static normalizeKey(value) {
+        return HeroDatabase.cleanText(value, 100)
+            .normalize('NFKD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLocaleLowerCase('en-US')
+            .replace(/[^a-z0-9]+/g, '');
+    }
+
+    static cleanList(values, maxItems = 12, maxLength = 80) {
+        const seen = new Set();
+        return (Array.isArray(values) ? values : []).reduce((items, value) => {
+            const cleaned = HeroDatabase.cleanText(value, maxLength);
+            const key = HeroDatabase.normalizeKey(cleaned);
+            if (!cleaned || !key || seen.has(key)) return items;
+            seen.add(key);
+            items.push(cleaned);
+            return items;
+        }, []).slice(0, maxItems);
+    }
+
+    static sanitizeHeroes(heroes, removedNames = new Set()) {
+        const seen = new Set();
+        return (Array.isArray(heroes) ? heroes : []).reduce((cleaned, hero) => {
+            const name = HeroDatabase.cleanText(hero?.name, 80);
+            const roles = HeroDatabase.cleanList(hero?.roles, 5, 40);
+            const role = HeroDatabase.cleanText(hero?.role || roles[0] || 'Unknown', 40);
+            const key = HeroDatabase.normalizeKey(name);
+            if (!name || !role || seen.has(key)
+                || HeroDatabase.INVALID_HERO_NAMES.has(name.toLowerCase())
+                || removedNames.has(name.toLowerCase())) return cleaned;
+            seen.add(key);
+            const id = Number(hero?.id);
+            const aliases = HeroDatabase.cleanList(hero?.aliases, 12, 80);
+            const lanes = HeroDatabase.cleanList(hero?.lanes, 8, 40);
+            const imageCandidate = HeroDatabase.cleanText(hero?.image || hero?.images?.portrait, 500);
+            cleaned.push({
+                ...(Number.isInteger(id) && id > 0 && id <= 10000 ? { id } : {}),
+                name,
+                role,
+                ...(roles.length ? { roles } : {}),
+                ...(aliases.length ? { aliases } : {}),
+                ...(lanes.length ? { lanes } : {}),
+                ...(imageCandidate.startsWith('https://') ? { image: imageCandidate } : {}),
+                canonical: Number.isInteger(id) && id > 0 && id <= 10000
+            });
+            return cleaned;
+        }, []);
+    }
+
     /**
      * Load heroes from local storage or fallback to defaults
      * @returns {Array} Array of hero objects
@@ -170,19 +227,12 @@ class HeroDatabase {
             const savedData = localStorage.getItem(HeroDatabase.STORAGE_KEY);
             if (savedData) {
                 const parsed = JSON.parse(savedData);
-                const cleaned = parsed.filter(h => h.name.toLowerCase() !== 'azuma');
+                const removedNames = this.getRemovedNames();
+                const cleaned = HeroDatabase.sanitizeHeroes(parsed, removedNames);
                 
-                // Auto-merge: Ensure all new default heroes (like Hirara, Zhuxin, Suyou, Sora, Lukas, Marcel) are always included
-                const existingNames = new Set(cleaned.map(h => h.name.toLowerCase()));
-                let updated = false;
-                HeroDatabase.DEFAULT_HEROES.forEach(defHero => {
-                    if (!existingNames.has(defHero.name.toLowerCase())) {
-                        cleaned.push({ ...defHero });
-                        updated = true;
-                    }
-                });
-                
-                if (updated || cleaned.length !== parsed.length) {
+                // A saved database is authoritative. Defaults are not re-merged here,
+                // otherwise an admin-deleted hero returns on every reload.
+                if (!Array.isArray(parsed) || cleaned.length !== parsed.length) {
                     localStorage.setItem(HeroDatabase.STORAGE_KEY, JSON.stringify(cleaned));
                 }
                 return cleaned;
@@ -192,7 +242,20 @@ class HeroDatabase {
         }
         
         // If not found or error, return a copy of the default heroes
-        return [...HeroDatabase.DEFAULT_HEROES];
+        return HeroDatabase.sanitizeHeroes(HeroDatabase.DEFAULT_HEROES, this.getRemovedNames());
+    }
+
+    getRemovedNames() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(HeroDatabase.REMOVED_KEY) || '[]');
+            return new Set(Array.isArray(parsed) ? parsed.map(name => String(name).toLowerCase()) : []);
+        } catch (_) {
+            return new Set();
+        }
+    }
+
+    saveRemovedNames(names) {
+        localStorage.setItem(HeroDatabase.REMOVED_KEY, JSON.stringify(Array.from(names)));
     }
 
     /**
@@ -200,6 +263,7 @@ class HeroDatabase {
      */
     save() {
         try {
+            this.heroes = HeroDatabase.sanitizeHeroes(this.heroes, this.getRemovedNames());
             localStorage.setItem(HeroDatabase.STORAGE_KEY, JSON.stringify(this.heroes));
             return true;
         } catch (error) {
@@ -236,9 +300,55 @@ class HeroDatabase {
         if (!query || query.trim() === '') return this.getAll();
         
         const lowerQuery = query.toLowerCase().trim();
-        return this.getAll().filter(hero => 
+        return this.getAll().filter(hero =>
             hero.name.toLowerCase().includes(lowerQuery)
+            || (hero.aliases || []).some(alias => alias.toLowerCase().includes(lowerQuery))
         );
+    }
+
+    findById(id) {
+        const numericId = Number(id);
+        return Number.isInteger(numericId) ? this.heroes.find(hero => hero.id === numericId) || null : null;
+    }
+
+    findByName(name) {
+        const key = HeroDatabase.normalizeKey(name);
+        if (!key) return null;
+        return this.heroes.find(hero => HeroDatabase.normalizeKey(hero.name) === key
+            || (hero.aliases || []).some(alias => HeroDatabase.normalizeKey(alias) === key)) || null;
+    }
+
+    resolve(value) {
+        if (value && typeof value === 'object') {
+            return this.findById(value.heroId ?? value.id)
+                || this.findByName(value.heroNameSnapshot || value.heroUsed || value.name);
+        }
+        return this.findById(value) || this.findByName(value);
+    }
+
+    hydrateCanonical(catalog = []) {
+        const currentById = new Map(this.heroes.filter(hero => hero.id).map(hero => [hero.id, hero]));
+        const currentByKey = new Map(this.heroes.map(hero => [HeroDatabase.normalizeKey(hero.name), hero]));
+        const incoming = (Array.isArray(catalog) ? catalog : []).map(hero => {
+            const id = Number(hero?.id);
+            const key = HeroDatabase.normalizeKey(hero?.name);
+            const existing = (Number.isInteger(id) && currentById.get(id)) || currentByKey.get(key) || {};
+            return {
+                ...existing,
+                ...hero,
+                role: hero?.role || hero?.roles?.[0] || existing.role || 'Unknown',
+                canonical: Number.isInteger(id) && id > 0
+            };
+        });
+        const canonicalNames = new Set(incoming.map(hero => String(hero?.name || '').toLowerCase()).filter(Boolean));
+        const removedNames = this.getRemovedNames();
+        canonicalNames.forEach(name => removedNames.delete(name));
+        this.saveRemovedNames(removedNames);
+        // Once the live provider succeeds it becomes authoritative. Keeping
+        // unmatched hand-written rows here would reintroduce fictional or
+        // retired heroes beside the canonical MLBB catalog.
+        this.heroes = HeroDatabase.sanitizeHeroes(incoming, removedNames);
+        return this.save();
     }
 
     /**
@@ -250,17 +360,22 @@ class HeroDatabase {
     addHero(name, role) {
         if (!name || !role) return false;
         
-        const nameTrimmed = name.trim();
+        const nameTrimmed = name.replace(/[\u0000-\u001f\u007f<>\"]/g, '').trim().slice(0, 80);
+        const roleTrimmed = role.replace(/[\u0000-\u001f\u007f<>\"]/g, '').trim().slice(0, 40);
+        if (!nameTrimmed || !roleTrimmed || HeroDatabase.INVALID_HERO_NAMES.has(nameTrimmed.toLowerCase())) return false;
         if (this.exists(nameTrimmed)) {
             return false; // Hero already exists
         }
 
         const newHero = {
             name: nameTrimmed,
-            role: role.trim()
+            role: roleTrimmed
         };
         
         this.heroes.push(newHero);
+        const removedNames = this.getRemovedNames();
+        removedNames.delete(nameTrimmed.toLowerCase());
+        this.saveRemovedNames(removedNames);
         this.save();
         return true;
     }
@@ -279,6 +394,9 @@ class HeroDatabase {
         );
         
         if (this.heroes.length !== initialLength) {
+            const removedNames = this.getRemovedNames();
+            removedNames.add(name.toLowerCase().trim());
+            this.saveRemovedNames(removedNames);
             this.save();
             return true;
         }
@@ -292,9 +410,7 @@ class HeroDatabase {
      * @returns {boolean} True if the hero exists
      */
     exists(name) {
-        if (!name) return false;
-        const lowerName = name.toLowerCase().trim();
-        return this.heroes.some(hero => hero.name.toLowerCase() === lowerName);
+        return Boolean(this.findByName(name));
     }
 
     /**

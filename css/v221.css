@@ -1,0 +1,36 @@
+/* v2.21: shared context and evidence-first analytics; preserve Solar identity. */
+#teamContextBar[hidden] { display: none; }
+#teamContextBar { width: 100%; max-width: 1440px; min-width: 0; margin: 1.25rem auto 1rem; }
+.experimental-index summary:focus-visible,
+.roster-coverage button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.roster-coverage header > p:last-child { max-width: 65ch; color: var(--text-secondary); line-height: 1.6; }
+.roster-coverage__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--border-light); border-radius: .8rem; background: var(--border-light); margin-top: 1.25rem; }
+.roster-coverage__grid article { min-width: 0; padding: 1.15rem; background: var(--bg-dark, #11100d); }
+.roster-coverage h4 { color: var(--primary); margin: 0 0 .4rem; }
+.roster-coverage__grid p, .roster-coverage__grid small { color: var(--text-secondary); font-size: .75rem; }
+.roster-coverage ul { list-style: none; margin: 1rem 0 0; padding: 0; }
+.roster-coverage li { padding: .6rem 0; overflow-wrap: anywhere; }
+.roster-coverage li + li { border-top: 1px solid var(--border-light); }
+.roster-coverage small { display: block; margin-top: .3rem; font-variant-numeric: tabular-nums; }
+.experimental-index { margin-top: 1rem; border-top: 1px solid var(--border-light); padding-top: .8rem; }
+.experimental-index summary { cursor: pointer; color: var(--text-secondary); font-size: .78rem; }
+.experimental-index p { color: var(--text-secondary); font-size: .78rem; line-height: 1.6; }
+.experimental-index strong { color: var(--primary); font-variant-numeric: tabular-nums; }
+.recent-results { display: flex; gap: .35rem; margin-top: .75rem; }
+.recent-results span { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; border: 1px solid currentColor; border-radius: .4rem; font: 700 .8rem var(--font-mono); }
+.recent-results .is-win { color: var(--success); }
+.recent-results .is-loss { color: var(--danger); }
+.command-pulse__score > .command-pulse__divider { width: 1px; grid-column: auto; }
+.submission-upload-grid--single { grid-template-columns: 1fr; }
+@media (min-width: 1201px) {
+  .submission-player-row { grid-template-columns: 1.6rem repeat(3, minmax(6rem, 1fr)) minmax(8rem, 1fr) repeat(2, minmax(4.5rem, .6fr)) 2rem; }
+}
+@media (max-width: 640px) {
+  #teamContextBar { margin-block: 1rem; }
+  .submission-player-row__index { grid-row: 1 / 8; }
+  .command-pulse__score { gap: .55rem; }
+  .command-pulse__score div { grid-template-columns: 1fr; gap: .3rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #teamContextBar button { transition: none; }
+}

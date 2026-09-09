@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="ecl-mark" viewBox="0 0 24 24">
+    <path d="M12 1.35v1.4M12 21.25v1.4M1.35 12h1.4M21.25 12h1.4M4.45 4.45l1 1M18.55 18.55l1 1M19.55 4.45l-1 1M5.45 18.55l-1 1" fill="none" stroke="currentColor" stroke-width=".9" stroke-linecap="round" opacity=".5"/>
+    <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.45"/>
+    <circle cx="12" cy="12" r="9.65" fill="none" stroke="currentColor" stroke-width=".75" stroke-dasharray="1.2 1.8" opacity=".45"/>
+    <circle cx="12" cy="12" r="6.95" fill="#050504" stroke="currentColor" stroke-width=".55"/>
+    <circle cx="18.25" cy="7.3" r="1.45" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="ecl-dashboard" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="4.4" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M4.3 14.3a8.1 8.1 0 0 1 12.8-7.6M19.7 9.7a8.1 8.1 0 0 1-12.8 7.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <circle cx="18.9" cy="7.2" r="1.25" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="ecl-add" viewBox="0 0 24 24">
+    <path d="M14.9 14.4a6.3 6.3 0 1 1-7.3-8.9 5.05 5.05 0 1 0 7.3 8.9Z" fill="currentColor" opacity=".9"/>
+    <path d="M17.7 13v7.2M14.1 16.6h7.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M3.8 17.8c2.5 2.15 6 2.75 9.05 1.7" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" opacity=".55"/>
+  </symbol>
+
+  <symbol id="ecl-history" viewBox="0 0 24 24">
+    <path d="M5.15 7.2A8.2 8.2 0 1 1 4 14.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M4.6 3.8v4.1h4.1M12 7.7v4.8l3.2 1.85" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="12" cy="12.5" r="1.25" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="ecl-players" viewBox="0 0 24 24">
+    <circle cx="12" cy="8.1" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <circle cx="6" cy="10.1" r="2.15" fill="none" stroke="currentColor" stroke-width="1.45" opacity=".62"/>
+    <circle cx="18" cy="10.1" r="2.15" fill="none" stroke="currentColor" stroke-width="1.45" opacity=".62"/>
+    <path d="M5.7 19.5c.55-3.15 2.75-5.05 6.3-5.05s5.75 1.9 6.3 5.05M2.6 17.75c.35-2.15 1.65-3.4 3.85-3.65M21.4 17.75c-.35-2.15-1.65-3.4-3.85-3.65" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="ecl-stats" viewBox="0 0 24 24">
+    <path d="M4 19.5h16M6.2 16.2v-3.6M11.1 16.2V8.8M16 16.2V5.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="m5.7 9.1 4-3.2 3.3 1.45 5-4.05" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" opacity=".58"/>
+    <circle cx="18" cy="3.3" r="1.2" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="ecl-records" viewBox="0 0 24 24">
+    <circle cx="12" cy="10.1" r="5.55" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M14.7 12.4A4.1 4.1 0 1 1 9.6 7.3a3.3 3.3 0 1 0 5.1 5.1ZM8.9 15.1 7.5 21l4.5-2.25L16.5 21l-1.4-5.9" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="ecl-briefing" viewBox="0 0 24 24">
+    <path d="M4.2 5.2h10.9a2 2 0 0 1 2 2v6.1a2 2 0 0 1-2 2H9l-4.8 3.4v-3.4a2 2 0 0 1-2-2V7.2a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round"/>
+    <path d="M6.2 9h6.9M6.2 12h4.4" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" opacity=".72"/>
+    <circle cx="18.4" cy="6.1" r="3.2" fill="#050504" stroke="currentColor" stroke-width="1.15"/>
+    <path d="M18.4 1.9v1.05M22.6 6.1h-1.05M21.35 3.15l-.75.75" fill="none" stroke="currentColor" stroke-width=".9" stroke-linecap="round" opacity=".7"/>
+    <circle cx="20.85" cy="3.85" r=".75" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="ecl-heroes" viewBox="0 0 24 24">
+    <path d="M12 3 20 6v5.45c0 4.55-2.7 7.65-8 9.55-5.3-1.9-8-5-8-9.55V6l8-3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M15.55 14.25A4.75 4.75 0 1 1 9.4 8.1a3.8 3.8 0 1 0 6.15 6.15Z" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="ecl-academy" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="m15.55 8.45-2.1 5-5 2.1 2.1-5 5-2.1Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <circle cx="12" cy="12" r="1.1" fill="currentColor"/>
+    <path d="M12 1.8v2.1M12 20.1v2.1" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" opacity=".55"/>
+  </symbol>
+
+  <symbol id="ecl-settings" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <ellipse cx="12" cy="12" rx="9" ry="4.8" fill="none" stroke="currentColor" stroke-width="1.35" opacity=".7"/>
+    <ellipse cx="12" cy="12" rx="4.8" ry="9" fill="none" stroke="currentColor" stroke-width="1.35" opacity=".45" transform="rotate(42 12 12)"/>
+    <circle cx="20.2" cy="10.05" r="1.2" fill="currentColor"/>
+  </symbol>
+</svg>

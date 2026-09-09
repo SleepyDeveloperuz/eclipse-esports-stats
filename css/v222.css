@@ -1,0 +1,66 @@
+/* Solar Match Desk: full-width editing, quiet surfaces, deliberate hierarchy. */
+.roster-player-tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+.roster-player-tags:empty { display: none; }
+.roster-player-tags span { color: var(--primary); border: 1px solid rgba(var(--primary-rgb), .25); border-radius: .35rem; padding: .25rem .5rem; font-size: .7rem; overflow-wrap: anywhere; }
+.roster-profile-dialog { width: min(94vw, 500px); max-height: 90dvh; overflow: auto; color: var(--text-primary); background: #11120e; border: 1px solid #dec78455; border-radius: 18px; padding: 24px; margin: auto; }
+.roster-profile-dialog::backdrop { background: #050604b8; }
+.roster-profile-dialog form, .roster-profile-dialog label { display: grid; gap: 10px; }
+.roster-profile-dialog form { gap: 20px; }
+.roster-profile-dialog p { font-size: .8rem; color: var(--text-secondary); }
+.roster-edit-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.portrait-crop-editor { flex-basis: 100%; min-width: 0; }
+.match-hero-review .portrait-crop-editor > canvas { display: block; width: 100%; height: auto; max-width: 100%; border-radius: 0; cursor: crosshair; margin-top: 12px; }
+.portrait-crop-editor p { font-size: .8rem; color: var(--text-secondary); }
+.portrait-crop-editor > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.submission-layout { grid-template-columns: minmax(0, 1fr); max-width: 1240px; margin-inline: auto; }
+.submission-player-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding: 24px; position: relative; min-width: 0; }
+.submission-player-row > label, .match-metrics > label { min-width: 0; display: grid; align-content: start; gap: 8px; }
+.submission-player-row__index { grid-column: 1 / -1; grid-row: auto; justify-items: start; border-right: 0; color: var(--primary); letter-spacing: .15em; }
+.submission-player-row label, .submission-player-row .submission-kda { grid-column: auto; }
+.submission-player-row label > span { font-size: .82rem; }
+.submission-player-row .form-input, .submission-player-row .form-select { font-size: .9rem; min-height: 44px; }
+.submission-player-row .submission-row-remove { position: absolute; top: 14px; right: 14px; }
+.submission-player-row .form-input, .submission-player-row .form-select, .match-metrics .form-input, .match-metrics .form-select { min-width: 0; width: 100%; }
+.submission-result-fieldset { display: block; min-width: 0; }
+.match-result-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.match-result-options label, .match-result-options label > span { width: 100%; }
+.match-extra { grid-column: 1 / -1; border-top: 1px solid #dac47c25; margin-block: 12px; padding-top: 16px; }
+.match-extra summary { cursor: pointer; font-weight: 500; padding-block: 8px; }
+.match-extra small { color: var(--text-muted); font-weight: 400; margin-left: 8px; }
+.match-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-block: 18px; }
+.match-metrics label > span { color: var(--text-secondary); font-size: .85rem; }
+.match-guest { padding: 20px; background: #d5c89706; margin-block: 14px; border: 1px solid #d5c89720; border-radius: 12px; }
+.match-hero-review { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; border-top: 1px solid #d5c89720; padding-top: 16px; }
+.match-hero-review img, .match-hero-review canvas, .match-candidates img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; }
+.match-hero-review [data-hero-preview] { display: flex; align-items: center; gap: 10px; }
+.match-hero-review [data-hero-status] { color: var(--text-secondary); font-size: .85rem; flex: 1 1 180px; }
+.match-candidates { display: flex; gap: 8px; flex-wrap: wrap; flex-basis: 100%; }
+#matchDraftStatus { font-size: .85rem; color: var(--text-secondary); }
+.tier-view-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 24px 0; }
+.tier-view-toolbar > div { display: flex; gap: 8px; }
+.meta-rank-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 18px 0 4px; }
+.meta-rank-picker > span { color: var(--text-secondary); font-size: .8rem; margin-right: 8px; }
+.meta-rank-picker button { min-height: 42px; }
+.solar-tier-label.is-ss, .meta-tier-badge.is-ss { background: #ffe9aa; color: #201b0d; }
+.solar-tier-board { background: #0d0f0be8; padding: clamp(12px, 2.2vw, 32px); border: 1px solid #dec7842d; border-radius: 20px; }
+.solar-tier-board > header { max-width: 850px; padding: 12px 0 28px; }
+.solar-tier-board h3 { font-size: clamp(1.6rem, 2.5vw, 2.6rem); letter-spacing: -.04em; }
+.solar-tier-board p, .solar-tier-board small, .solar-tier-board footer { color: var(--text-secondary); }
+.solar-tier-row { display: grid; grid-template-columns: 90px minmax(0, 1fr); background: #e9d9a706; border: 1px solid #dec78420; margin-bottom: 12px; border-radius: 12px; overflow: hidden; }
+.solar-tier-label { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #efd17b; color: #161710; gap: 5px; }
+.solar-tier-label strong { font-size: 2rem; font-weight: 600; }.solar-tier-label small { color: inherit; font-size: .6rem; letter-spacing: .08em; }
+.solar-tier-label.is-a { background: #ce9456; }.solar-tier-label.is-b { background: #9fab9e; }.solar-tier-label.is-c { background: #9294a0; }.solar-tier-label.is-d { background: #6c747b; }
+.solar-tier-heroes { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 12px 8px; padding: 18px; }
+.solar-tier-hero { display: flex; flex-direction: column; align-items: center; gap: 7px; background: none; border: 0; padding: 5px; color: var(--text-primary); cursor: pointer; min-width: 0; transition: transform .2s; }
+.solar-tier-hero:hover { transform: translateY(-3px); }.solar-tier-hero:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 8px; }
+.solar-tier-hero img, .solar-tier-hero .meta-hero-fallback { width: 64px; height: 64px; object-fit: cover; border-radius: 50%; border: 1px solid #dec78488; }
+.solar-tier-hero strong { font-size: .8rem; font-weight: 500; overflow-wrap: anywhere; line-height: 1.2; }.solar-tier-hero small { font-size: .65rem; min-height: 1em; }
+.solar-tier-board footer { padding-top: 12px; font-size: .8rem; }
+@media (max-width: 700px) {
+  .submission-player-row { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 16px; gap: 14px; }
+  .match-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .submission-upload-grid { grid-template-columns: 1fr; }
+  .solar-tier-row { grid-template-columns: 48px minmax(0, 1fr); }.solar-tier-label strong { font-size: 1.5rem; }.solar-tier-label small { font-size: .45rem; }
+  .solar-tier-heroes { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); padding: 12px 8px; gap: 8px 4px; }.solar-tier-hero img { width: 54px; height: 54px; }
+}
+@media (prefers-reduced-motion: reduce) { .solar-tier-hero { transition: none; }.solar-tier-hero:hover { transform: none; } }
