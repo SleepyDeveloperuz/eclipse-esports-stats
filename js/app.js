@@ -751,6 +751,16 @@ window.EclipseApp = {
       const values = trackedRows.map(row => window.StatsEngine.numberOrNull(row?.[key]));
       return values.every(value => value !== null) ? values.reduce((sum, value) => sum + value, 0) : null;
     };
+    // Extended metrics are additive observations, not an all-or-nothing total.
+    // Keep their coverage separate: unknown values are never counted as zero.
+    const metricCoverage = Object.fromEntries(['damageDealt', 'damageReceived', 'turretDamage', 'goldEarned'].map(key => {
+      const values = trackedRows.map(row => window.StatsEngine.numberOrNull(row?.[key])).filter(value => value !== null);
+      return [key, {
+        total: values.length ? values.reduce((sum, value) => sum + value, 0) : null,
+        observed: values.length,
+        appearances: trackedRows.length
+      }];
+    }));
     const totalKills = completeTotal('kills');
     const totalDeaths = completeTotal('deaths');
     const totalAssists = completeTotal('assists');
@@ -768,16 +778,25 @@ window.EclipseApp = {
       guestSlots,
       formationCounts,
       formationResults,
-      totalDamageDealt: completeTotal('damageDealt'),
-      totalDamageReceived: completeTotal('damageReceived'),
-      totalTurretDamage: completeTotal('turretDamage'),
-      totalGoldEarned: completeTotal('goldEarned'),
+      totalDamageDealt: metricCoverage.damageDealt.total,
+      totalDamageReceived: metricCoverage.damageReceived.total,
+      totalTurretDamage: metricCoverage.turretDamage.total,
+      totalGoldEarned: metricCoverage.goldEarned.total,
+      metricCoverage,
       kda,
       savageList,
       maniacList,
       totalSavages: savageList.length,
       totalManiacs: maniacList.length
     };
+  },
+
+  trackedMetricCoverageLabel(stats, key) {
+    const coverage = stats.metricCoverage[key];
+    if (!coverage.appearances) return 'Hali qatnashuv yo‘q';
+    const status = !coverage.observed ? 'Ma’lumot yo‘q'
+      : coverage.observed < coverage.appearances ? 'Qisman hisob' : 'To‘liq hisob';
+    return `${status} · ${coverage.observed}/${coverage.appearances} qatnashuv`;
   },
 
   escapeHtml(value) {
@@ -1434,7 +1453,9 @@ window.EclipseApp = {
         <div class="stat-card stat-card--gold">
           <div class="stat-card-title"><i class="fa-solid fa-burst"></i> ${isSquadMode ? 'ECL o‘yinchilari Damage' : 'Jami Damage'}</div>
           <div class="stat-card-value" title="${full(isSquadMode ? trackedStats.totalDamageDealt : teamStats.teamTotalDamageDealt)}">${fmt(isSquadMode ? trackedStats.totalDamageDealt : teamStats.teamTotalDamageDealt)}</div>
+          ${isSquadMode ? `<div class="stat-card-desc">${this.trackedMetricCoverageLabel(trackedStats, 'damageDealt')}</div>` : ''}
           <div class="stat-card-desc">${isSquadMode ? `ECL Gold: ${fmt(trackedStats.totalGoldEarned)}` : `Jami Gold: ${fmt(teamStats.teamTotalGold)}`}</div>
+          ${isSquadMode ? `<div class="stat-card-desc">${this.trackedMetricCoverageLabel(trackedStats, 'goldEarned')}</div>` : ''}
         </div>
         <div class="stat-card stat-card--primary">
           <div class="stat-card-title"><i class="fa-solid ${isSquadMode ? 'fa-people-group' : 'fa-chess-rook'}"></i> ${isSquadMode ? 'ECL qatnashuvi' : 'Obyektlar'}</div>
@@ -1829,18 +1850,22 @@ window.EclipseApp = {
             <div style="background:rgba(0,0,0,0.3); padding:1rem; border-radius:8px; border:1px solid var(--border-light);">
               <div style="color:var(--text-muted); font-size:0.8rem; text-transform:uppercase;">Jami Damage</div>
               <div style="font-size:1.75rem; font-weight:bold; color:var(--secondary);" title="${full(aggregateStats.damageDealt)}">${fmt(aggregateStats.damageDealt)}</div>
+              ${isSquadMode ? `<div class="stat-card-desc">${this.trackedMetricCoverageLabel(trackedStats, 'damageDealt')}</div>` : ''}
             </div>
             <div style="background:rgba(0,0,0,0.3); padding:1rem; border-radius:8px; border:1px solid var(--border-light);">
               <div style="color:var(--text-muted); font-size:0.8rem; text-transform:uppercase;">Qabul qilingan Damage</div>
               <div style="font-size:1.75rem; font-weight:bold; color:var(--primary);" title="${full(aggregateStats.damageReceived)}">${fmt(aggregateStats.damageReceived)}</div>
+              ${isSquadMode ? `<div class="stat-card-desc">${this.trackedMetricCoverageLabel(trackedStats, 'damageReceived')}</div>` : ''}
             </div>
             <div style="background:rgba(0,0,0,0.3); padding:1rem; border-radius:8px; border:1px solid var(--border-light);">
               <div style="color:var(--text-muted); font-size:0.8rem; text-transform:uppercase;">Turret Damage</div>
               <div style="font-size:1.75rem; font-weight:bold; color:var(--success);" title="${full(aggregateStats.turretDamage)}">${fmt(aggregateStats.turretDamage)}</div>
+              ${isSquadMode ? `<div class="stat-card-desc">${this.trackedMetricCoverageLabel(trackedStats, 'turretDamage')}</div>` : ''}
             </div>
             <div style="background:rgba(0,0,0,0.3); padding:1rem; border-radius:8px; border:1px solid var(--border-light);">
               <div style="color:var(--text-muted); font-size:0.8rem; text-transform:uppercase;">Jami Gold</div>
               <div style="font-size:1.75rem; font-weight:bold; color:var(--warning);" title="${full(aggregateStats.gold)}">${fmt(aggregateStats.gold)}</div>
+              ${isSquadMode ? `<div class="stat-card-desc">${this.trackedMetricCoverageLabel(trackedStats, 'goldEarned')}</div>` : ''}
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 Private-team MLBB analytics and captain workflow with a Solar Eclipse visual identity.
 
-Current release: **v2.25.0**. Website: [eclipse-esports-stats.vercel.app](https://eclipse-esports-stats.vercel.app).
+Current release: **v2.25.1**. Website: [eclipse-esports-stats.vercel.app](https://eclipse-esports-stats.vercel.app).
 
 This repository contains the application source, tests, assets and operator tools. The source is public; team records, passwords, API keys and backup files are not included. Access to the deployed team's data requires an authenticated session.
 
@@ -54,4 +54,4 @@ See [BACKUP-MAC.md](BACKUP-MAC.md) for backup and restore procedures. Restore is
 
 Hero recognition is assistive, not guaranteed. Real-image accuracy has not yet been benchmarked. Eclipse tiers are experimental derived rankings, not official Moonton ratings; source attribution is retained in Meta Lab.
 
-Details and validation results: [v2.25 release notes](RELEASE-v2.25.md).
+Details and validation results: [v2.25 release notes](RELEASE-v2.25.md), [v2.25.1 hotfix](RELEASE-v2.25.1.md).
