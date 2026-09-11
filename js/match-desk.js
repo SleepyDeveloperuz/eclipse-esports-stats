@@ -50,17 +50,37 @@
       const row = this.container?.querySelector('#practicePlayerRows')?.lastElementChild;
       if (!row) return;
       row.insertAdjacentHTML('beforeend', this.metricMarkup(values));
+      if (Number.isInteger(values.sourceRow) && values.sourceRow >= 1 && values.sourceRow <= 5) row.dataset.sourceRow = String(values.sourceRow);
       row.dataset.heroReview = values.heroReviewRequired ? 'pending' : 'confirmed';
       row.insertAdjacentHTML('beforeend', `<div class="match-hero-review"><div data-hero-preview></div><span data-hero-status role="status"></span><button type="button" class="btn btn-sm btn-secondary" data-confirm-hero>Qahramonni tasdiqlash</button><button type="button" class="btn btn-sm btn-secondary" data-rescan-hero hidden>Ikonkalar bilan solishtirish</button><button type="button" class="btn btn-sm btn-secondary" data-crop-hero>Ikonkani ajratish</button></div>`);
       row.querySelector('[data-crop-hero]').onclick = () => this.choosePortrait(row);
-      row.querySelector('[data-field="heroUsed"]').addEventListener('input', () => { row._heroEditVersion = (row._heroEditVersion || 0) + 1; row.dataset.heroReview = 'pending'; this.heroPreview(row); });
+      row.querySelector('[data-field="heroUsed"]').addEventListener('input', () => {
+        row._heroEditVersion = (row._heroEditVersion || 0) + 1; row.dataset.heroReview = 'pending';
+        row.querySelector('[data-hero-candidates]')?.remove(); this.heroPreview(row);
+      });
+      row.querySelector('[data-field="playerId"]').addEventListener('change', () => {
+        row._heroEditVersion = (row._heroEditVersion || 0) + 1;
+        row.querySelector('[data-hero-candidates]')?.remove();
+      });
       row.querySelector('[data-confirm-hero]').onclick = () => {
         if (!this.heroDb.resolve?.(this.formValue(row, 'heroUsed'))) return window.showToast?.('Bazadan qahramon tanlang.', 'warning');
-        row._heroEditVersion = (row._heroEditVersion || 0) + 1; row.dataset.heroReview = 'confirmed'; this.heroPreview(row); this.saveDraft();
+        row._heroEditVersion = (row._heroEditVersion || 0) + 1; row.dataset.heroReview = 'confirmed'; row.querySelector('[data-hero-candidates]')?.remove(); this.heroPreview(row); this.saveDraft();
       };
       row.querySelector('[data-rescan-hero]').onclick = () => this.rescanHero(row);
       this.heroPreview(row);
-      if (values.portraitBox) this.attachPortrait(row, values.portraitBox);
+      row.dataset.medalReview = values.medalReviewRequired ? 'pending' : 'confirmed';
+      const medal = row.querySelector('[data-field="medal"]');
+      const medalReview = document.createElement('div'); medalReview.className = 'match-medal-review';
+      medalReview.innerHTML = '<span data-medal-status role="status"></span><button type="button" class="btn btn-sm btn-secondary" data-confirm-medal>Medalni tekshirdim</button>';
+      medal.closest('label').append(medalReview);
+      const updateMedal = () => {
+        const pending = row.dataset.medalReview !== 'confirmed';
+        row.querySelector('[data-medal-status]').textContent = pending ? 'AI medalni adashtirishi mumkin. Tekshiring yoki Noma’lum qoldiring.' : '';
+        row.querySelector('[data-confirm-medal]').hidden = !pending;
+      };
+      medal.addEventListener('change', () => { row.dataset.medalReview = 'confirmed'; updateMedal(); this.saveDraft(); });
+      row.querySelector('[data-confirm-medal]').onclick = () => { row.dataset.medalReview = 'confirmed'; updateMedal(); this.saveDraft(); };
+      updateMedal();
       row.querySelector('.submission-row-remove').addEventListener('click', () => this.saveDraft());
     }
 
@@ -68,51 +88,74 @@
       const hero = this.heroDb.resolve?.(this.formValue(row, 'heroUsed'));
       const image = hero?.images?.portrait || hero?.image || '';
       row.querySelector('[data-hero-preview]').innerHTML = `${image ? `<img src="${this.escape(image)}" alt="${this.escape(hero.name)}">` : ''}<strong>${this.escape(hero?.name || 'Qahramonni tanlang')}</strong>`;
-      row.querySelector('[data-hero-status]').textContent = row.dataset.heroReview === 'confirmed' ? 'Tanlov tasdiqlangan' : 'AI taklifi yoki yangi tanlov — portretni tekshirib tasdiqlang';
+      row.querySelector('[data-hero-status]').textContent = row.dataset.heroReview === 'confirmed' ? 'Tanlov tasdiqlangan' : 'Qahramon tasdiqlanmagan. Portretni tekshiring va variantni tanlang.';
       row.querySelector('[data-confirm-hero]').hidden = row.dataset.heroReview === 'confirmed';
     }
 
-    async attachPortrait(row, box) {
-      const source = this.images.filter(Boolean)[box.imageIndex || 0];
+    async attachPortrait(row, box, { context = null, prepared = false, automaticLocation = false } = {}) {
+      const imageIndex = box.imageIndex || 0;
+      const source = this.images.filter(Boolean)[imageIndex];
       if (!source || !Array.isArray(box.bounds) || box.bounds.length !== 4 || box.bounds.some(n => !Number.isFinite(n) || n < 0 || n > 1000)) return;
       const [top, left, bottom, right] = box.bounds;
       if (bottom <= top || right <= left) return;
       const img = new Image(); img.src = source;
       const heroEditVersion = row._heroEditVersion || 0;
       const cropGeneration = row._cropGeneration = (row._cropGeneration || 0) + 1;
+      const workGeneration = this._ocrGeneration;
+      const current = () => row.isConnected && row._cropGeneration === cropGeneration && (row._heroEditVersion || 0) === heroEditVersion
+        && this._ocrGeneration === workGeneration && this.images.filter(Boolean)[imageIndex] === source && (!context || this.isOcrContextCurrent(context));
       try {
         await img.decode();
-        if (!row.isConnected || row._cropGeneration !== cropGeneration || (row._heroEditVersion || 0) !== heroEditVersion) return;
+        if (!current()) return;
         const canvas = document.createElement('canvas'); canvas.width = 192; canvas.height = 192;
         canvas.getContext('2d').drawImage(img, left * img.width / 1000, top * img.height / 1000, (right - left) * img.width / 1000, (bottom - top) * img.height / 1000, 0, 0, 192, 192);
         canvas.setAttribute('aria-label', 'Skrinshotdan ajratilgan portret');
         row.querySelector('.match-hero-review > canvas')?.remove();
         row.querySelector('.match-hero-review').prepend(canvas);
         row._portraitCrop = canvas.toDataURL('image/jpeg', 0.9);
+        row._portraitSource = source;
+        row._portraitImageIndex = imageIndex;
+        row._portraitAutomaticLocation = automaticLocation;
         const width = (right - left) * img.width / 1000, height = (bottom - top) * img.height / 1000;
         row._portraitSize = Math.max(width, height) / Math.min(width, height) <= 1.3 ? Math.min(width, height) : 0;
         row.dataset.heroReview = 'pending';
         row.querySelector('[data-rescan-hero]').hidden = false;
-        await this.rescanHero(row);
+        await this.rescanHero(row, { context, prepared });
       } catch (_) { /* The original screenshot remains visible if a crop cannot be decoded. */ }
     }
 
-    async rescanHero(row) {
+    async rescanHero(row, { context = null, prepared = false } = {}) {
       const button = row.querySelector('[data-rescan-hero]');
       if (!row._portraitCrop) return;
       const original = this.formValue(row, 'heroUsed');
       const playerId = this.formValue(row, 'playerId');
       const crop = row._portraitCrop;
       const generation = row._matchGeneration = (row._matchGeneration || 0) + 1;
+      const heroEditVersion = row._heroEditVersion || 0;
+      const workGeneration = this._ocrGeneration;
+      const form = row.closest('#practiceSubmissionForm');
+      const page = form?.closest('.page-section');
+      const activePage = page?.classList.contains('active') ? page : null;
+      let navigationCancelled = false;
+      const navigation = activePage && typeof MutationObserver !== 'undefined' ? new MutationObserver(() => {
+        if (!activePage.classList.contains('active')) navigationCancelled = true;
+      }) : null;
+      navigation?.observe(activePage, { attributes: true, attributeFilter: ['class'] });
       const status = row.querySelector('[data-hero-status]');
-      const current = () => row.isConnected && row._matchGeneration === generation && row._portraitCrop === crop && this.formValue(row, 'heroUsed') === original && this.formValue(row, 'playerId') === playerId && row.dataset.heroReview !== 'confirmed';
+      const current = () => row.isConnected && this._ocrGeneration === workGeneration && row._matchGeneration === generation && row._portraitCrop === crop
+        && (row._heroEditVersion || 0) === heroEditVersion && this.formValue(row, 'heroUsed') === original && this.formValue(row, 'playerId') === playerId
+        && !navigationCancelled && (!activePage || activePage.classList.contains('active')) && (!context || this.isOcrContextCurrent(context))
+        && (!row._portraitSource || this.images.filter(Boolean)[row._portraitImageIndex] === row._portraitSource) && row.dataset.heroReview !== 'confirmed';
       row.dataset.heroReview = 'pending';
       this.heroPreview(row);
       status.textContent = 'Original ikonkalar bilan solishtirilmoqda…';
       button.disabled = true;
       try {
         this.portraitMatcher ||= new window.HeroPortraitMatcher(this.auth);
-        const result = await this.portraitMatcher.match(crop, { cropSize: row._portraitSize, progress: text => { if (current()) status.textContent = text; } });
+        const progress = text => { if (current()) status.textContent = text; };
+        if (!prepared) await this.portraitMatcher.prepare(progress);
+        if (!current()) return;
+        const result = await this.portraitMatcher.match(crop, { prepared: true, cropSize: row._portraitSize, progress });
         if (!current()) return;
         const candidates = result.candidates;
         row.querySelector('[data-hero-candidates]')?.remove();
@@ -121,22 +164,27 @@
           const pick = document.createElement('button'); pick.type = 'button'; pick.className = 'btn btn-secondary';
           const image = hero.image;
           pick.innerHTML = `${image ? `<img src="${this.escape(image)}" alt="">` : ''}${this.escape(hero.name)} · ${(hero.score * 100).toFixed(1)}% o‘xshashlik`;
-          pick.onclick = () => { row._heroEditVersion = (row._heroEditVersion || 0) + 1; row.querySelector('[data-field="heroUsed"]').value = hero.name; row.dataset.heroReview = 'confirmed'; this.heroPreview(row); this.saveDraft(); };
+          pick.onclick = () => {
+            if (!current()) return;
+            row._heroEditVersion = (row._heroEditVersion || 0) + 1; row.querySelector('[data-field="heroUsed"]').value = hero.name; row.dataset.heroReview = 'confirmed'; this.heroPreview(row); strip.remove(); this.saveDraft();
+          };
           strip.append(pick);
         }
         if (!strip.children.length) strip.textContent = 'Mos ikonka topilmadi. Qahramonni qo‘lda tanlang.';
         row.querySelector('.match-hero-review').append(strip);
-        if (result.automatic && candidates[0]) {
-          row.querySelector('[data-field="heroUsed"]').value = candidates[0].name; row.dataset.heroReview = 'confirmed'; this.heroPreview(row); this.saveDraft();
-          status.textContent = 'Ikonka juda yaqin moslik bilan tanlandi. Istasangiz o‘zgartiring.';
-        } else status.textContent = `${result.loaded}/${result.total} ikonka tayyor. Variantni tasdiqlang yoki ikonkani qayta ajrating. O‘xshashlik — aniqlik ehtimoli emas.`;
+        status.textContent = `${result.loaded}/${result.total} ikonka tayyor. Variantni portretga qarab tasdiqlang yoki ikonkani qayta ajrating. O‘xshashlik — aniqlik ehtimoli emas.`;
       } catch (error) { if (current()) status.textContent = error.message; }
-      finally { if (row._matchGeneration === generation) button.disabled = false; }
+      finally { navigation?.disconnect(); if (row._matchGeneration === generation) button.disabled = false; }
     }
 
     async choosePortrait(row) {
       const images = this.images.filter(Boolean);
       if (!images.length) return window.showToast?.('Avval match skrinshotini yuklang.', 'warning');
+      row._heroEditVersion = (row._heroEditVersion || 0) + 1;
+      row._matchGeneration = (row._matchGeneration || 0) + 1;
+      row.querySelector('[data-hero-candidates]')?.remove();
+      row.querySelector('[data-rescan-hero]').disabled = false;
+      const workGeneration = this._ocrGeneration;
       row.querySelector('[data-crop-editor]')?.remove();
       const editor = document.createElement('div'); editor.dataset.cropEditor = ''; editor.className = 'portrait-crop-editor';
       editor.innerHTML = `<p>Hero ikonkasining chap yuqori va o‘ng pastki burchagini ketma-ket bosing. Ramka va yonidagi belgilarni olmang.</p><div>${images.map((_, i) => `<button type="button" class="btn btn-sm btn-secondary" data-crop-image="${i}">Rasm ${i + 1}</button>`).join('')}<button type="button" class="btn btn-sm btn-secondary" data-crop-close>Yopish</button></div><canvas aria-label="Hero ikonkasini ajratish uchun match skrinshoti"></canvas><p role="status" data-crop-status></p>`;
@@ -146,7 +194,7 @@
       const load = async index => {
         const id = ++loadId, img = new Image(); img.src = images[index];
         try { await img.decode(); } catch (_) { editor.querySelector('[data-crop-status]').textContent = 'Rasm ochilmadi.'; return; }
-        if (!editor.isConnected || id !== loadId) return;
+        if (!editor.isConnected || id !== loadId || this._ocrGeneration !== workGeneration) return;
         const canvas = editor.querySelector('canvas'); canvas.width = Math.min(img.width, 1000); canvas.height = Math.round(canvas.width * img.height / img.width);
         const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); let first;
         editor.querySelector('[data-crop-status]').textContent = 'Ikonkaning birinchi burchagini belgilang.';
@@ -156,7 +204,7 @@
           if (!first) { first = point; ctx.fillStyle = '#efd17b'; ctx.fillRect(point[1] * canvas.width / 1000 - 3, point[0] * canvas.height / 1000 - 3, 6, 6); editor.querySelector('[data-crop-status]').textContent = 'Endi qarama-qarshi burchagini belgilang.'; return; }
           const bounds = [Math.min(first[0], point[0]), Math.min(first[1], point[1]), Math.max(first[0], point[0]), Math.max(first[1], point[1])];
           if (bounds[2] - bounds[0] < 5 || bounds[3] - bounds[1] < 5) { first = null; editor.querySelector('[data-crop-status]').textContent = 'Juda kichik maydon. Ikki burchakni qayta belgilang.'; return; }
-          if (this.images.filter(Boolean)[index] !== images[index]) { editor.remove(); return; }
+          if (this._ocrGeneration !== workGeneration || this.images.filter(Boolean)[index] !== images[index]) { editor.remove(); return; }
           editor.remove(); this.attachPortrait(row, { imageIndex: index, bounds });
         };
       };
@@ -247,7 +295,7 @@
       const read = row => Object.fromEntries([...row.querySelectorAll('[data-field]')].map(el => [el.dataset.field, ['savage', 'maniac'].includes(el.dataset.field) ? (el.value === '' ? null : el.value === 'true') : el.value]));
       return { version: 1, savedAt: new Date().toISOString(), fields: Object.fromEntries([...form.querySelectorAll('[id].form-input, [id].form-select')].filter(el => !el.multiple).map(el => [el.id, el.value])),
         team: Object.fromEntries([...form.querySelectorAll('[data-team-field]')].map(el => [el.dataset.teamField, el.value])), result: form.querySelector('[name="practice-result"]:checked')?.value || '',
-        playerStats: [...form.querySelectorAll('.submission-player-row')].map(row => ({ ...read(row), heroReviewRequired: row.dataset.heroReview !== 'confirmed' })),
+        playerStats: [...form.querySelectorAll('.submission-player-row')].map(row => ({ ...read(row), heroReviewRequired: row.dataset.heroReview !== 'confirmed', medalReviewRequired: row.dataset.medalReview !== 'confirmed' })),
         guestStats: [...form.querySelectorAll('.match-guest')].map(row => ({ ...read(row), guestId: row.dataset.guestId })),
         substitutes: [...form.querySelector('#practiceSubstitutes').selectedOptions].map(el => el.value),
         source: this.ocrSource, reviewIssues: this.ocrReviewIssues,
@@ -280,6 +328,7 @@
       [...substitutes.options].forEach(option => { option.selected = selected.has(option.value); });
     }
     restoreDraft(saved) {
+      this.invalidateOcrWork();
       const form = this.container.querySelector('#practiceSubmissionForm');
       this.editingMatch = this.auth.isAdmin() ? saved.editingMatch || null : null;
       this.editingSubmission = this.auth.isAdmin() ? saved.editingSubmission || null : null;
@@ -339,16 +388,64 @@
       const form = this.container.querySelector('#practiceSubmissionForm');
       if (!form.checkValidity()) { form.reportValidity(); throw new Error('Belgilangan maydonlarni tekshiring.'); }
       if ([...form.querySelectorAll('.submission-player-row')].some(row => row.dataset.heroReview !== 'confirmed')) throw new Error('Har bir qahramon tanlovini portretiga qarab tasdiqlang.');
+      if ([...form.querySelectorAll('.submission-player-row')].some(row => row.dataset.medalReview === 'pending')) throw new Error('AI o‘qigan medallarni tekshiring yoki Noma’lum qoldiring.');
+      if ([...form.querySelectorAll('[data-field="medal"]')].filter(input => input.value === 'mvp').length > 1) throw new Error('Bitta jamoada faqat bitta MVP bo‘lishi mumkin. Medallarni tekshiring.');
       const result = super.collectDraft(); const raw = this.rawDraft();
       result.draft = { ...result.draft, ...raw.team, entryMode: 'full', guestStats: raw.guestStats, substitutes: raw.substitutes,
         playerStats: result.draft.playerStats.map((row, i) => ({ ...row, ...Object.fromEntries([...Object.keys(metrics), 'savage', 'maniac'].map(field => [field, raw.playerStats[i][field] ?? null])) })) };
       return result;
     }
 
-    applyOcrData(data) {
-      super.applyOcrData({ ...data, players: (data.players || []).map(player => ({ ...player, heroReviewRequired: true })) });
+    async applyOcrData(data, context = null) {
+      super.applyOcrData({ ...data, players: (data.players || []).map(player => ({ ...player, heroUsed: '', portraitBox: null, heroReviewRequired: true, medalReviewRequired: true })) });
       this.container.querySelectorAll('[data-team-field]').forEach(el => { if (el.dataset.teamField !== 'sessionLabel') el.value = data[el.dataset.teamField] ?? ''; });
       this.saveDraft();
+      await this.locateOcrPortraits(context);
+    }
+
+    async locateOcrPortraits(context = null) {
+      const form = this.container?.querySelector('#practiceSubmissionForm');
+      if (!form) return;
+      if (!context) {
+        const page = form.closest('.page-section');
+        context = { generation: this._ocrGeneration, form, container: this.container, slots: [...this.images], images: this.images.filter(Boolean),
+          signal: new AbortController().signal, page: page?.classList.contains('active') ? page : null };
+      }
+      const current = () => this.isOcrContextCurrent(context);
+      const entries = [...form.querySelectorAll('.submission-player-row')].map(row => ({ row, sourceRow: Number(row.dataset.sourceRow), editVersion: row._heroEditVersion || 0, playerId: this.formValue(row, 'playerId') }));
+      const untouched = entry => current() && entry.row.isConnected && (entry.row._heroEditVersion || 0) === entry.editVersion
+        && this.formValue(entry.row, 'playerId') === entry.playerId && entry.row.dataset.heroReview !== 'confirmed';
+      const note = (entry, text) => { if (untouched(entry)) entry.row.querySelector('[data-hero-status]').textContent = text; };
+      // Filtering guests changes the form row index. Only the original screenshot row may locate an icon.
+      const eligible = entries.filter(entry => Number.isInteger(entry.sourceRow) && entry.sourceRow >= 1 && entry.sourceRow <= 5
+        && entries.filter(other => other.sourceRow === entry.sourceRow).length === 1);
+      entries.filter(entry => !eligible.includes(entry)).forEach(entry => note(entry, 'Rasmdagi qator aniq emas. Ikonkani qo‘lda ajrating yoki qahramonni tanlang.'));
+      if (!eligible.length) return;
+      if (!window.EclipsePortraitLocator?.locate || !context.images.length) {
+        eligible.forEach(entry => note(entry, 'Avtomatik ikonka ajratish mavjud emas. Ikonkani qo‘lda ajrating yoki qahramonni tanlang.'));
+        return;
+      }
+      try {
+        this.portraitMatcher ||= new window.HeroPortraitMatcher(this.auth);
+        const progress = text => eligible.forEach(entry => note(entry, text));
+        await this.portraitMatcher.prepare(progress);
+        if (!current()) return;
+        for (let imageIndex = 0; imageIndex < context.images.length; imageIndex++) {
+          const result = await window.EclipsePortraitLocator.locate(context.images[imageIndex], { references: this.portraitMatcher.references, progress, signal: context.signal });
+          if (!current()) return;
+          const boxes = Array.isArray(result?.boxes) ? result.boxes : [];
+          if (boxes.length !== 5 || new Set(boxes.map(box => box.rowIndex)).size !== 5 || boxes.some(box => !Number.isInteger(box.rowIndex) || box.rowIndex < 0 || box.rowIndex > 4)) continue;
+          for (const entry of eligible) {
+            if (!untouched(entry)) continue;
+            const box = boxes.find(box => box.rowIndex === entry.sourceRow - 1);
+            await this.attachPortrait(entry.row, { imageIndex, bounds: box.bounds }, { context, prepared: true, automaticLocation: true });
+          }
+          return;
+        }
+        eligible.forEach(entry => note(entry, 'Rasm joylashuvi ishonchli aniqlanmadi. “Ikonkani ajratish” orqali belgilang yoki qahramonni qo‘lda tanlang.'));
+      } catch (error) {
+        eligible.forEach(entry => note(entry, error?.name === 'AbortError' ? 'Tekshiruv to‘xtatildi.' : 'Ikonkalar hozir tekshirilmadi. Ikonkani qo‘lda ajrating yoki qahramonni tanlang.'));
+      }
     }
     cardMarkup(item) {
       const draft = item.review?.correctedDraft || item.draft;

@@ -128,8 +128,8 @@
         catch (_) { /* No user screenshot data is included; local result remains usable. */ }
       }
     }
-    async match(source, { progress, cropSize = 0 } = {}) {
-      await this.prepare(progress);
+    async match(source, { progress, cropSize = 0, prepared = false } = {}) {
+      if (!prepared || !this.references?.length) await this.prepare(progress);
       const variants = imageVariants(await decode(source));
       const candidates = rankCandidates(variants, this.references);
       const values = variants[0];

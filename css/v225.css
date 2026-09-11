@@ -7,4 +7,7 @@
 .match-review-quality { padding: 14px; margin-block: 12px; border-left: 2px solid var(--primary); background: rgb(231 195 107 / .045); }
 .match-review-quality p { color: var(--text-secondary); font-size: .85rem; margin-block: 6px; }
 .match-review-quality button { margin: 4px; }
+.match-medal-review { display: grid; gap: 6px; margin-top: 8px; }
+.match-medal-review [data-medal-status] { font-size: .75rem; line-height: 1.4; color: var(--text-secondary); }
+[data-ocr-meta] { display: block; margin-top: 8px; overflow-wrap: anywhere; font-size: .75rem; line-height: 1.5; color: var(--text-secondary); }
 @media (max-width: 600px) { .sync-conflict-dialog fieldset { grid-template-columns: 1fr; } }

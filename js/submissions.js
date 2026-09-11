@@ -52,6 +52,7 @@ window.SubmissionManager = class SubmissionManager {
   }
 
   async render(containerId) {
+    this.invalidateOcrWork();
     this.container = document.getElementById(containerId);
     if (!this.container) return;
     const generation = this.renderGeneration = (this.renderGeneration || 0) + 1;
@@ -274,6 +275,7 @@ window.SubmissionManager = class SubmissionManager {
   bindForm() {
     const form = this.container?.querySelector('#practiceSubmissionForm');
     if (!form) return;
+    this.invalidateOcrWork();
     this.images = [null, null];
     this.imageNames = ['', ''];
     this.ocrSource = 'manual';
@@ -308,6 +310,9 @@ window.SubmissionManager = class SubmissionManager {
     form.querySelectorAll('[data-remove-index]').forEach(button => {
       button.addEventListener('click', event => {
         event.stopPropagation();
+        this.invalidateOcrWork();
+        this._imageReads ||= [0, 0];
+        this._imageReads[Number(button.dataset.removeIndex)]++;
         this.images[Number(button.dataset.removeIndex)] = null;
         this.imageNames[Number(button.dataset.removeIndex)] = '';
         this.updateImageSlots();
@@ -362,8 +367,13 @@ window.SubmissionManager = class SubmissionManager {
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowed.includes(file.type)) return window.showToast?.('Faqat JPEG, PNG yoki WEBP rasm tanlang.', 'warning');
     if (file.size > 3 * 1024 * 1024) return window.showToast?.('Rasm 3 MB dan kichik bo‘lishi kerak.', 'warning');
+    this.invalidateOcrWork();
+    this._imageReads ||= [0, 0];
+    const readId = ++this._imageReads[index];
+    const form = this.container?.querySelector('#practiceSubmissionForm');
     const reader = new FileReader();
     reader.onload = event => {
+      if (readId !== this._imageReads[index] || !form?.isConnected || this.container?.querySelector('#practiceSubmissionForm') !== form) return;
       this.formDirty = true;
       this.images[index] = event.target.result;
       this.imageNames[index] = file.name || `${index + 1}-skrinshot`;
@@ -395,11 +405,67 @@ window.SubmissionManager = class SubmissionManager {
     if (button) button.disabled = !this.images.some(Boolean);
   }
 
+  invalidateOcrWork() {
+    this._ocrGeneration = (this._ocrGeneration || 0) + 1;
+    this._ocrController?.abort();
+    this._ocrController = null;
+    this.ocrMeta = null;
+    this.container?.querySelector('[data-ocr-meta]')?.remove();
+    this.container?.querySelectorAll('.submission-player-row').forEach(row => {
+      row._cropGeneration = (row._cropGeneration || 0) + 1;
+      row._matchGeneration = (row._matchGeneration || 0) + 1;
+      row._portraitCrop = null;
+      row.querySelector('.match-hero-review > canvas')?.remove();
+      row.querySelector('[data-hero-candidates]')?.remove();
+      row.querySelector('[data-crop-editor]')?.remove();
+      const rescan = row.querySelector('[data-rescan-hero]');
+      if (rescan) { rescan.hidden = true; rescan.disabled = false; }
+    });
+  }
+
+  isOcrContextCurrent(context) {
+    return context.generation === this._ocrGeneration && !context.signal.aborted && context.form.isConnected
+      && this.container === context.container && this.container.querySelector('#practiceSubmissionForm') === context.form
+      && context.slots.every((source, index) => this.images[index] === source)
+      && (!context.page || context.page.classList.contains('active'));
+  }
+
+  renderOcrMeta(status, meta) {
+    status?.querySelector('[data-ocr-meta]')?.remove();
+    if (!status || !meta || typeof meta !== 'object') return;
+    const text = value => typeof value === 'string' ? value.slice(0, 120) : Number.isFinite(value) ? String(value) : '—';
+    const elapsed = value => Number.isFinite(value) && value >= 0 ? `${(value / 1000).toFixed(1)}s` : '—';
+    const attempts = (Array.isArray(meta.attempts) ? meta.attempts.slice(0, 3) : []).map(attempt => `${text(attempt.model)}: ${text(attempt.status)} (${elapsed(attempt.durationMs)})`).join(' → ');
+    const line = document.createElement('small'); line.dataset.ocrMeta = '';
+    line.textContent = `Model: ${text(meta.model)} · Versiya: ${text(meta.modelVersion)} · ${elapsed(meta.durationMs)}${attempts ? ` · Urinishlar: ${attempts}` : ''}`;
+    status.append(line);
+  }
+
   async scanImages() {
     const button = this.container?.querySelector('#practiceScanBtn');
     const status = this.container?.querySelector('#practiceScanStatus');
     const images = this.images.filter(Boolean);
     if (!images.length) return;
+    this.invalidateOcrWork();
+    const controller = this._ocrController = new AbortController();
+    const form = this.container?.querySelector('#practiceSubmissionForm');
+    if (!form) return;
+    const page = form.closest('.page-section');
+    const context = { generation: this._ocrGeneration, form, container: this.container, slots: [...this.images], images, signal: controller.signal, page: page?.classList.contains('active') ? page : null };
+    const current = () => this.isOcrContextCurrent(context);
+    let awaitingProvider = true;
+    const preserveEdit = () => {
+      if (!awaitingProvider || !current()) return;
+      controller.abort();
+      if (status) status.textContent = 'Forma o‘zgartirildi. AI javobi qo‘llanmadi; kiritgan ma’lumotlaringiz saqlandi.';
+    };
+    form.addEventListener('input', preserveEdit);
+    form.addEventListener('change', preserveEdit);
+    // Abort on navigation even if the user returns before the provider finishes.
+    const navigation = context.page && typeof MutationObserver !== 'undefined' ? new MutationObserver(() => {
+      if (!context.page.classList.contains('active')) controller.abort();
+    }) : null;
+    navigation?.observe(context.page, { attributes: true, attributeFilter: ['class'] });
     if (button) {
       button.disabled = true;
       button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AI o‘qimoqda…';
@@ -409,6 +475,7 @@ window.SubmissionManager = class SubmissionManager {
       const token = this.auth.getAccessToken();
       const response = await fetch('/api/ocr', {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           purpose: 'practice_submission',
@@ -418,16 +485,30 @@ window.SubmissionManager = class SubmissionManager {
         })
       });
       const payload = await response.json().catch(() => ({}));
+      awaitingProvider = false;
+      if (!current()) return;
+      this.ocrMeta = payload.ocrMeta || null;
       if (!response.ok || !payload.data) throw new Error(payload.error || 'AI skan bajarilmadi');
-      this.applyOcrData(payload.data);
       this.ocrSource = 'ocr';
       this.ocrReviewIssues = Array.isArray(payload.data.reviewIssues) ? payload.data.reviewIssues : [];
-      if (status) status.innerHTML = `<span class="is-success"><i class="fa-solid fa-circle-check"></i> AI formani tayyorladi. ${this.ocrExcludedRows || 0} ta guest yoki aniqlanmagan qator olinmadi. Eclipse a’zolari va har bir maydonni tekshirib yuboring.</span>`;
+      if (status) status.textContent = 'Raqamlar o‘qildi. Original hero ikonkalari shu qurilmada tekshirilmoqda…';
+      this.renderOcrMeta(status, this.ocrMeta);
+      await this.applyOcrData(payload.data, context);
+      if (!current()) return;
+      if (status) status.innerHTML = `<span class="is-success"><i class="fa-solid fa-circle-check"></i> Raqamlar tayyor. ${this.ocrExcludedRows || 0} ta guest yoki aniqlanmagan qator olinmadi. Qahramon, medal va raqamlarni tekshirib tasdiqlang.</span>`;
+      this.renderOcrMeta(status, this.ocrMeta);
     } catch (error) {
+      if (!current()) return;
       if (status) status.innerHTML = `<span class="is-error"><i class="fa-solid fa-triangle-exclamation"></i> ${this.escape(error.message)}</span>`;
+      this.renderOcrMeta(status, this.ocrMeta);
       window.showToast?.(error.message, 'error');
     } finally {
-      if (button) {
+      awaitingProvider = false;
+      form.removeEventListener('input', preserveEdit);
+      form.removeEventListener('change', preserveEdit);
+      navigation?.disconnect();
+      if (this._ocrController === controller) this._ocrController = null;
+      if (context.generation === this._ocrGeneration && button?.isConnected && this.container?.querySelector('#practiceSubmissionForm') === form) {
         button.disabled = !this.images.some(Boolean);
         button.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI bilan o‘qish';
       }
@@ -465,7 +546,9 @@ window.SubmissionManager = class SubmissionManager {
       this.addParticipantRow({
         ...player,
         playerId,
-        heroUsed: player.heroUsed || '',
+        // A catalog-valid name from AI is not visual hero recognition.
+        heroUsed: '',
+        portraitBox: null,
         rolePlayed: player.rolePlayed || '',
         kills: player.kills,
         deaths: player.deaths,
