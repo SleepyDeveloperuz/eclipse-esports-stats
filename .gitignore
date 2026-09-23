@@ -9,6 +9,7 @@ initial_seed.json
 
 # Local tooling, generated dependencies and deployment links
 node_modules/
+/public/
 /.agents/
 /.codex/
 /.vercel/

@@ -2,8 +2,12 @@
   "name": "eclipse-esports-command-room",
   "private": true,
   "type": "module",
+  "engines": { "node": "24.x" },
   "scripts": {
     "check": "node scripts/check.mjs",
-    "test": "node --test tests/*.test.js"
-  }
+    "test": "node --test tests/*.test.js",
+    "ci": "node scripts/ci.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": { "jsdom": "26.1.0" }
 }

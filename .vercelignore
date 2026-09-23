@@ -6,6 +6,5 @@ archive
 DEPLOYMENT.md
 initial_seed.json
 *.log
-tests
-scripts
 *.md
+public

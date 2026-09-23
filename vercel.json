@@ -1,5 +1,9 @@
 {
   "version": 2,
+  "installCommand": "npm ci --include=dev --ignore-scripts",
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "git": { "deploymentEnabled": { "main": true, "*": false } },
   "rewrites": [
     { "source": "/meta-lab", "destination": "/meta-lab.html" }
   ],
