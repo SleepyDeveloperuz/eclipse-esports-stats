@@ -86,6 +86,20 @@ test('Practice Lite draft canonicalizes roster, hero, duration, KDA, and server-
   assert.equal(draft.notes, 'Focus on invade');
 });
 
+test('unknown roles submit and approve without fabrication; inference provenance survives approval', () => {
+  for (const [rolePlayed, roleSource] of [['', 'unknown'], ['Jungler', 'inferred'], ['Roamer', 'manual']]) {
+    const input = draftInput(); input.playerStats[0].rolePlayed = rolePlayed; input.playerStats[0].roleSource = roleSource;
+    const draft = normalisePracticeDraft(input, officialData);
+    assert.equal(draft.playerStats[0].rolePlayed, rolePlayed);
+    assert.equal(draft.playerStats[0].roleSource, roleSource);
+    const approved = toOfficialMatch(storedSubmission(draft), officialData);
+    assert.equal(approved.playerStats[0].rolePlayed, rolePlayed);
+    assert.equal(approved.playerStats[0].roleSource, roleSource);
+  }
+  const invalid = draftInput(); invalid.playerStats[0].rolePlayed = 'Marksman';
+  assert.throws(() => normalisePracticeDraft(invalid, officialData), /rol noto/);
+});
+
 test('Practice Lite rejects coercible non-numeric KDA, inactive roster, duplicates, and oversized six-player rows', () => {
   assert.throws(
     () => normalisePracticeDraft(draftInput({

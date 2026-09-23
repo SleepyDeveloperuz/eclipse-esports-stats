@@ -1,8 +1,8 @@
 (() => {
   const Base = window.MlbbDataManager;
-  const tiers = ['SS', 'S', 'A', 'B', 'C', 'D'];
+  const tiers = ['SS', 'S', 'A', 'B', 'C', 'D', 'U'];
   const ranks = { epic: 'Epic', legend: 'Legend', mythic: 'Mythic', glory: 'Mythical Glory+' };
-  const colors = { SS: '#ffe9aa', S: '#efd17b', A: '#ce9456', B: '#9fab9e', C: '#9294a0', D: '#6c747b' };
+  const colors = { SS: '#ffe9aa', S: '#efd17b', A: '#ce9456', B: '#9fab9e', C: '#9294a0', D: '#6c747b', U: '#848484' };
   const EXPORT_LIMIT_MS = 60000, PORTRAIT_LIMIT_MS = 45000;
   const cancellationMessage = 'Eksport bekor qilindi. Yuklangan portretlar keyingi urinish uchun saqlandi.';
   function abortable(promise, signal) {
@@ -33,7 +33,8 @@
       } catch (error) { if (generation === this.metaLoadGeneration) this.rankError = error.message; }
       finally { if (generation === this.metaLoadGeneration) { this.rankLoading = false; this.renderState(); } }
     }
-    tierRows() { return [...(this.state.meta?.data?.eclipse || [])].sort((a, b) => a.eclipseRank - b.eclipseRank); }
+    tierRows() { return [...(this.state.meta?.data?.eclipse || [])].sort((a, b) => (a.eclipseRank ?? Infinity) - (b.eclipseRank ?? Infinity)); }
+    qualityText(row) { return ({ stable: 'Barqaror', provisional: 'Dastlabki', borderline: 'Chegarada', stale: 'Eskirgan', unrated: 'Baholanmagan' })[row.quality?.status] || ''; }
     changeText(id, meta = this.state.meta) {
       const change = meta?.data?.comparison?.changes?.find(row => Number(row.heroId) === Number(id));
       if (!change) return '';
@@ -51,9 +52,9 @@
       const exportStatus = `<div class="tier-export-status" role="status" aria-live="polite">${this.exporting ? this.escape(this.exportProgress || 'PNG tayyorlanmoqda…') : this.exportedPoster?.rank === this.selectedRank ? `<a class="btn btn-secondary" href="${this.escape(this.exportedPoster.url)}" download="${this.escape(this.exportedPoster.filename)}">${this.escape(this.rankLabel(this.selectedRank))} · Tayyor PNG faylni yuklash</a>` : ''}</div>`;
       const table = super.tierMarkup();
       if (mode === 'table') return picker + toolbar + exportStatus + table;
-      return `${picker}${toolbar}${exportStatus}<section class="solar-tier-board"><header><p class="section-eyebrow">ECLIPSE / META ATLAS</p><h3>${this.escape(this.rankLabel(this.selectedRank))} meta tier list</h3><p>${this.escape(this.rankLabel(this.state.meta?.data?.rank || ''))} · ${Number(this.state.meta?.data?.days) || 1} kun · ${this.escape(this.state.meta?.updatedAt ? new Date(this.state.meta.updatedAt).toLocaleString('uz-UZ') : 'Sana noma’lum')}</p><p>Eclipse tajribaviy tierlari — Moonton rasmiy bahosi emas. Win 65% · Pick 20% · Ban 15%.</p><small>${comparison ? `O‘zgarishlar ${this.escape(new Date(comparison.previousUpdatedAt).toLocaleString('uz-UZ'))} dagi snapshotga nisbatan.` : 'Taqqoslash uchun oldingi mos snapshot hali yo‘q.'}</small></header>
-        ${tiers.map(tier => `<section class="solar-tier-row" aria-label="${tier} tier"><div class="solar-tier-label is-${tier.toLowerCase()}"><strong>${tier}</strong><small>${rows.filter(h => h.tier === tier).length} HERO</small></div><div class="solar-tier-heroes">${rows.filter(h => h.tier === tier).map(h => `<button type="button" class="solar-tier-hero" data-hero-id="${Number(h.heroId)}" title="${this.escape(h.name)} · ${Number(h.eclipseScore).toFixed(2)}"><span>${this.imageMarkup(h.image ? h : { ...h, image: this.heroById(h.heroId)?.images?.portrait })}</span><strong>${this.escape(h.name)}</strong><small>${this.escape(this.changeText(h.heroId))}</small></button>`).join('')}</div></section>`).join('')}
-        <footer>${rows.length} hero · Nisbiy guruhlar: SS / S / A / B / C / D. Bir xil ball — bir xil tier; guruh hajmi teng ballar sabab o‘zgarishi mumkin.<br>Hero ustiga bosing: skills va counters. Yuqori rank yoki SS tier statistik ishonchlilik va g‘alaba kafolati emas.</footer></section>`;
+      return `${picker}${toolbar}${exportStatus}<section class="solar-tier-board"><header><p class="section-eyebrow">ECLIPSE / META ATLAS</p><h3>${this.escape(this.rankLabel(this.selectedRank))} meta tier list</h3><p>${this.escape(this.rankLabel(this.state.meta?.data?.rank || ''))} · ${Number(this.state.meta?.data?.days) || 1} kun · ${this.escape(this.state.meta?.updatedAt ? new Date(this.state.meta.updatedAt).toLocaleString('uz-UZ') : 'Sana noma’lum')}</p><p>Eclipse tajribaviy tierlari — Moonton rasmiy bahosi emas. ${this.escape(this.tierSummary(this.state.meta))}</p><small>${comparison ? `O‘zgarishlar ${this.escape(new Date(comparison.previousUpdatedAt).toLocaleString('uz-UZ'))} dagi snapshotga nisbatan.` : 'Taqqoslash uchun oldingi mos snapshot hali yo‘q.'}</small></header>
+        ${tiers.map(tier => `<section class="solar-tier-row" aria-label="${tier} tier" title="${this.escape(this.state.meta?.data?.methodology?.labels?.[tier] || tier)}"><div class="solar-tier-label is-${tier.toLowerCase()}"><strong>${tier}</strong><small>${rows.filter(h => h.tier === tier).length} HERO</small></div><div class="solar-tier-heroes">${rows.filter(h => h.tier === tier).map(h => `<button type="button" class="solar-tier-hero" data-hero-id="${Number(h.heroId)}" title="${this.escape(h.name)} · ${h.eclipseScore == null ? 'Baholanmagan' : Number(h.eclipseScore).toFixed(2)}"><span>${this.imageMarkup(h.image ? h : { ...h, image: this.heroById(h.heroId)?.images?.portrait })}</span><strong>${this.escape(h.name)}</strong><small>${this.escape(this.qualityText(h) || this.changeText(h.heroId))}</small></button>`).join('')}</div></section>`).join('')}
+        <footer>${rows.length} hero · SS / S / A / B / C / D; U = baholanmagan. Majburiy kvota yo‘q; SS bo‘sh bo‘lishi mumkin.<br>Hero ustiga bosing: skills va counters. Yuqori rank yoki SS tier statistik ishonchlilik va g‘alaba kafolati emas.</footer></section>`;
     }
     bindEvents() {
       super.bindEvents();
@@ -160,7 +161,8 @@
         options.signal?.addEventListener('abort', cancel, { once: true });
         const timeout = setTimeout(() => controller.abort(new Error('Portretni yuklash vaqti tugadi.')), 15000);
         try {
-          const response = await abortable(fetch(`/api/mlbb-image?id=${Number(hero.heroId)}`, { headers: { Authorization: `Bearer ${this.auth.getAccessToken()}` }, signal: controller.signal }), controller.signal);
+          const token = this.auth.getAccessToken();
+          const response = await abortable(fetch(`/api/mlbb-image?id=${Number(hero.heroId)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, signal: controller.signal }), controller.signal);
           if (!response.ok) throw Object.assign(new Error('Portret mavjud emas'), { status: response.status });
           const url = URL.createObjectURL(await abortable(response.blob(), controller.signal));
           try {
@@ -172,6 +174,12 @@
         } catch (error) { if (options.signal?.aborted || (error.status >= 400 && error.status < 500) || attempt === 1) throw error; }
         finally { clearTimeout(timeout); options.signal?.removeEventListener('abort', cancel); }
       }
+    }
+    tierSummary(meta = this.state.meta) {
+      const method = meta?.data?.methodology;
+      const w = method?.weights;
+      if (!w) return 'Hisob usuli tafsilotlarini tekshiring · Moonton rasmiy bahosi emas';
+      return `Win ${Math.round(w.winRate * 100)}% · Pick ${Math.round(w.pickRate * 100)}% · Ban ${Math.round(w.banRate * 100)}% · Tier va kuzatuv sifati alohida`;
     }
     posterLayout(rows) {
       let y = 224;
@@ -188,7 +196,7 @@
       ctx.font = '600 34px Outfit, sans-serif'; ctx.fillStyle = '#f2f0e8'; ctx.fillText('ECLIPSE ESPORTS / META ATLAS', 133, 80);
       ctx.font = '20px Outfit, sans-serif'; ctx.fillStyle = '#b9b7aa';
       ctx.fillText(`${String(this.rankLabel(meta.data.rank) || '').toUpperCase()} · ${Number(meta.data.days) || 1} kun · ${meta.updatedAt || 'Sana noma’lum'}`, 133, 117);
-      ctx.fillText('Eclipse tajribaviy tierlari · Moonton rasmiy bahosi emas · Win 65% / Pick 20% / Ban 15%', 40, 171);
+      ctx.fillText('Eclipse tajribaviy draft tierlari · ' + this.tierSummary(meta), 40, 171, 1320);
       ctx.font = '17px Outfit, sans-serif'; ctx.fillText(meta.source?.provider || 'Rone Arena API / Mobile Legends rank data', 40, 199);
       for (const band of layout.bands) {
         ctx.fillStyle = '#151612'; ctx.fillRect(40, band.y, 1320, band.height);
@@ -205,13 +213,13 @@
           const words = String(hero.name).split(' '); const lines = [''];
           for (const word of words) { const last = lines.length - 1; const text = (lines[last] + ' ' + word).trim(); if (ctx.measureText(text).width > 110 && lines[last]) lines.push(word); else lines[last] = text; }
           lines.slice(0, 2).forEach((line, i) => ctx.fillText(line, x, y + 59 + i * 17, 110));
-          ctx.fillStyle = colors[band.tier]; ctx.font = '13px Outfit, sans-serif'; ctx.fillText(this.changeText(hero.heroId, meta), x, y + 96, 110);
+          ctx.fillStyle = colors[band.tier]; ctx.font = '13px Outfit, sans-serif'; ctx.fillText(this.qualityText(hero) || this.changeText(hero.heroId, meta), x, y + 96, 110);
         });
       }
       ctx.textAlign = 'left'; ctx.font = '17px Outfit, sans-serif'; ctx.fillStyle = '#aaa99e';
       const comparison = meta.data.comparison;
       ctx.fillText(comparison ? `O‘zgarishlar: ${comparison.previousUpdatedAt} snapshotiga nisbatan.` : 'Taqqoslash uchun oldingi mos snapshot yo‘q. O‘sish/pasayish taxmin qilinmaydi.', 40, layout.height - 50);
-      ctx.fillText(`${rows.length} hero · ${rows.filter(hero => !images.has(Number(hero.heroId))).length} portret yetishmaydi · Nisbiy tierlar; teng ball = teng tier · ${meta.data.methodology?.version || 'Eclipse tier'}`, 40, layout.height - 23);
+      ctx.fillText(`${rows.length} hero · ${rows.filter(hero => !images.has(Number(hero.heroId))).length} portret yetishmaydi · U: baholanmagan; barqarorlik ishonch emas · ${meta.data.methodology?.version || 'Eclipse tier'}`, 40, layout.height - 23);
       return canvas;
     }
   };

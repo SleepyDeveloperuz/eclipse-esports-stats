@@ -1,0 +1,87 @@
+/* Meta Lab research tools: same solar palette, aligned data-first layouts. */
+.meta-lab-hero { grid-template-columns:minmax(0,1fr); min-height:0; padding:clamp(1.25rem,3vw,3rem); gap:2rem; }
+.meta-lab-hero__copy { min-width:0; width:65%; max-width:52rem; }
+.meta-lab-hero__copy h2 { max-width:none; font-size:clamp(2.75rem,6vw,5.5rem); line-height:1; letter-spacing:-.065em; }
+.meta-lab-hero__orb { top:2rem; right:6%; width:clamp(8rem,18vw,15rem); }
+.meta-lab-telemetry { margin:0; grid-template-columns:repeat(3,minmax(0,1fr)); }
+.meta-lab-telemetry strong, .meta-lab-telemetry small, .meta-lab-telemetry em { white-space:normal; overflow-wrap:anywhere; }
+.meta-lab-commandbar { display:grid; grid-template-columns:minmax(0,1fr); gap:.65rem; min-width:0; }
+.meta-lab-tabs { display:flex; flex-wrap:wrap; min-width:0; gap:.35rem; }
+.meta-lab-tabs button { flex:1 1 auto; min-height:44px; padding:.75rem; line-height:1.35; }
+.meta-lab-health { display:flex; flex-wrap:wrap; justify-content:flex-end; min-width:0; gap:.65rem; padding:.5rem .25rem 0; border-top:1px solid var(--border-light); }
+.meta-lab-health .meta-health { line-height:1.4; }
+.meta-lab-view, .meta-explore, .meta-tier-console, .meta-hero-library, .meta-patch-radar { min-width:0; max-width:100%; }
+.meta-tier-tools { flex-wrap:wrap; }
+.meta-tier-tools label { flex:1 1 16rem; min-width:0; max-width:100%; }
+.meta-tier-tools .meta-tier-legend { justify-content:flex-start; }
+.meta-tier-table-wrap, .meta-timeline-scroll { max-width:100%; overscroll-behavior-x:contain; }
+.meta-share-bar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; padding:1rem 0; }
+.meta-share-bar p { margin:0; color:var(--text-muted); font-size:.82rem; }
+.meta-share-bar input { flex-basis:100%; min-width:0; max-width:100%; }
+.meta-explore { padding:clamp(1rem,3vw,2rem); border:1px solid var(--border-light); border-radius:1.25rem; background:var(--bg-card, #11120f); }
+.meta-explore h3, .meta-why h3, .meta-timeline h3 { margin:0 0 .65rem; }
+.meta-explore .meta-section-header { align-items:flex-start; flex-direction:row; flex-wrap:wrap; padding:0 0 1.5rem; gap:1.5rem; }
+.meta-explore .meta-section-header > div { flex:1 1 18rem; min-width:0; max-width:42rem; }
+.meta-explore label { display:grid; flex:0 1 18rem; gap:.5rem; width:100%; min-width:0; font-size:.85rem; }
+.meta-explore select { width:100%; min-width:0; max-width:100%; min-height:2.75rem; padding:.65rem .8rem; border:1px solid var(--border-light); border-radius:.6rem; background:#0b0c09; color:var(--text-primary); font:inherit; }
+.meta-explore-note, .meta-explore-empty, .meta-explore-loading { color:var(--text-muted); line-height:1.7; }
+.meta-explore-note { font-size:.84rem; max-width:75ch; }
+.meta-explore-empty, .meta-explore-loading { padding:2rem 0; }
+.meta-explore-hero, .meta-dossier-explore { display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; padding:1.25rem 0; }
+.meta-explore-hero h4 { margin:0 auto 0 0; font-size:1.5rem; }
+.meta-lens-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.75rem; }
+.meta-lens-card { background:rgba(255,255,255,.025); border:1px solid var(--border-light); border-radius:.8rem; padding:1rem; min-width:0; }
+.meta-lens-card.is-selected { border-color:var(--accent-gold,#e4c46e); background:rgba(228,196,110,.045); }
+.meta-lens-card > button:first-child { display:flex; align-items:center; justify-content:space-between; gap:1rem; background:none; width:100%; border:0; color:var(--text-primary); padding:0 0 1.25rem; text-align:left; font:inherit; font-weight:600; cursor:pointer; }
+.meta-lens-card > button:first-child span { font-size:1.7rem; color:var(--accent-gold,#e4c46e); }
+.meta-lens-card > small { display:block; color:var(--text-muted); font-size:.72rem; margin-top:1rem; }
+.meta-explore-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.15rem .5rem; margin:.5rem 0 1.25rem; font-variant-numeric:tabular-nums; }
+.meta-explore-stats dt { font-size:.72rem; color:var(--text-muted); }
+.meta-explore-stats dd { font-size:clamp(1.05rem,1.7vw,1.25rem); margin:.3rem 0 0; overflow-wrap:anywhere; }
+.meta-why, .meta-timeline { margin-top:2rem; border-top:1px solid var(--border-light); padding-top:1.75rem; }
+.meta-score-equation { display:flex; flex-wrap:wrap; align-items:center; gap:clamp(.7rem,2vw,2rem); padding:1.5rem 0; font-variant-numeric:tabular-nums; }
+.meta-score-equation span { display:grid; gap:.35rem; }
+.meta-score-equation strong { font-size:clamp(1.4rem,3vw,2.3rem); color:var(--accent-gold,#e4c46e); }
+.meta-score-equation small, .meta-score-equation b { color:var(--text-muted); }
+.meta-explore details { padding:1rem 0; border-top:1px solid var(--border-light); }
+.meta-explore summary { cursor:pointer; color:var(--text-primary); padding:.4rem 0; }
+.meta-explore details p { color:var(--text-muted); line-height:1.7; font-size:.9rem; }
+.meta-timeline-scroll { overflow:auto; max-height:32rem; }
+.meta-timeline-scroll caption { text-align:left; font-size:.8rem; color:var(--text-muted); padding:1rem 0; }
+.meta-compare-chips { display:flex; flex-wrap:wrap; gap:.5rem; padding:1rem 0; }
+.meta-compare-grid { display:grid; grid-template-columns:repeat(var(--compare-count,3),minmax(0,1fr)); gap:1.25rem; }
+.meta-compare-card { min-width:0; padding:1.25rem; background:rgba(255,255,255,.025); border-radius:.75rem; }
+.meta-compare-card header { display:flex; align-items:center; gap:.75rem; min-height:4rem; }
+.meta-compare-card header img, .meta-watch-identity img { width:3.25rem; height:3.25rem; border-radius:.6rem; object-fit:cover; }
+.meta-compare-card h4 { margin:0; font-size:1.4rem; overflow-wrap:anywhere; }
+.meta-compare-card header > span { margin-left:auto; color:var(--accent-gold,#e4c46e); }
+.meta-compare-card h5 { font-size:1rem; margin:1.5rem 0 .5rem; }
+.meta-compare-skill { padding:1rem 0; border-top:1px solid var(--border-light); }
+.meta-compare-skill h6 { font-size:1rem; margin:0 0 .5rem; }
+.meta-compare-skill p, .meta-compare-card > p { font-size:.88rem; color:var(--text-muted); line-height:1.7; overflow-wrap:anywhere; }
+.meta-compare-card .meta-score-equation { gap:.5rem; }
+.meta-compare-card .meta-score-equation strong { font-size:1rem; }
+.meta-watch-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(19rem,100%),1fr)); gap:1rem; margin-top:1rem; }
+.meta-watch-card { padding:1.25rem; border:1px solid var(--border-light); border-radius:.75rem; }
+.meta-watch-identity { display:flex; align-items:center; gap:1rem; }
+.meta-watch-card .btn { margin:.5rem .3rem 0 0; }
+.meta-watch-card p { color:var(--text-muted); font-size:.85rem; }
+.meta-dossier-explore { padding:1rem 2rem; border-bottom:1px solid var(--border-light); }
+.meta-explore button, .meta-share-bar button { transition:background-color .18s ease,border-color .18s ease; }
+.meta-explore button:focus-visible, .meta-explore summary:focus-visible, .meta-share-bar button:focus-visible { outline:2px solid var(--accent-gold,#e4c46e); outline-offset:4px; }
+.meta-explore [hidden], .solar-tier-board [hidden] { display:none !important; }
+@media(max-width:1200px) { .meta-lens-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:1100px) { .meta-lab-commandbar { position:relative; top:auto; } }
+@media(max-width:900px) { .meta-lab-hero__copy { width:100%; } .meta-lab-hero__orb { opacity:.18; right:2rem; } }
+@media(max-width:700px) {
+  .meta-compare-grid { grid-template-columns:1fr; }
+  .meta-explore .meta-section-header { display:grid; grid-template-columns:minmax(0,1fr); gap:1.25rem; }
+  .meta-dossier-explore { padding:1rem; }
+  .meta-lab-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
+  .meta-lab-tabs button { min-height:2.75rem; font-size:.75rem; white-space:normal; }
+  .meta-lab-health { justify-content:flex-start; }
+  .meta-lab-telemetry > span { padding:.8rem .55rem; }
+  .meta-lab-telemetry strong { font-size:1rem; }
+}
+@media(max-width:520px) { .meta-lens-grid { grid-template-columns:minmax(0,1fr); } }
+@media(prefers-reduced-motion:reduce) { .meta-explore button, .meta-share-bar button { transition:none; } }

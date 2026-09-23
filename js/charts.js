@@ -444,7 +444,7 @@ window.ChartHelper = class ChartHelper {
       const pObj = ps.isGuest
         ? { name: ps.guestName || `Guest ${idx + 1}` }
         : (players.find(p => p.id === ps.playerId) || { name: ps.playerName || `Player ${idx + 1}` });
-      const role = ps.rolePlayed || 'EXP Laner';
+      const role = ps.rolePlayed || 'Rol noma’lum';
       const roleColor = roleColors[role] || '#e7c36b';
       const isMvp = ps.medal === 'mvp';
       const isGold = ps.medal === 'gold';

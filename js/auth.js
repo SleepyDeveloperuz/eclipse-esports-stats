@@ -263,6 +263,8 @@ window.AuthManager = class AuthManager {
       }
     };
     this.mandatoryKeyGuard = event => {
+      // A top-layer install dialog can close without dismissing the login gate.
+      if (event.target.closest?.('#pwaInstallDialog[open]')) return;
       if (this.viewerPromptMandatory && event.key === 'Escape') {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -320,6 +322,8 @@ window.AuthManager = class AuthManager {
             <button type="submit" class="btn btn-primary" id="viewer-access-submit">Kirish</button>
           </div>
         </form>
+        <a class="btn btn-secondary public-meta-link" href="/meta-lab">Meta Lab’ni parolsiz ko‘rish <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+        <button type="button" class="btn btn-secondary" data-pwa-install>Ilovani o‘rnatish</button>
         <div class="auth-dialog__trust" aria-hidden="true">
           <span><i class="fa-solid fa-lock"></i> Encrypted session</span>
           <span>Team access only</span>
@@ -378,6 +382,8 @@ window.AuthManager = class AuthManager {
         <div class="auth-dialog__actions">
           <button type="button" class="btn btn-primary" id="viewer-access-retry">Qayta tekshirish</button>
         </div>
+        <a class="btn btn-secondary public-meta-link" href="/meta-lab">Meta Lab’ni parolsiz ko‘rish</a>
+        <button type="button" class="btn btn-secondary" data-pwa-install>Ilovani o‘rnatish</button>
       </section>`;
     modalOverlay.classList.add('active');
     modalOverlay.removeAttribute('hidden');
@@ -534,6 +540,11 @@ window.AuthManager = class AuthManager {
   updateUI() {
     if (typeof document === 'undefined') return;
     const isAdmin = this.isAdmin();
+
+    const progress = window.EclipseApp?.progressHub;
+    if (progress && !isAdmin) progress.history = null;
+    if (progress && document.getElementById('page-progress')?.classList.contains('active')) progress.render();
+    window.EclipseApp?.batchManager?.onAuthChange();
 
     // Update topbar auth status
     const authContainer = document.getElementById('topbarAuthContainer');

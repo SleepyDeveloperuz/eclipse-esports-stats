@@ -1,0 +1,25 @@
+html.pwa-standalone [data-pwa-install], html.pwa-installed [data-pwa-install] { display: none !important; }
+[data-pwa-install] { cursor: pointer; }
+.sidebar-footer [data-pwa-install] { width: 100%; margin-top: .75rem; }
+.auth-dialog [data-pwa-install] { width: 100%; margin-top: .65rem; }
+.pwa-dialog, .pwa-update, .eclipse-offline { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #f1efe7; }
+.pwa-dialog { box-sizing: border-box; width: min(29rem, calc(100vw - 2rem)); max-height: calc(100dvh - 3rem); overflow-y: auto; margin: auto; padding: 2rem; border: 1px solid #e7c36b66; border-radius: 24px; background: #10110e; box-shadow: 0 24px 90px #0009; }
+.pwa-dialog::backdrop { background: #000b; backdrop-filter: blur(6px); }
+.pwa-dialog img { border-radius: 16px; }
+.pwa-dialog h2 { font-size: 1.65rem; line-height: 1.25; margin: .5rem 0 1.5rem; }
+.pwa-dialog ol { padding-left: 1.25rem; line-height: 1.7; list-style: decimal; }
+.pwa-dialog li + li { margin-top: .8rem; }
+.pwa-eyebrow { color: #e7c36b; font: 600 .7rem/1.6 ui-monospace, monospace; letter-spacing: .16em; margin-top: 1.25rem; }
+.pwa-muted { color: #aaa99e; font-size: .82rem; line-height: 1.7; margin-top: 1.25rem; }
+.pwa-close { position: absolute; right: .8rem; top: .8rem; width: 40px; height: 40px; display: grid; place-items: center; font: 1.5rem/1 system-ui; background: #ffffff09; color: #eee; border: 1px solid #ffffff20; border-radius: 50%; cursor: pointer; }
+.pwa-dialog :focus-visible, .pwa-update :focus-visible, .eclipse-offline :focus-visible { outline: 2px solid #e7c36b; outline-offset: 4px; }
+.pwa-update { position: fixed; z-index: 100; right: 1rem; bottom: max(1rem, env(safe-area-inset-bottom)); box-sizing: border-box; width: min(27rem, calc(100vw - 2rem)); border: 1px solid #e7c36b66; border-radius: 16px; padding: 1.25rem 4rem 1.25rem 1.25rem; background: #15160f; box-shadow: 0 16px 48px #0008; font-size: .85rem; line-height: 1.6; }
+.pwa-update p { margin: 0; }
+.pwa-update strong { display: block; color: #e7c36b; }
+.eclipse-offline { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 20%, #e7c36b12, transparent 60%), #080806; }
+.eclipse-offline main { box-sizing: border-box; width: min(100%, 33rem); padding: 2rem; }
+.eclipse-offline h1 { font-size: clamp(2.5rem, 8vw, 4rem); margin: .75rem 0; letter-spacing: -.05em; }
+.eclipse-offline p { line-height: 1.7; }
+.pwa-button { border: 0; border-radius: 12px; background: #e7c36b; color: #15140d; padding: 1rem 1.5rem; font: 700 1rem system-ui; cursor: pointer; }
+.public-meta-header [data-pwa-install] { white-space: nowrap; }
+@media (max-width: 700px) { .public-meta-header { flex-wrap: wrap; } .public-meta-header [data-pwa-install] { margin-left: auto; } }

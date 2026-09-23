@@ -39,7 +39,7 @@
     }
 
     metricMarkup(values = {}) {
-      return `<details class="match-extra" open><summary>Batafsil statistika <small>Ko‘rinmagan raqamni bo‘sh qoldiring</small></summary><div class="match-metrics">
+      return `<details class="match-extra"><summary>Batafsil statistika <small>Ixtiyoriy tahrir</small></summary><div class="match-metrics">
         ${Object.entries(metrics).map(([field, [label, max]]) => `<label><span>${label}</span><input class="form-input" data-field="${field}" type="number" min="0" max="${max}" step="1" value="${this.escape(values[field] ?? '')}"></label>`).join('')}
         ${['savage', 'maniac'].map(field => `<label><span>${field === 'savage' ? 'Savage' : 'Maniac'}</span><select class="form-select" data-field="${field}"><option value="">Noma’lum</option><option value="true" ${values[field] === true ? 'selected' : ''}>Ha</option><option value="false" ${values[field] === false ? 'selected' : ''}>Yo‘q</option></select></label>`).join('')}
       </div></details>`;
@@ -51,45 +51,74 @@
       if (!row) return;
       row.insertAdjacentHTML('beforeend', this.metricMarkup(values));
       if (Number.isInteger(values.sourceRow) && values.sourceRow >= 1 && values.sourceRow <= 5) row.dataset.sourceRow = String(values.sourceRow);
-      row.dataset.heroReview = values.heroReviewRequired ? 'pending' : 'confirmed';
-      row.insertAdjacentHTML('beforeend', `<div class="match-hero-review"><div data-hero-preview></div><span data-hero-status role="status"></span><button type="button" class="btn btn-sm btn-secondary" data-confirm-hero>Qahramonni tasdiqlash</button><button type="button" class="btn btn-sm btn-secondary" data-rescan-hero hidden>Ikonkalar bilan solishtirish</button><button type="button" class="btn btn-sm btn-secondary" data-crop-hero>Ikonkani ajratish</button></div>`);
+      row.dataset.heroSource = ['portrait', 'manual'].includes(values.heroSource) ? values.heroSource : values.heroUsed ? 'manual' : '';
+      row.dataset.medalSource = ['ocr', 'manual'].includes(values.medalSource) ? values.medalSource : 'manual';
+      row.dataset.roleSource = ['ocr', 'roster', 'manual', 'inferred', 'unknown', 'legacy'].includes(values.roleSource) ? values.roleSource : values.rolePlayed ? 'legacy' : 'unknown';
+      row._preserveSavedRole = !!(this.editingMatch || this.editingSubmission);
+      row.insertAdjacentHTML('beforeend', `<div class="match-hero-review"><div data-hero-preview></div><span data-hero-status role="status"></span><details class="match-extra" data-hero-corrections><summary>Qahramonni tuzatish <small>Ixtiyoriy</small></summary><div data-portrait-tools><button type="button" class="btn btn-sm btn-secondary" data-rescan-hero hidden>Ikonkalar bilan solishtirish</button><button type="button" class="btn btn-sm btn-secondary" data-crop-hero>Ikonkani ajratish</button></div></details></div>`);
       row.querySelector('[data-crop-hero]').onclick = () => this.choosePortrait(row);
-      row.querySelector('[data-field="heroUsed"]').addEventListener('input', () => {
-        row._heroEditVersion = (row._heroEditVersion || 0) + 1; row.dataset.heroReview = 'pending';
+      const editHero = () => {
+        row._preserveSavedRole = false;
+        row._heroEditVersion = (row._heroEditVersion || 0) + 1; row.dataset.heroSource = 'manual';
         row.querySelector('[data-hero-candidates]')?.remove(); this.heroPreview(row);
-      });
+      };
+      row.querySelector('[data-field="heroUsed"]').addEventListener('input', editHero);
+      row.querySelector('[data-field="heroUsed"]').addEventListener('change', editHero);
       row.querySelector('[data-field="playerId"]').addEventListener('change', () => {
         row._heroEditVersion = (row._heroEditVersion || 0) + 1;
         row.querySelector('[data-hero-candidates]')?.remove();
+        row.dataset.roleSource = 'unknown';
+        row._preserveSavedRole = false;
+        this.resolveMatchRole(row); this.refreshScanSummary(); this.saveDraft();
       });
-      row.querySelector('[data-confirm-hero]').onclick = () => {
-        if (!this.heroDb.resolve?.(this.formValue(row, 'heroUsed'))) return window.showToast?.('Bazadan qahramon tanlang.', 'warning');
-        row._heroEditVersion = (row._heroEditVersion || 0) + 1; row.dataset.heroReview = 'confirmed'; row.querySelector('[data-hero-candidates]')?.remove(); this.heroPreview(row); this.saveDraft();
-      };
       row.querySelector('[data-rescan-hero]').onclick = () => this.rescanHero(row);
       this.heroPreview(row);
-      row.dataset.medalReview = values.medalReviewRequired ? 'pending' : 'confirmed';
       const medal = row.querySelector('[data-field="medal"]');
-      const medalReview = document.createElement('div'); medalReview.className = 'match-medal-review';
-      medalReview.innerHTML = '<span data-medal-status role="status"></span><button type="button" class="btn btn-sm btn-secondary" data-confirm-medal>Medalni tekshirdim</button>';
-      medal.closest('label').append(medalReview);
-      const updateMedal = () => {
-        const pending = row.dataset.medalReview !== 'confirmed';
-        row.querySelector('[data-medal-status]').textContent = pending ? 'AI medalni adashtirishi mumkin. Tekshiring yoki Noma’lum qoldiring.' : '';
-        row.querySelector('[data-confirm-medal]').hidden = !pending;
-      };
-      medal.addEventListener('change', () => { row.dataset.medalReview = 'confirmed'; updateMedal(); this.saveDraft(); });
-      row.querySelector('[data-confirm-medal]').onclick = () => { row.dataset.medalReview = 'confirmed'; updateMedal(); this.saveDraft(); };
-      updateMedal();
+      medal.closest('label').insertAdjacentHTML('beforeend', '<small data-medal-status></small>');
+      const role = row.querySelector('[data-field="rolePlayed"]');
+      role.closest('label').insertAdjacentHTML('beforeend', '<small data-role-status></small>');
+      medal.addEventListener('change', () => { row.dataset.medalSource = 'manual'; this.updateRowProvenance(row); });
+      role.addEventListener('change', () => { row.dataset.roleSource = 'manual'; this.updateRowProvenance(row); this.refreshScanSummary(); this.saveDraft(); });
+      this.updateRowProvenance(row);
       row.querySelector('.submission-row-remove').addEventListener('click', () => this.saveDraft());
+    }
+
+    updateRowProvenance(row) {
+      row.querySelector('[data-medal-status]').textContent = row.dataset.medalSource === 'ocr' ? 'Skrinshotdan o‘qildi' : '';
+      const status = row.querySelector('[data-role-status]');
+      if (status) status.textContent = this.roleNote(row);
+    }
+
+    roleNote(row) {
+      const role = this.formValue(row, 'rolePlayed');
+      const suggestion = Base.roleSuggestion(this.heroDb.resolve?.(this.formValue(row, 'heroUsed')), this.availablePlayers().find(p => p.id === this.formValue(row, 'playerId')));
+      const warnings = [];
+      if (role && suggestion.allowed.length && !suggestion.allowed.includes(role)) warnings.push('Asosiy/qo‘shimcha roldan tashqari — captain tekshirsin');
+      if (role && suggestion.lanes.length && !suggestion.lanes.includes(role)) warnings.push('Hero katalogidagi laynga mos emas — tekshiring');
+      const label = !role ? (suggestion.reason === 'conflict' ? 'Hero va roster laynlari mos emas. Rol noma’lum; yuborish mumkin.' : 'Rol noma’lum; yuborish mumkin.')
+        : row.dataset.roleSource === 'inferred' ? 'Taxmin: hero layni + asosiy/qo‘shimcha rol'
+        : row.dataset.roleSource === 'ocr' ? 'Skrinshotdan o‘qildi'
+        : ['legacy', 'roster'].includes(row.dataset.roleSource) ? 'Oldingi rol — avtomatik tekshirilmagan' : 'Qo‘lda belgilangan rol';
+      return [label, ...warnings].join(' · ');
+    }
+
+    resolveMatchRole(row) {
+      // Preserve explicit corrections (including deliberately unknown), screenshot evidence,
+      // and historical values. Only fresh automatic suggestions are recalculated.
+      if (!row._preserveSavedRole && !['manual', 'ocr', 'legacy'].includes(row.dataset.roleSource)) {
+        const suggestion = Base.roleSuggestion(this.heroDb.resolve?.(this.formValue(row, 'heroUsed')), this.availablePlayers().find(p => p.id === this.formValue(row, 'playerId')));
+        row.querySelector('[data-field="rolePlayed"]').value = suggestion.role;
+        row.dataset.roleSource = suggestion.role ? 'inferred' : 'unknown';
+      }
+      if (row.querySelector('[data-role-status]')) this.updateRowProvenance(row);
     }
 
     heroPreview(row) {
       const hero = this.heroDb.resolve?.(this.formValue(row, 'heroUsed'));
       const image = hero?.images?.portrait || hero?.image || '';
       row.querySelector('[data-hero-preview]').innerHTML = `${image ? `<img src="${this.escape(image)}" alt="${this.escape(hero.name)}">` : ''}<strong>${this.escape(hero?.name || 'Qahramonni tanlang')}</strong>`;
-      row.querySelector('[data-hero-status]').textContent = row.dataset.heroReview === 'confirmed' ? 'Tanlov tasdiqlangan' : 'Qahramon tasdiqlanmagan. Portretni tekshiring va variantni tanlang.';
-      row.querySelector('[data-confirm-hero]').hidden = row.dataset.heroReview === 'confirmed';
+      row.querySelector('[data-hero-status]').textContent = hero ? (row.dataset.heroSource === 'portrait' ? 'Portret orqali avtomatik topildi' : 'Qo‘lda tanlandi') : 'Qahramon aniqlanmadi. Tiniqroq skrinshot yuklang yoki qahramonni tanlang.';
+      this.resolveMatchRole(row);
     }
 
     async attachPortrait(row, box, { context = null, prepared = false, automaticLocation = false } = {}) {
@@ -110,15 +139,14 @@
         const canvas = document.createElement('canvas'); canvas.width = 192; canvas.height = 192;
         canvas.getContext('2d').drawImage(img, left * img.width / 1000, top * img.height / 1000, (right - left) * img.width / 1000, (bottom - top) * img.height / 1000, 0, 0, 192, 192);
         canvas.setAttribute('aria-label', 'Skrinshotdan ajratilgan portret');
-        row.querySelector('.match-hero-review > canvas')?.remove();
-        row.querySelector('.match-hero-review').prepend(canvas);
+        row.querySelector('[data-portrait-tools] > canvas')?.remove();
+        row.querySelector('[data-portrait-tools]').prepend(canvas);
         row._portraitCrop = canvas.toDataURL('image/jpeg', 0.9);
         row._portraitSource = source;
         row._portraitImageIndex = imageIndex;
         row._portraitAutomaticLocation = automaticLocation;
         const width = (right - left) * img.width / 1000, height = (bottom - top) * img.height / 1000;
         row._portraitSize = Math.max(width, height) / Math.min(width, height) <= 1.3 ? Math.min(width, height) : 0;
-        row.dataset.heroReview = 'pending';
         row.querySelector('[data-rescan-hero]').hidden = false;
         await this.rescanHero(row, { context, prepared });
       } catch (_) { /* The original screenshot remains visible if a crop cannot be decoded. */ }
@@ -127,7 +155,7 @@
     async rescanHero(row, { context = null, prepared = false } = {}) {
       const button = row.querySelector('[data-rescan-hero]');
       if (!row._portraitCrop) return;
-      const original = this.formValue(row, 'heroUsed');
+      let expectedHero = this.formValue(row, 'heroUsed');
       const playerId = this.formValue(row, 'playerId');
       const crop = row._portraitCrop;
       const generation = row._matchGeneration = (row._matchGeneration || 0) + 1;
@@ -143,10 +171,9 @@
       navigation?.observe(activePage, { attributes: true, attributeFilter: ['class'] });
       const status = row.querySelector('[data-hero-status]');
       const current = () => row.isConnected && this._ocrGeneration === workGeneration && row._matchGeneration === generation && row._portraitCrop === crop
-        && (row._heroEditVersion || 0) === heroEditVersion && this.formValue(row, 'heroUsed') === original && this.formValue(row, 'playerId') === playerId
+        && (row._heroEditVersion || 0) === heroEditVersion && this.formValue(row, 'heroUsed') === expectedHero && this.formValue(row, 'playerId') === playerId
         && !navigationCancelled && (!activePage || activePage.classList.contains('active')) && (!context || this.isOcrContextCurrent(context))
-        && (!row._portraitSource || this.images.filter(Boolean)[row._portraitImageIndex] === row._portraitSource) && row.dataset.heroReview !== 'confirmed';
-      row.dataset.heroReview = 'pending';
+        && (!row._portraitSource || this.images.filter(Boolean)[row._portraitImageIndex] === row._portraitSource);
       this.heroPreview(row);
       status.textContent = 'Original ikonkalar bilan solishtirilmoqda…';
       button.disabled = true;
@@ -157,22 +184,35 @@
         if (!current()) return;
         const result = await this.portraitMatcher.match(crop, { prepared: true, cropSize: row._portraitSize, progress });
         if (!current()) return;
-        const candidates = result.candidates;
+        // The locator gates screenshot geometry; accept the best actual catalog match.
+        // Matcher similarity ranks alternatives and is not an accuracy probability.
+        const candidates = (Array.isArray(result?.candidates) ? result.candidates : [])
+          .map(candidate => ({ candidate, hero: this.heroDb.resolve?.(candidate.name) }))
+          .filter(({ candidate, hero }) => hero?.id && Number.isFinite(candidate.score))
+          .sort((a, b) => b.candidate.score - a.candidate.score);
         row.querySelector('[data-hero-candidates]')?.remove();
         const strip = document.createElement('div'); strip.dataset.heroCandidates = ''; strip.className = 'match-candidates';
-        for (const hero of candidates) {
+        const best = candidates[0]?.hero;
+        if (best) {
+          row.querySelector('[data-field="heroUsed"]').value = best.name;
+          expectedHero = best.name; row.dataset.heroSource = 'portrait'; this.heroPreview(row);
+        }
+        for (const { candidate, hero } of candidates) {
           const pick = document.createElement('button'); pick.type = 'button'; pick.className = 'btn btn-secondary';
-          const image = hero.image;
-          pick.innerHTML = `${image ? `<img src="${this.escape(image)}" alt="">` : ''}${this.escape(hero.name)} · ${(hero.score * 100).toFixed(1)}% o‘xshashlik`;
+          const image = hero.images?.portrait || hero.image || candidate.image;
+          pick.innerHTML = `${image ? `<img src="${this.escape(image)}" alt="">` : ''}${this.escape(hero.name)}`;
           pick.onclick = () => {
             if (!current()) return;
-            row._heroEditVersion = (row._heroEditVersion || 0) + 1; row.querySelector('[data-field="heroUsed"]').value = hero.name; row.dataset.heroReview = 'confirmed'; this.heroPreview(row); strip.remove(); this.saveDraft();
+            row._heroEditVersion = (row._heroEditVersion || 0) + 1;
+            row.querySelector('[data-field="heroUsed"]').value = hero.name; row.dataset.heroSource = 'manual';
+            this._manualFormEdits = true; this.heroPreview(row); strip.remove(); this.refreshScanSummary(); this.saveDraft();
           };
           strip.append(pick);
         }
-        if (!strip.children.length) strip.textContent = 'Mos ikonka topilmadi. Qahramonni qo‘lda tanlang.';
-        row.querySelector('.match-hero-review').append(strip);
-        status.textContent = `${result.loaded}/${result.total} ikonka tayyor. Variantni portretga qarab tasdiqlang yoki ikonkani qayta ajrating. O‘xshashlik — aniqlik ehtimoli emas.`;
+        if (!strip.children.length) strip.textContent = 'Mos ikonka topilmadi. Tiniqroq skrinshot yuklang yoki qahramonni tanlang.';
+        row.querySelector('[data-portrait-tools]').append(strip);
+        if (!best) this.heroPreview(row);
+        this.refreshScanSummary(); this.saveDraft();
       } catch (error) { if (current()) status.textContent = error.message; }
       finally { navigation?.disconnect(); if (row._matchGeneration === generation) button.disabled = false; }
     }
@@ -188,7 +228,7 @@
       row.querySelector('[data-crop-editor]')?.remove();
       const editor = document.createElement('div'); editor.dataset.cropEditor = ''; editor.className = 'portrait-crop-editor';
       editor.innerHTML = `<p>Hero ikonkasining chap yuqori va o‘ng pastki burchagini ketma-ket bosing. Ramka va yonidagi belgilarni olmang.</p><div>${images.map((_, i) => `<button type="button" class="btn btn-sm btn-secondary" data-crop-image="${i}">Rasm ${i + 1}</button>`).join('')}<button type="button" class="btn btn-sm btn-secondary" data-crop-close>Yopish</button></div><canvas aria-label="Hero ikonkasini ajratish uchun match skrinshoti"></canvas><p role="status" data-crop-status></p>`;
-      row.querySelector('.match-hero-review').append(editor);
+      row.querySelector('[data-portrait-tools]').append(editor);
       editor.querySelector('[data-crop-close]').onclick = () => editor.remove();
       let loadId = 0;
       const load = async index => {
@@ -240,6 +280,8 @@
       };
       form.addEventListener('input', () => this.saveDraft());
       form.addEventListener('change', () => this.saveDraft());
+      form.addEventListener('input', () => this.refreshScanSummary());
+      form.addEventListener('change', () => this.refreshScanSummary());
       form.querySelector('#addPracticePlayer')?.addEventListener('click', () => this.saveDraft());
       this.updateFormMode();
       try {
@@ -295,7 +337,7 @@
       const read = row => Object.fromEntries([...row.querySelectorAll('[data-field]')].map(el => [el.dataset.field, ['savage', 'maniac'].includes(el.dataset.field) ? (el.value === '' ? null : el.value === 'true') : el.value]));
       return { version: 1, savedAt: new Date().toISOString(), fields: Object.fromEntries([...form.querySelectorAll('[id].form-input, [id].form-select')].filter(el => !el.multiple).map(el => [el.id, el.value])),
         team: Object.fromEntries([...form.querySelectorAll('[data-team-field]')].map(el => [el.dataset.teamField, el.value])), result: form.querySelector('[name="practice-result"]:checked')?.value || '',
-        playerStats: [...form.querySelectorAll('.submission-player-row')].map(row => ({ ...read(row), heroReviewRequired: row.dataset.heroReview !== 'confirmed', medalReviewRequired: row.dataset.medalReview !== 'confirmed' })),
+        playerStats: [...form.querySelectorAll('.submission-player-row')].map(row => ({ ...read(row), heroSource: row.dataset.heroSource, medalSource: row.dataset.medalSource, roleSource: row.dataset.roleSource })),
         guestStats: [...form.querySelectorAll('.match-guest')].map(row => ({ ...read(row), guestId: row.dataset.guestId })),
         substitutes: [...form.querySelector('#practiceSubstitutes').selectedOptions].map(el => el.value),
         source: this.ocrSource, reviewIssues: this.ocrReviewIssues,
@@ -308,6 +350,56 @@
       catch (_) { this.container.querySelector('#matchDraftStatus').textContent = 'Qoralama saqlanmadi. Sahifani yopmang.'; }
     }
     clearSavedDraft() { try { localStorage.removeItem(this.draftKey()); } catch (_) {} this.formDirty = false; }
+    setScanDetailsOpen(open) {
+      const form = this.container?.querySelector('#practiceSubmissionForm');
+      if (!form) return;
+      const summary = form.querySelector('[data-scan-summary]');
+      if (!summary) return;
+      summary.dataset.detailsOpen = String(open);
+      const toggle = summary.querySelector('button');
+      toggle.textContent = open ? 'Tahrirni yopish' : 'Tahrirlash · ixtiyoriy';
+      toggle.setAttribute('aria-expanded', String(open));
+      for (const child of form.children) {
+        if (!child.matches('.submission-form-grid, .submission-result-fieldset, .submission-participants-head, #practicePlayerRows, .match-extra:not([data-scan-summary]), .submission-note, #matchDraftStatus, [data-clear-draft]')) continue;
+        if (!open && child.dataset.scanDisplay === undefined) child.dataset.scanDisplay = child.style.display;
+        child.style.display = open ? (child.dataset.scanDisplay || '') : 'none';
+        if (open) delete child.dataset.scanDisplay;
+      }
+    }
+    refreshScanSummary({ collapse = false } = {}) {
+      const form = this.container?.querySelector('#practiceSubmissionForm');
+      if (!form) return false;
+      let draft;
+      try { draft = super.collectDraft().draft; } catch (_) {}
+      const ready = !!draft && !!draft.date && !!draft.matchType && draft.playerStats.every(player => player.heroResolution === 'canonical')
+        && [...form.querySelectorAll('input, select, textarea')].every(input => input.validity.valid)
+        && [...form.querySelectorAll('[data-field="medal"]')].filter(input => input.value === 'mvp').length <= 1;
+      let summary = form.querySelector('[data-scan-summary]');
+      if (!ready) {
+        if (summary) { this.setScanDetailsOpen(true); summary.remove(); }
+        return false;
+      }
+      if (!summary && !collapse) return true;
+      if (!summary) {
+        summary = document.createElement('section'); summary.dataset.scanSummary = ''; summary.className = 'match-extra';
+        summary.innerHTML = '<strong>Yuborishga tayyor</strong><p data-scan-overview></p><div data-scan-players></div><button type="button" class="btn btn-sm btn-secondary" aria-expanded="false">Tahrirlash · ixtiyoriy</button>';
+        form.querySelector('#practiceScanStatus').after(summary);
+        summary.querySelector('button').onclick = () => this.setScanDetailsOpen(summary.dataset.detailsOpen !== 'true');
+        this.setScanDetailsOpen(true);
+      }
+      const matchType = form.querySelector('#practiceMatchType')?.selectedOptions[0]?.textContent || draft.matchType;
+      summary.querySelector('[data-scan-overview]').textContent = `${draft.result === 'win' ? 'Win' : 'Loss'} · ${draft.playerStats.length} o‘yinchi${draft.durationFormatted ? ` · ${draft.durationFormatted}` : ''}. Sana: ${draft.date} · Tur: ${matchType} (formadagi tanlov). Faqat kerak bo‘lsa tahrirlang.`;
+      const roster = this.availablePlayers();
+      const rows = [...form.querySelectorAll('.submission-player-row')];
+      summary.querySelector('[data-scan-players]').replaceChildren(...draft.playerStats.map((player, index) => {
+        const line = document.createElement('p');
+        const role = `${player.rolePlayed || 'Rol noma’lum'} (${this.roleNote(rows[index])})`;
+        line.textContent = `${roster.find(item => item.id === player.playerId)?.name || player.playerId} · ${player.heroUsed} · ${role} · ${player.kills}/${player.deaths}/${player.assists}${player.inGameScore ? ` · ${player.inGameScore}` : ''}${player.medal ? ` · ${player.medal.toUpperCase()}` : ''}`;
+        return line;
+      }));
+      if (collapse && !this._manualFormEdits) this.setScanDetailsOpen(false);
+      return true;
+    }
     updateFormMode() {
       const heading = this.container?.querySelector('#submissionHeading');
       if (heading) heading.textContent = this.editingMatch ? 'Matchni tahrirlash' : this.editingSubmission ? 'Submissionni tuzatish' : 'Match yuborish';
@@ -345,6 +437,8 @@
       [...form.querySelector('#practiceSubstitutes').options].forEach(el => { el.selected = saved.substitutes?.includes(el.value) || false; });
       this.updateFormMode();
       this.formDirty = true;
+      this._manualFormEdits = true;
+      if (this.ocrSource === 'ocr') this.refreshScanSummary({ collapse: true });
     }
 
     prefillRejected(id) {
@@ -373,23 +467,32 @@
       }
     }
 
-    async scanImages() {
+    async scanImages({ automatic = false } = {}) {
       if (this.scanning) return;
+      if (automatic && this._manualFormEdits) return;
       const filled = [...this.container.querySelectorAll('[data-field="kills"]')].some(el => el.value !== '');
-      if (filled && !window.confirm('AI hozirgi o‘yinchi maydonlarini qayta to‘ldiradi. Davom etamizmi?')) return;
+      if (!automatic && filled && this._manualFormEdits && !window.confirm('AI hozirgi o‘yinchi maydonlarini qayta to‘ldiradi. Davom etamizmi?')) return;
       this.scanning = true;
-      const controls = [...this.container.querySelectorAll('input, select, textarea, button')].map(el => [el, el.disabled]);
+      // A damage screenshot may arrive while the scoreboard is being read.
+      const controls = [...this.container.querySelectorAll('input, select, textarea, button')].filter(el => !el.closest('[data-drop-index]')).map(el => [el, el.disabled]);
       controls.forEach(([el]) => { el.disabled = true; });
       try { await super.scanImages(); }
-      finally { controls.forEach(([el, disabled]) => { if (el.isConnected) el.disabled = disabled; }); this.scanning = false; }
+      finally {
+        controls.forEach(([el, disabled]) => { if (el.isConnected) el.disabled = disabled; });
+        this.scanning = false; this.runPendingImageScan();
+      }
     }
 
     collectDraft() {
       const form = this.container.querySelector('#practiceSubmissionForm');
-      if (!form.checkValidity()) { form.reportValidity(); throw new Error('Belgilangan maydonlarni tekshiring.'); }
-      if ([...form.querySelectorAll('.submission-player-row')].some(row => row.dataset.heroReview !== 'confirmed')) throw new Error('Har bir qahramon tanlovini portretiga qarab tasdiqlang.');
-      if ([...form.querySelectorAll('.submission-player-row')].some(row => row.dataset.medalReview === 'pending')) throw new Error('AI o‘qigan medallarni tekshiring yoki Noma’lum qoldiring.');
-      if ([...form.querySelectorAll('[data-field="medal"]')].filter(input => input.value === 'mvp').length > 1) throw new Error('Bitta jamoada faqat bitta MVP bo‘lishi mumkin. Medallarni tekshiring.');
+      const heroMissing = [...form.querySelectorAll('.submission-player-row')].some(row => !this.heroDb.resolve?.(this.formValue(row, 'heroUsed')));
+      if (heroMissing) { this.setScanDetailsOpen(true); throw new Error('Qahramon aniqlanmadi. Tiniqroq skrinshot yuklang yoki qahramonni ro‘yxatdan tanlang.'); }
+      if (!form.checkValidity()) {
+        this.setScanDetailsOpen(true);
+        form.querySelectorAll('input, select, textarea').forEach(input => { if (!input.validity.valid) input.closest('details')?.setAttribute('open', ''); });
+        form.reportValidity(); throw new Error('Belgilangan maydonlarni tekshiring.');
+      }
+      if ([...form.querySelectorAll('[data-field="medal"]')].filter(input => input.value === 'mvp').length > 1) { this.setScanDetailsOpen(true); throw new Error('Bitta jamoada faqat bitta MVP bo‘lishi mumkin. Medallarni tekshiring.'); }
       const result = super.collectDraft(); const raw = this.rawDraft();
       result.draft = { ...result.draft, ...raw.team, entryMode: 'full', guestStats: raw.guestStats, substitutes: raw.substitutes,
         playerStats: result.draft.playerStats.map((row, i) => ({ ...row, ...Object.fromEntries([...Object.keys(metrics), 'savage', 'maniac'].map(field => [field, raw.playerStats[i][field] ?? null])) })) };
@@ -397,10 +500,11 @@
     }
 
     async applyOcrData(data, context = null) {
-      super.applyOcrData({ ...data, players: (data.players || []).map(player => ({ ...player, heroUsed: '', portraitBox: null, heroReviewRequired: true, medalReviewRequired: true })) });
+      super.applyOcrData(data);
       this.container.querySelectorAll('[data-team-field]').forEach(el => { if (el.dataset.teamField !== 'sessionLabel') el.value = data[el.dataset.teamField] ?? ''; });
       this.saveDraft();
       await this.locateOcrPortraits(context);
+      if (!context || this.isOcrContextCurrent(context)) { this.refreshScanSummary({ collapse: true }); this.saveDraft(); }
     }
 
     async locateOcrPortraits(context = null) {
@@ -414,7 +518,7 @@
       const current = () => this.isOcrContextCurrent(context);
       const entries = [...form.querySelectorAll('.submission-player-row')].map(row => ({ row, sourceRow: Number(row.dataset.sourceRow), editVersion: row._heroEditVersion || 0, playerId: this.formValue(row, 'playerId') }));
       const untouched = entry => current() && entry.row.isConnected && (entry.row._heroEditVersion || 0) === entry.editVersion
-        && this.formValue(entry.row, 'playerId') === entry.playerId && entry.row.dataset.heroReview !== 'confirmed';
+        && this.formValue(entry.row, 'playerId') === entry.playerId && entry.row.dataset.heroSource !== 'manual';
       const note = (entry, text) => { if (untouched(entry)) entry.row.querySelector('[data-hero-status]').textContent = text; };
       // Filtering guests changes the form row index. Only the original screenshot row may locate an icon.
       const eligible = entries.filter(entry => Number.isInteger(entry.sourceRow) && entry.sourceRow >= 1 && entry.sourceRow <= 5
@@ -452,7 +556,17 @@
       const allRows = [...(draft?.playerStats || []), ...(draft?.guestStats || [])];
       const fields = { ...Object.fromEntries(Object.entries(metrics).map(([key, [label]]) => [key, label])), inGameScore: 'Baho', medal: 'Medal', savage: 'Savage', maniac: 'Maniac' };
       const unknown = allRows.reduce((count, row) => count + Object.keys(fields).filter(key => row[key] === null || row[key] === undefined || row[key] === '').length, 0);
-      const issues = item.quality?.reviewIssues || [];
+      const issues = [...(item.quality?.reviewIssues || [])];
+      for (const stat of draft?.playerStats || []) {
+        const suggestion = Base.roleSuggestion(this.heroDb.resolve?.(stat.heroUsed), this.availablePlayers().find(p => p.id === stat.playerId));
+        const name = stat.playerName || stat.playerId;
+        if (!stat.rolePlayed) issues.push(`${name}: rol noma’lum; umumiy statistika hisoblanadi`);
+        else {
+          if (suggestion.allowed.length && !suggestion.allowed.includes(stat.rolePlayed)) issues.push(`${name}: asosiy/qo‘shimcha roldan tashqari`);
+          if (suggestion.lanes.length && !suggestion.lanes.includes(stat.rolePlayed)) issues.push(`${name}: hero layni bilan rol mos emas`);
+          if (!stat.roleSource || ['legacy', 'roster'].includes(stat.roleSource)) issues.push(`${name}: oldingi rol tekshirilmagan`);
+        }
+      }
       const duplicates = item.quality?.possibleMatchIds || [];
       const warning = `<div class="match-review-quality"><strong>${unknown} ta maydon noma’lum${issues.length ? ` · AI tekshiruvi: ${issues.length}` : ''}</strong><p>Captain tasdig‘i — yuborilgan raqamlar ko‘rib chiqilganini bildiradi; skrinshot bilan mustaqil tekshiruv emas.</p>${issues.length ? `<p>${issues.map(issue => this.escape(issue)).join(' · ')}</p>` : ''}</div>`;
       const duplicateControls = this.auth.isAdmin() && item.status === 'pending' && duplicates.length
@@ -460,7 +574,7 @@
       const details = `<details class="match-extra"><summary>Barcha yuborilgan raqamlar · ${allRows.length} qatnashchi</summary>
         <p>Sessiya: ${this.escape(draft?.sessionLabel || '—')} · ${Object.entries(teamFields).map(([key, label]) => `${label}: ${this.escape(draft?.[key] ?? '—')}`).join(' · ')}</p>
         <p>Zaxira: ${(draft?.substitutes || []).map(id => this.escape(this.db.getPlayers().find(p => p.id === id)?.name || id)).join(', ') || '—'}</p>
-        ${allRows.map(row => `<p><strong>${this.escape(row.playerName || row.name || 'Guest')}</strong> · ${this.escape(row.heroUsed)} · ${this.escape(row.rolePlayed)} · ${row.kills ?? '—'}/${row.deaths ?? '—'}/${row.assists ?? '—'}<br>${Object.entries(fields).map(([field, label]) => `${label}: ${this.escape(row[field] === true ? 'Ha' : row[field] === false ? 'Yo‘q' : row[field] ?? '—')}`).join(' · ')}</p>`).join('')}</details>`;
+        ${allRows.map(row => `<p><strong>${this.escape(row.playerName || row.name || 'Guest')}</strong> · ${this.escape(row.heroUsed)} · ${this.escape(row.rolePlayed || 'Rol noma’lum')}${row.roleSource === 'inferred' ? ' (taxmin)' : ''} · ${row.kills ?? '—'}/${row.deaths ?? '—'}/${row.assists ?? '—'}<br>${Object.entries(fields).map(([field, label]) => `${label}: ${this.escape(row[field] === true ? 'Ha' : row[field] === false ? 'Yo‘q' : row[field] ?? '—')}`).join(' · ')}</p>`).join('')}</details>`;
       return super.cardMarkup({ ...item, draft }).replace('<button type="button" class="btn btn-sm btn-primary" data-action="approve">', '<button type="button" class="btn btn-sm btn-secondary" data-correct="' + this.escape(item.id) + '">Ko‘rib chiqish / tuzatish</button><button type="button" class="btn btn-sm btn-primary" data-action="approve">').replace('<div class="submission-mini-roster">', `${warning}${duplicateControls}${details}<div class="submission-mini-roster">`);
     }
     bindAdminActions() {

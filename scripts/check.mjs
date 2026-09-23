@@ -9,7 +9,7 @@ function javascriptFiles(directory) {
   });
 }
 
-const files = ['js', 'api', 'lib'].flatMap(javascriptFiles);
+const files = ['sw.js', ...['js', 'api', 'lib'].flatMap(javascriptFiles)];
 
 for (const file of files) {
   const result = spawnSync(process.execPath, ['--check', file], { stdio: 'inherit' });

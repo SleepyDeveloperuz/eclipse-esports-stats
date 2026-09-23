@@ -18,19 +18,68 @@ function setup() {
   w.Image = class { constructor() { this.width = 1280; this.height = 576; } async decode() {} };
   w.HTMLCanvasElement.prototype.getContext = () => ({ drawImage() {} });
   w.HTMLCanvasElement.prototype.toDataURL = () => 'data:image/jpeg;base64,crop';
-  const roster = [{ id: 'p1', name: 'Player' }, { id: 'p2', name: 'Second' }];
-  const heroes = [{ id: 1, name: 'Miya' }, { id: 2, name: 'Moskov' }];
+  const roster = [{ id: 'p1', name: 'Player', primaryRole: 'Gold Laner' }, { id: 'p2', name: 'Second', primaryRole: 'Roamer' }];
+  const heroes = [{ id: 1, name: 'Miya', lanes: ['Gold Lane'] }, { id: 2, name: 'Moskov', lanes: ['Gold Lane'] }];
   const db = { getActivePlayers: () => roster, getPlayers: () => roster, getAllPlayers: () => roster, getMatches: () => [] };
   const auth = { isAdmin: () => false, getAccessToken: () => 'fixture-token' };
   const heroDb = { getAll: () => heroes, resolve: name => heroes.find(hero => hero.name === name) };
-  for (const name of ['submissions', 'match-desk']) w.eval(readFileSync(new URL(`../js/${name}.js`, import.meta.url), 'utf8'));
+  for (const name of ['image-upload', 'submissions', 'match-desk']) w.eval(readFileSync(new URL(`../js/${name}.js`, import.meta.url), 'utf8'));
   const desk = new w.SubmissionManager(auth, db, heroDb, {});
   desk.container = w.document.getElementById('submissionContainer'); desk.renderState();
   desk.images = ['data:image/jpeg;base64,scoreboard', 'data:image/jpeg;base64,damage'];
   desk.portraitMatcher = { references: [{ id: 1 }], async prepare() {}, async match() { return { automatic: true, loaded: 133, total: 133, candidates: [{ name: 'Miya', score: .99 }] }; } };
   w.EclipsePortraitLocator = { async locate() { return { boxes: boxes() }; } };
-  return { w, desk, form: desk.container.querySelector('form') };
+  return { w, desk, roster, form: desk.container.querySelector('form') };
 }
+
+function uploads(w) {
+  const readers = [], timers = new Map(); let timerId = 0;
+  w.FileReader = class { readAsDataURL() { readers.push(this); } };
+  w.setTimeout = fn => { timers.set(++timerId, fn); return timerId; };
+  w.clearTimeout = id => timers.delete(id);
+  return { readers, flush() { const pending = [...timers.values()]; timers.clear(); pending.forEach(fn => fn()); } };
+}
+const screenshot = name => ({ name, type: 'image/png', size: 1024 });
+const finishRead = (reader, name) => reader.onload({ target: { result: `data:image/png;base64,${name}` } });
+
+domTest('HEIC pair converts before a single auto-scan; stale conversion cannot replace a new image', async () => {
+  const { w, desk } = setup();
+  try {
+    const upload = uploads(w), jobs = [], scans = [];
+    w.EclipseImageUpload.toJpeg = (file, options) => { const job = deferred(); jobs.push({ ...job, file, ...options }); return job.promise; };
+    desk.scanImages = () => scans.push([...desk.images]);
+    const heic = name => ({ name, type: 'image/heic', size: 4000000 });
+    desk.readImages([heic('score.heic'), heic('damage.heic')]);
+    assert.equal(upload.readers.length, 0); assert.equal(jobs.length, 2);
+    jobs[1].resolve(new w.Blob(['jpeg'], { type: 'image/jpeg' })); await Promise.resolve();
+    finishRead(upload.readers[0], 'damage'); upload.flush(); assert.equal(scans.length, 0);
+    jobs[0].resolve(new w.Blob(['jpeg'], { type: 'image/jpeg' })); await Promise.resolve();
+    finishRead(upload.readers[1], 'score'); upload.flush(); assert.equal(scans.length, 1);
+    assert.equal(desk.imageNames[0], 'score.heic');
+    desk.readImage(heic('stale.heic'), 0);
+    desk.readImage(screenshot('new.png'), 0);
+    assert.equal(jobs[2].signal.aborted, true);
+    jobs[2].resolve(new w.Blob(['jpeg'])); await Promise.resolve();
+    assert.equal(upload.readers.length, 3);
+    finishRead(upload.readers[2], 'new'); upload.flush();
+    assert.deepEqual(scans[1], ['data:image/png;base64,new', null]);
+  } finally { w.close(); }
+});
+
+domTest('HEIC failure blocks auto-scan and preserves existing typed fields', async () => {
+  const { w, desk, form } = setup();
+  try {
+    const upload = uploads(w); let scanned = false;
+    desk.scanImages = () => { scanned = true; };
+    w.EclipseImageUpload.toJpeg = async () => { throw new Error('HEIC buzilgan.'); };
+    form.querySelector('[data-field="kills"]').value = '7';
+    desk.readImage({ name: 'bad.HEIF', type: '', size: 100 }, 0);
+    await Promise.resolve(); await Promise.resolve(); upload.flush();
+    assert.equal(scanned, false); assert.equal(desk._imageReadFailed[0], true);
+    assert.equal(form.querySelector('[data-field="kills"]').value, '7');
+    assert.match(form.querySelector('#practiceScanStatus').textContent, /HEIC buzilgan/);
+  } finally { w.close(); }
+});
 
 domTest('filtered roster rows use original sourceRow, never the filtered form index or AI portraitBox', async () => {
   const { w, desk } = setup();
@@ -96,16 +145,45 @@ domTest('image replacement and form replacement discard pending portrait work', 
   }
 });
 
-domTest('even a near-identical match remains blank and pending until the user chooses', async () => {
+domTest('OCR plus valid local matches is immediately submit-ready without confirmation or edits', async () => {
   const { w, desk } = setup();
   try {
-    await desk.applyOcrData({ players: [player(3)] });
+    desk.portraitMatcher.match = async () => ({ automatic: false, loaded: 133, total: 133, candidates: [{ name: 'Wrong AI hero', score: .99 }, { name: 'Miya', score: .91 }, { name: 'Moskov', score: .88 }] });
+    w.fetch = async () => ({ ok: true, async json() { return { data: { result: 'win', players: [player(3)] } }; } });
+    await desk.scanImages();
     const row = desk.container.querySelector('.submission-player-row');
-    assert.equal(row.querySelector('[data-field="heroUsed"]').value, ''); assert.equal(row.dataset.heroReview, 'pending');
-    row.querySelector('[data-hero-candidates] button').click();
-    assert.equal(row.querySelector('[data-field="heroUsed"]').value, 'Miya'); assert.equal(row.dataset.heroReview, 'confirmed');
+    assert.equal(row.querySelector('[data-field="heroUsed"]').value, 'Miya'); assert.equal(row.dataset.heroSource, 'portrait');
+    assert.equal(desk.collectDraft().draft.playerStats[0].heroUsed, 'Miya');
+    assert.equal(desk.collectDraft().draft.playerStats[0].medal, 'gold');
+    assert.equal(desk.collectDraft().claimedPlayerId, 'p1');
+    assert.equal(row.querySelector('[data-confirm-hero], [data-confirm-medal]'), null);
+    assert.equal(row.querySelector('[data-hero-corrections]').open, false);
+    assert.doesNotMatch(row.querySelector('[data-hero-candidates]').textContent, /%/);
+    assert.match(desk.container.querySelector('#practiceScanStatus').textContent, /Yuborishga tayyor/);
+    assert.equal(desk.container.querySelector('[data-scan-summary]').dataset.detailsOpen, 'false');
+    assert.match(desk.container.querySelector('[data-scan-overview]').textContent, /Sana:.*Tur:.*formadagi tanlov/);
     const saved = w.localStorage.getItem(desk.draftKey());
     assert.ok(!saved.includes('data:image')); assert.ok(!saved.includes('portraitCrop')); assert.ok(!saved.includes('ocrMeta'));
+    assert.ok(!saved.includes('heroReviewRequired')); assert.ok(!saved.includes('medalReviewRequired'));
+    assert.equal(desk.collectDraft().draft.playerStats[0].heroSource, undefined);
+  } finally { w.close(); }
+});
+
+domTest('optional edits accept another candidate or a manual hero immediately', async () => {
+  const { w, desk, form } = setup();
+  try {
+    desk.portraitMatcher.match = async () => ({ candidates: [{ name: 'Miya', score: .95 }, { name: 'Moskov', score: .92 }] });
+    await desk.applyOcrData({ result: 'win', players: [player(3)] });
+    form.querySelector('[data-scan-summary] button').click();
+    assert.equal(form.querySelector('[data-scan-summary]').dataset.detailsOpen, 'true');
+    const row = form.querySelector('.submission-player-row');
+    row.querySelector('[data-hero-corrections]').open = true;
+    row.querySelectorAll('[data-hero-candidates] button')[1].click();
+    assert.equal(desk.collectDraft().draft.playerStats[0].heroUsed, 'Moskov');
+    assert.equal(row.dataset.heroSource, 'manual');
+    const input = row.querySelector('[data-field="heroUsed"]'); input.value = 'Miya'; input.dispatchEvent(new w.Event('input', { bubbles: true }));
+    assert.equal(desk.collectDraft().draft.playerStats[0].heroUsed, 'Miya');
+    assert.match(row.querySelector('[data-hero-status]').textContent, /Qo‘lda tanlandi/);
   } finally { w.close(); }
 });
 
@@ -123,29 +201,281 @@ domTest('manual hero changes invalidate an in-flight match and its old candidate
   } finally { w.close(); }
 });
 
-domTest('medal review survives draft restore and blocks save until explicitly reviewed', async () => {
+domTest('restored automatic drafts and legacy review flags never require confirmation', async () => {
   const { w, desk, form } = setup();
   try {
-    await desk.applyOcrData({ result: 'win', players: [player(null)] });
-    let row = form.querySelector('.submission-player-row'); row.querySelector('[data-field="heroUsed"]').value = 'Miya'; row.dataset.heroReview = 'confirmed';
-    assert.throws(() => desk.collectDraft(), /medallarni tekshiring/);
-    desk.restoreDraft(desk.rawDraft()); row = form.querySelector('.submission-player-row');
-    assert.equal(row.dataset.medalReview, 'pending');
-    row.querySelector('[data-confirm-medal]').click();
-    assert.equal(row.dataset.medalReview, 'confirmed');
+    await desk.applyOcrData({ result: 'win', players: [player(3)] });
+    const saved = desk.rawDraft(); saved.playerStats[0].heroReviewRequired = true; saved.playerStats[0].medalReviewRequired = true;
+    desk.restoreDraft(saved);
+    assert.equal(form.querySelector('[data-confirm-hero], [data-confirm-medal]'), null);
+    assert.equal(desk.collectDraft().draft.playerStats[0].heroUsed, 'Miya');
     assert.equal(desk.collectDraft().draft.playerStats[0].medal, 'gold');
+    assert.equal(form.querySelector('.submission-player-row').dataset.heroSource, 'portrait');
   } finally { w.close(); }
 });
 
-domTest('duplicate MVP is rejected even after manual review', async () => {
+domTest('duplicate MVP still blocks submission and opens its editable fields', async () => {
   const { w, desk, form } = setup();
   try {
-    await desk.applyOcrData({ result: 'win', players: [player(null, 'p1', { medal: 'mvp' }), player(null, 'p2', { medal: 'mvp' })] });
-    for (const row of form.querySelectorAll('.submission-player-row')) {
-      row.querySelector('[data-field="heroUsed"]').value = 'Miya'; row.dataset.heroReview = 'confirmed'; row.dataset.medalReview = 'confirmed';
-    }
+    await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { medal: 'mvp' }), player(5, 'p2', { medal: 'mvp' })] });
     assert.throws(() => desk.collectDraft(), /faqat bitta MVP/);
+    assert.notEqual(form.querySelector('#practicePlayerRows').style.display, 'none');
   } finally { w.close(); }
+});
+
+domTest('roles use catalog lanes with roster roles, never a blind primary-role default', async () => {
+  const { w, desk, form, roster } = setup();
+  try {
+    await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { rolePlayed: null })] });
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, 'Gold Laner');
+    assert.equal(desk.collectDraft().draft.playerStats[0].roleSource, 'inferred');
+    assert.match(form.querySelector('[data-role-status]').textContent, /Taxmin/);
+    assert.match(form.querySelector('[data-scan-summary]').textContent, /Taxmin/);
+    await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { rolePlayed: 'Roamer' })] });
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, 'Roamer');
+    assert.match(form.querySelector('[data-role-status]').textContent, /Skrinshotdan/);
+    delete roster[0].primaryRole;
+    await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { rolePlayed: 'Marksman' })] });
+    assert.equal(form.querySelector('[data-field="rolePlayed"]').value, '');
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, '');
+    assert.equal(desk.collectDraft().draft.playerStats[0].roleSource, 'unknown');
+    assert.match(form.querySelector('[data-scan-summary]').textContent, /Rol noma’lum/);
+  } finally { w.close(); }
+});
+
+domTest('an unreadable hero stays unresolved with a clear correction path', async () => {
+  const { w, desk, form } = setup();
+  try {
+    desk.portraitMatcher.match = async () => ({ candidates: [{ name: 'Invented hero', score: .999 }] });
+    await desk.applyOcrData({ result: 'win', players: [player(3)] });
+    assert.equal(form.querySelector('[data-field="heroUsed"]').value, '');
+    assert.match(form.querySelector('[data-hero-status]').textContent, /Tiniqroq skrinshot/);
+    assert.throws(() => desk.collectDraft(), /Qahramon aniqlanmadi/);
+    assert.equal(form.querySelector('[data-scan-summary]'), null);
+  } finally { w.close(); }
+});
+
+domTest('secondary lane is suggested; conflicting and flexible lanes stay unknown without blocking upload', async () => {
+  const { w, desk, roster } = setup();
+  try {
+    roster[0].primaryRole = 'Roamer'; roster[0].secondaryRole = 'Gold Laner';
+    await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { rolePlayed: null })] });
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, 'Gold Laner');
+    const hero = desk.heroDb.resolve('Miya');
+    hero.lanes = ['Gold Lane', 'Roam'];
+    const row = desk.container.querySelector('.submission-player-row'); desk.heroPreview(row);
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, '');
+    hero.lanes = ['Jungle']; desk.heroPreview(row);
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, '');
+    assert.match(row.querySelector('[data-role-status]').textContent, /mos emas/);
+    hero.lanes = []; hero.role = 'Marksman'; desk.heroPreview(row);
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, '');
+    // A class label must never substitute for lane metadata.
+  } finally { w.close(); }
+});
+
+domTest('manual role corrections and deliberately unknown roles survive portrait completion', async () => {
+  const { w, desk } = setup();
+  try {
+    await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { rolePlayed: null })] });
+    const row = desk.container.querySelector('.submission-player-row'), select = row.querySelector('[data-field="rolePlayed"]');
+    select.value = 'Roamer'; select.dispatchEvent(new w.Event('change', { bubbles: true }));
+    desk.heroPreview(row);
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, 'Roamer');
+    assert.match(row.querySelector('[data-role-status]').textContent, /captain tekshirsin/);
+    select.value = ''; select.dispatchEvent(new w.Event('change', { bubbles: true }));
+    desk.heroPreview(row);
+    assert.equal(select.value, '');
+    assert.equal(select.required, false);
+  } finally { w.close(); }
+});
+
+domTest('history edits preserve old roles and mark unknown provenance for review', () => {
+  const { w, desk } = setup();
+  try {
+    desk.editingMatch = { id: 'old-match' };
+    desk.addParticipantRow({ playerId: 'p1', heroUsed: 'Miya', rolePlayed: 'Roamer' });
+    const row = desk.container.querySelector('#practicePlayerRows').lastElementChild;
+    desk.heroPreview(row);
+    assert.equal(row.querySelector('[data-field="rolePlayed"]').value, 'Roamer');
+    assert.match(row.querySelector('[data-role-status]').textContent, /Oldingi rol/);
+  } finally { w.close(); }
+});
+
+domTest('an unreadable result in a new scan never reuses the previous match result', async () => {
+  const { w, desk, form } = setup();
+  try {
+    await desk.applyOcrData({ result: 'win', durationFormatted: '12:00', players: [player(3)] });
+    assert.equal(desk.collectDraft().draft.result, 'win');
+    await desk.applyOcrData({ result: null, players: [player(3)] });
+    assert.equal(form.querySelector('[name="practice-result"]:checked'), null);
+    assert.equal(form.querySelector('#practiceDuration').value, '');
+    assert.throws(() => desk.collectDraft(), /maydonlarni tekshiring/);
+    assert.notEqual(form.querySelector('.submission-result-fieldset').style.display, 'none');
+  } finally { w.close(); }
+});
+
+domTest('highest score never fabricates an MVP when the medal is unknown', async () => {
+  const { w, desk } = setup();
+  try {
+    await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { medal: null, inGameScore: 19.9 })] });
+    assert.equal(desk.collectDraft().draft.playerStats[0].medal, null);
+  } finally { w.close(); }
+});
+
+domTest('two screenshot reads coalesce into one automatic scan and require no input to submit', async () => {
+  const { w, desk, form } = setup();
+  try {
+    const upload = uploads(w), scans = [], requests = []; desk.images = [null, null];
+    const scan = desk.scanImages.bind(desk); desk.scanImages = options => { const work = scan(options); scans.push(work); return work; };
+    w.fetch = async (_, options) => { requests.push(JSON.parse(options.body)); return { ok: true, async json() { return { data: { result: 'win', players: [player(3)] } }; } }; };
+    desk.readImages([screenshot('scoreboard.png'), screenshot('damage.png')]);
+    finishRead(upload.readers[1], 'damage'); upload.flush();
+    assert.equal(requests.length, 0);
+    finishRead(upload.readers[0], 'scoreboard'); upload.flush();
+    assert.equal(requests.length, 1); await scans[0];
+    assert.deepEqual(requests[0].images, ['data:image/png;base64,scoreboard', 'data:image/png;base64,damage']);
+    assert.equal(desk.collectDraft().draft.playerStats[0].heroUsed, 'Miya');
+    assert.equal(form.querySelector('[data-file-index="0"]').multiple, true);
+  } finally { w.close(); }
+});
+
+domTest('replacing a primary screenshot alone clears stale damage and its pending read', () => {
+  const { w, desk, form } = setup();
+  try {
+    const upload = uploads(w), scans = [];
+    desk.scanImages = () => { scans.push([...desk.images]); };
+    desk.readImage(screenshot('old-damage.png'), 1);
+    desk.readImage(screenshot('new-scoreboard.png'), 0);
+    assert.equal(desk.images[1], null); assert.equal(desk.imageNames[1], '');
+    assert.equal(form.querySelector('[data-drop-index="1"] .submission-dropzone__preview').hidden, true);
+    assert.equal(form.querySelector('[data-drop-index="1"] img').getAttribute('src'), '');
+    finishRead(upload.readers[0], 'late-old-damage');
+    assert.equal(desk.images[1], null);
+    finishRead(upload.readers[1], 'new-scoreboard'); upload.flush();
+    assert.deepEqual(scans, [['data:image/png;base64,new-scoreboard', null]]);
+  } finally { w.close(); }
+});
+
+domTest('a first primary screenshot preserves damage selected before it', () => {
+  const { w, desk } = setup();
+  try {
+    const upload = uploads(w), scans = [];
+    desk.images = [null, 'data:image/png;base64,damage-first'];
+    desk.scanImages = () => { scans.push([...desk.images]); };
+    desk.readImage(screenshot('scoreboard.png'), 0); finishRead(upload.readers[0], 'scoreboard'); upload.flush();
+    assert.deepEqual(scans, [['data:image/png;base64,scoreboard', 'data:image/png;base64,damage-first']]);
+  } finally { w.close(); }
+});
+
+domTest('a two-file replacement retains the new secondary and scans only the new pair', () => {
+  const { w, desk } = setup();
+  try {
+    const upload = uploads(w), scans = [];
+    desk.scanImages = () => { scans.push([...desk.images]); };
+    desk.readImages([screenshot('new-scoreboard.png'), screenshot('new-damage.png')]);
+    finishRead(upload.readers[1], 'new-damage'); upload.flush(); assert.equal(scans.length, 0);
+    finishRead(upload.readers[0], 'new-scoreboard'); upload.flush();
+    assert.deepEqual(scans, [['data:image/png;base64,new-scoreboard', 'data:image/png;base64,new-damage']]);
+  } finally { w.close(); }
+});
+
+domTest('a replacement removes the old ready summary immediately and read failure preserves manual fields', async () => {
+  const { w, desk, form } = setup();
+  try {
+    await desk.applyOcrData({ result: 'win', players: [player(3)] });
+    const kills = form.querySelector('[data-field="kills"]'); kills.value = '17'; kills.dispatchEvent(new w.Event('input', { bubbles: true }));
+    assert.ok(form.querySelector('[data-scan-summary]'));
+    const upload = uploads(w); let scans = 0; desk.scanImages = () => { scans++; };
+    desk.readImage(screenshot('unreadable.png'), 0);
+    assert.equal(form.querySelector('[data-scan-summary]'), null);
+    assert.notEqual(form.querySelector('#practicePlayerRows').style.display, 'none');
+    assert.doesNotMatch(form.querySelector('#practiceScanStatus').textContent, /Yuborishga tayyor/);
+    upload.readers[0].onerror(); upload.flush();
+    assert.equal(scans, 0); assert.equal(kills.value, '17');
+    assert.equal(desk.images[0], null); assert.equal(desk.images[1], null);
+    assert.match(form.querySelector('#practiceScanStatus').textContent, /Rasm ochilmadi/);
+    assert.equal(form.querySelector('[data-scan-summary]'), null);
+  } finally { w.close(); }
+});
+
+domTest('a failed new scan cannot display the previous screenshot as ready', async () => {
+  const { w, desk, form } = setup();
+  try {
+    await desk.applyOcrData({ result: 'win', players: [player(3)] });
+    const upload = uploads(w), scans = [];
+    const scan = desk.scanImages.bind(desk); desk.scanImages = options => { const work = scan(options); scans.push(work); return work; };
+    w.fetch = async () => ({ ok: false, async json() { return { error: 'Rasm o‘qilmadi' }; } });
+    desk.readImage(screenshot('unreadable.png'), 0); finishRead(upload.readers[0], 'unreadable');
+    assert.equal(form.querySelector('[data-scan-summary]'), null);
+    upload.flush(); await scans[0];
+    assert.equal(form.querySelector('[data-scan-summary]'), null);
+    assert.doesNotMatch(form.querySelector('#practiceScanStatus').textContent, /Yuborishga tayyor/);
+    assert.equal(form.querySelector('[data-field="kills"]').value, '1');
+  } finally { w.close(); }
+});
+
+domTest('a new image during scanning aborts stale work and starts exactly one latest scan', async () => {
+  const { w, desk, form } = setup();
+  try {
+    const upload = uploads(w), first = deferred(), second = deferred(), scans = [], requests = []; desk.images = [null, null];
+    const scan = desk.scanImages.bind(desk); desk.scanImages = options => { const work = scan(options); scans.push(work); return work; };
+    w.fetch = (_, options) => { requests.push(options); return requests.length === 1 ? first.promise : second.promise; };
+    desk.readImage(screenshot('scoreboard.png'), 0); finishRead(upload.readers[0], 'scoreboard'); upload.flush();
+    assert.equal(requests.length, 1); assert.equal(desk.scanning, true);
+    assert.equal(form.querySelector('[data-file-index="1"]').disabled, false);
+    assert.equal(form.querySelector('[data-select-index="1"]').disabled, false);
+    desk.readImage(screenshot('damage.png'), 1); finishRead(upload.readers[1], 'damage'); upload.flush();
+    assert.equal(requests[0].signal.aborted, true); assert.equal(requests.length, 1);
+    desk.readImage(screenshot('better-damage.png'), 1); finishRead(upload.readers[2], 'better-damage'); upload.flush();
+    first.resolve({ ok: true, async json() { return { data: { result: 'loss', players: [player(3, 'p1', { kills: 88 })] } }; } }); await scans[0];
+    assert.equal(requests.length, 2);
+    assert.deepEqual(JSON.parse(requests[1].body).images, ['data:image/png;base64,scoreboard', 'data:image/png;base64,better-damage']);
+    second.resolve({ ok: true, async json() { return { data: { result: 'win', players: [player(3)] } }; } }); await scans[1];
+    assert.equal(desk.collectDraft().draft.playerStats[0].kills, '1');
+    upload.flush(); assert.equal(requests.length, 2);
+  } finally { w.close(); }
+});
+
+domTest('automatic uploads preserve a manually edited form and cancel queued processing', async () => {
+  const { w, desk, form } = setup();
+  try {
+    const upload = uploads(w); let scans = 0; desk.scanImages = () => { scans++; };
+    desk.readImage(screenshot('scoreboard.png'), 0); finishRead(upload.readers[0], 'scoreboard');
+    const kills = form.querySelector('[data-field="kills"]'); kills.value = '17'; kills.dispatchEvent(new w.Event('input', { bubbles: true }));
+    upload.flush(); assert.equal(scans, 0);
+    desk.readImage(screenshot('damage.png'), 1); finishRead(upload.readers[1], 'damage'); upload.flush();
+    assert.equal(scans, 0); assert.equal(kills.value, '17');
+    assert.match(form.querySelector('#practiceScanStatus').textContent, /tuzatishlaringiz saqlandi/);
+  } finally { w.close(); }
+});
+
+domTest('detail montage is optional, shares the abort signal, and preserves the original pair', async () => {
+  const { w, desk } = setup();
+  try {
+    let signals, sent;
+    w.EclipseScanDetails = { async create(images, options) { signals = options.signal; assert.deepEqual([...images], [...desk.images]); return 'data:image/jpeg;base64,details'; } };
+    w.fetch = async (_, options) => { sent = JSON.parse(options.body); assert.equal(options.signal, signals); return { ok: true, async json() { return { data: { result: 'win', players: [player(3)] } }; } }; };
+    await desk.scanImages();
+    assert.equal(sent.detailImage, 'data:image/jpeg;base64,details'); assert.deepEqual(sent.images, [...desk.images]);
+    w.EclipseScanDetails.create = async () => { throw new Error('Canvas unavailable'); };
+    w.fetch = async (_, options) => { sent = JSON.parse(options.body); return { ok: true, async json() { return { data: { result: 'win', players: [player(3)] } }; } }; };
+    await desk.scanImages(); assert.equal(sent.detailImage, undefined); assert.equal(desk.collectDraft().draft.playerStats[0].heroUsed, 'Miya');
+  } finally { w.close(); }
+});
+
+domTest('a stale candidate cannot overwrite a later manual choice or player mapping', async () => {
+  for (const field of ['heroUsed', 'playerId']) {
+    const { w, desk, form } = setup();
+    try {
+      await desk.applyOcrData({ result: 'win', players: [player(3)] });
+      const oldCandidate = form.querySelector('[data-hero-candidates] button');
+      const input = form.querySelector(`[data-field="${field}"]`); input.value = field === 'heroUsed' ? 'Moskov' : 'p2';
+      input.dispatchEvent(new w.Event('change', { bubbles: true })); oldCandidate.click();
+      assert.equal(input.value, field === 'heroUsed' ? 'Moskov' : 'p2');
+      assert.equal(form.querySelector('[data-hero-candidates]'), null);
+    } finally { w.close(); }
+  }
 });
 
 domTest('OCR metadata is text-only and never part of the persisted draft', async () => {

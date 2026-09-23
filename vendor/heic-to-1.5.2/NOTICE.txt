@@ -1,0 +1,15 @@
+HEIC decoder: heic-to 1.5.2, libheif 1.22.2, libde265 1.0.16.
+libheif.js is an UNMODIFIED copy of src/lib/libheif-without-unsafe-eval.js
+from the heic-to 1.5.2 npm package. SHA-256 is recorded in the release notes.
+Built upstream with USE_UNSAFE_EVAL=0; no WebAssembly or eval permission needed.
+
+License: LGPL-3.0-or-later; see LICENSE.txt and GPL-3.0.txt.
+Source and build instructions:
+https://github.com/hoppergee/heic-to/tree/v1.5.2
+https://registry.npmjs.org/heic-to/-/heic-to-1.5.2.tgz
+https://github.com/strukturag/libheif
+https://github.com/strukturag/libde265
+
+The application imports this separate library at runtime. An interface-compatible
+modified library may replace libheif.js; no integrity lock prevents replacement.
+No user images are sent to the library publisher or a conversion service.

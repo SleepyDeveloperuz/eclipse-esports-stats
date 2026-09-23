@@ -15,6 +15,16 @@ const players = [
 ];
 const roles = StatsEngine.ROLES;
 
+test('unknown match role counts in general statistics but not role-specific ratings', () => {
+  const input = match('unknown-role'); input.playerStats[0].rolePlayed = null;
+  const all = engine.getPlayerStats([input], 'p1', { scope: 'all' });
+  const gold = engine.getPlayerStats([input], 'p1', { scope: 'all', role: 'Gold Laner' });
+  assert.equal(all.matchesPlayed, 1);
+  assert.equal(gold.matchesPlayed, 0);
+  assert.equal(engine._eclipseIndex([input], 'p1').value, null);
+  assert.equal(StatsEngine.normalizeRole(null), 'Unknown');
+});
+
 function match(id, { scope = 'team5', result = 'win', score = 10, lineup = players, date = '2026-08-01' } = {}) {
   return {
     id,

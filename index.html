@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Eclipse Esports — Outwork. Outthink. Outplay. MLBB jamoa statistikasi va tahlil markazi.">
     <meta name="theme-color" content="#080806">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Eclipse">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="stylesheet" href="/css/pwa.css?v=2.30.0">
+    <script src="/js/pwa.js?v=2.30.0" defer></script>
     <title>Eclipse Esports — Pro MLBB Stats Tracker</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,10 +18,14 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     
-    <link rel="stylesheet" href="css/style.css?v=2.26.0">
-    <link rel="stylesheet" href="css/v221.css?v=2.26.0">
-    <link rel="stylesheet" href="css/v222.css?v=2.26.0">
-    <link rel="stylesheet" href="css/v225.css?v=2.26.0">
+    <link rel="stylesheet" href="css/style.css?v=2.27.0">
+    <link rel="stylesheet" href="css/v221.css?v=2.27.0">
+    <link rel="stylesheet" href="css/v222.css?v=2.27.0">
+    <link rel="stylesheet" href="css/v225.css?v=2.27.0">
+    <link rel="stylesheet" href="css/v227.css?v=2.27.0">
+    <link rel="stylesheet" href="css/public-meta.css?v=2.30.1">
+    <link rel="stylesheet" href="css/meta-explore.css?v=2.30.1">
+    <link rel="stylesheet" href="css/meta-decisions.css?v=2.31.0">
     
     <link rel="icon" type="image/svg+xml" href="assets/eclipse-mark.svg?v=2.16.0">
 </head>
@@ -25,6 +35,8 @@
         <div class="access-bootstrap__orbit" aria-hidden="true"><span></span></div>
         <p>ECLIPSE / PRIVATE SIGNAL</p>
         <strong>Command Room tekshirilmoqda</strong>
+        <a class="btn btn-secondary public-meta-link" href="/meta-lab">Ommaviy Meta Lab’ni ochish</a>
+        <button type="button" class="btn btn-secondary" data-pwa-install>Ilovani o‘rnatish</button>
     </div>
     <div class="app-container">
         <!-- Sidebar -->
@@ -45,6 +57,7 @@
                 <a href="#" class="nav-item" data-page="match-history"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-history"></use></svg> Matchlar <kbd>2</kbd></a>
                 <a href="#" class="nav-item" data-page="players"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-players"></use></svg> Jamoa <kbd>3</kbd></a>
                 <a href="#" class="nav-item" data-page="statistics"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-stats"></use></svg> Tahlil <kbd>4</kbd></a>
+                <a href="#" class="nav-item" data-page="progress"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Eclipse Progress</a>
                 <a href="#" class="nav-item" data-page="briefing"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-briefing"></use></svg> Briefing <kbd>5</kbd></a>
                 <a href="#" class="nav-item" data-page="meta-lab"><i class="fa-solid fa-ranking-star" aria-hidden="true"></i> Meta Lab</a>
                 <div class="nav-team-input" aria-label="Jamoa yuborish vositalari">
@@ -60,10 +73,11 @@
             <div class="sidebar-footer">
                 <div class="sidebar-status-pill">
                     <span class="status-dot"></span>
-                    <span>Eclipse Live System v2.26.0</span>
+                    <span>Eclipse Live System v2.33.0</span>
                 </div>
                 <p class="sidebar-shortcuts-hint"><kbd>Esc</kbd> Yopish &middot; <kbd>S</kbd> Practice</p>
                 <p id="foregroundSyncStatus" class="sidebar-shortcuts-hint" role="status">Ma’lumot tekshirilmoqda…</p>
+                <button type="button" class="btn btn-secondary" data-pwa-install>Ilovani o‘rnatish</button>
             </div>
         </aside>
 
@@ -152,6 +166,8 @@
                 <div id="matchHistoryContainer"></div>
             </section>
 
+            <section class="page-section" id="page-progress" aria-label="Eclipse Progress" hidden><div id="progressContainer"></div></section>
+            <section class="page-section" id="page-batch" aria-label="Multi-match upload" hidden><div id="batchContainer"></div></section>
             <!-- PRACTICE SUBMISSIONS -->
             <section class="page-section" id="page-submissions" aria-label="Qisqa match yuborish va tasdiqlash" hidden>
                 <div id="submissionContainer"></div>
@@ -338,22 +354,29 @@
         <div class="modal" id="modalContent" role="dialog" aria-modal="true" aria-label="Eclipse dialog oynasi"></div>
     </div>
 
-    <script src="js/heroes.js?v=2.26.0"></script>
-    <script src="js/date-utils.js?v=2.26.0"></script>
-    <script src="js/data.js?v=2.26.0"></script>
-    <script src="js/stats.js?v=2.26.0"></script>
-    <script src="js/charts.js?v=2.26.0"></script>
-    <script src="js/players.js?v=2.26.0"></script>
-    <script src="js/match.js?v=2.26.0"></script>
-    <script src="js/auth.js?v=2.26.0"></script>
-    <script src="js/cloud.js?v=2.26.0"></script>
-    <script src="js/mlbb.js?v=2.26.0"></script>
-    <script src="js/briefing.js?v=2.26.0"></script>
-    <script src="js/submissions.js?v=2.26.0"></script>
-    <script src="js/hero-matcher.js?v=2.26.0"></script>
-    <script src="js/portrait-locator.js?v=2.26.0"></script>
-    <script src="js/match-desk.js?v=2.26.0"></script>
-    <script src="js/tier-board.js?v=2.26.0"></script>
-    <script src="js/app.js?v=2.26.0"></script>
+    <script src="js/heroes.js?v=2.27.0"></script>
+    <script src="js/date-utils.js?v=2.27.0"></script>
+    <script src="js/data.js?v=2.31.0"></script>
+    <script src="js/stats.js?v=2.27.0"></script>
+    <script src="js/charts.js?v=2.31.0"></script>
+    <script src="js/players.js?v=2.27.0"></script>
+    <script src="js/match.js?v=2.27.0"></script>
+    <script src="js/auth.js?v=2.30.0"></script>
+    <script src="js/cloud.js?v=2.27.0"></script>
+    <script src="js/mlbb.js?v=2.33.0"></script>
+    <script src="js/briefing.js?v=2.27.0"></script>
+    <script src="js/scan-details.js?v=2.27.0"></script>
+    <script src="js/image-upload.js?v=2.27.1"></script>
+    <script src="js/submissions.js?v=2.31.0"></script>
+    <script src="js/hero-matcher.js?v=2.27.0"></script>
+    <script src="js/portrait-locator.js?v=2.27.0"></script>
+    <script src="js/match-desk.js?v=2.31.0"></script>
+    <script src="js/tier-board.js?v=2.33.0"></script>
+    <script src="js/meta-explore.js?v=2.33.0"></script>
+    <script src="js/meta-decision-model.js?v=2.33.0"></script>
+    <script src="js/meta-decisions.js?v=2.33.0"></script>
+    <script src="js/app.js?v=2.27.0"></script>
+    <script type="module" src="js/progress.js?v=2.27.0"></script>
+    <script type="module" src="js/batch.js?v=2.27.1"></script>
 </body>
 </html>

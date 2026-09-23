@@ -1,4 +1,14 @@
 window.SubmissionManager = class SubmissionManager {
+  // Hero class is NOT a played lane. Only explicit catalog lanes may suggest one.
+  static roleSuggestion(hero, player) {
+    const aliases = { exp: 'EXP Laner', 'exp lane': 'EXP Laner', 'exp laner': 'EXP Laner', jungle: 'Jungler', jungler: 'Jungler', mid: 'Mid Laner', 'mid lane': 'Mid Laner', 'mid laner': 'Mid Laner', gold: 'Gold Laner', 'gold lane': 'Gold Laner', 'gold laner': 'Gold Laner', roam: 'Roamer', roamer: 'Roamer' };
+    const normalize = value => aliases[String(value || '').trim().toLowerCase()] || '';
+    const lanes = [...new Set((Array.isArray(hero?.lanes) ? hero.lanes : []).map(normalize).filter(Boolean))];
+    const allowed = [...new Set([player?.primaryRole, player?.secondaryRole].map(normalize).filter(Boolean))];
+    const candidates = lanes.filter(role => allowed.includes(role));
+    return { role: candidates.length === 1 ? candidates[0] : '', lanes, allowed,
+      reason: !lanes.length ? 'catalog_missing' : !allowed.length ? 'roster_missing' : !candidates.length ? 'conflict' : candidates.length > 1 ? 'ambiguous' : 'inferred' };
+  }
   constructor(authManager, dataStore, heroDb, cloudSync) {
     this.auth = authManager;
     this.db = dataStore;
@@ -9,6 +19,9 @@ window.SubmissionManager = class SubmissionManager {
     this.data = { counts: { pending: 0, approved: 0, rejected: 0, total: 0 }, submissions: [] };
     this.images = [null, null];
     this.imageNames = ['', ''];
+    this._imageLoading = [false, false];
+    this._imageReadFailed = [false, false];
+    this._imageReads = (this._imageReads || [0, 0]).map(version => version + 1);
     this.ocrSource = 'manual';
     this.ocrReviewIssues = [];
     this.filter = 'pending';
@@ -126,6 +139,7 @@ window.SubmissionManager = class SubmissionManager {
         </div>
       </section>
 
+      <div class="batch-entry-link"><button type="button" class="btn btn-secondary" data-open-batch>Multi-match upload · bir nechta match</button></div>
       <div class="submission-layout">
         <section class="submission-panel submission-compose" aria-labelledby="submissionFormTitle">
           <header class="submission-panel__header">
@@ -146,6 +160,7 @@ window.SubmissionManager = class SubmissionManager {
       </div>`;
 
     this.bindForm();
+    this.container.querySelector('[data-open-batch]')?.addEventListener('click', () => window.EclipseApp.navigate('batch'));
     this.bindInbox();
     this.updatePendingBadge();
     window.EclipseApp?.refreshMotion?.(this.container);
@@ -158,12 +173,12 @@ window.SubmissionManager = class SubmissionManager {
     return `
       <form id="practiceSubmissionForm" class="submission-form" novalidate>
         <div class="submission-upload-grid">
-          ${this.dropzoneMarkup(0, 'Scoreboard', 'Asosiy natija rasmi', true)}
+          ${this.dropzoneMarkup(0, 'Scoreboard', '1–2 rasm yuklang · avtomatik o‘qiladi', true)}
           ${this.dropzoneMarkup(1, 'Damage', 'Batafsil statistika · ixtiyoriy', false)}
         </div>
-        <p class="submission-privacy"><i class="fa-solid fa-shield-halved"></i> Rasm saqlanmaydi. Captain rasmni emas, yuborilgan raqamlarni tekshiradi. W va L natijalarini ham kiriting.</p>
+        <p class="submission-privacy"><i class="fa-solid fa-shield-halved"></i> Skrinshotlar saytda saqlanmaydi. Natija, raqamlar va qahramonlar avtomatik to‘ldiriladi; faqat kerak bo‘lsa tuzating.</p>
         <button type="button" class="btn btn-secondary submission-scan-btn" id="practiceScanBtn" disabled>
-          <i class="fa-solid fa-wand-magic-sparkles"></i> AI bilan o‘qish
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Qayta o‘qish
         </button>
         <div id="practiceScanStatus" class="submission-status-line" role="status" aria-live="polite"></div>
 
@@ -196,7 +211,7 @@ window.SubmissionManager = class SubmissionManager {
   dropzoneMarkup(index, title, subtitle, required) {
     return `
       <div class="submission-dropzone" data-drop-index="${index}">
-        <input type="file" accept="image/jpeg,image/png,image/webp" data-file-index="${index}" hidden>
+        <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" data-file-index="${index}" ${index === 0 ? 'multiple' : ''} hidden>
         <button type="button" class="submission-dropzone__empty" data-select-index="${index}" aria-label="${title} skrinshotini tanlash">
           <i class="fa-solid ${index === 0 ? 'fa-image' : 'fa-chart-pie'}"></i>
           <strong>${title}${required ? ' <small>TAVSIYA</small>' : ''}</strong>
@@ -276,15 +291,26 @@ window.SubmissionManager = class SubmissionManager {
     const form = this.container?.querySelector('#practiceSubmissionForm');
     if (!form) return;
     this.invalidateOcrWork();
+    this._imageConversions?.forEach(controller => controller?.abort());
     this.images = [null, null];
     this.imageNames = ['', ''];
+    this._imageLoading = [false, false];
+    this._imageReadFailed = [false, false];
+    this._imageReads = (this._imageReads || [0, 0]).map(version => version + 1);
     this.ocrSource = 'manual';
     this.ocrReviewIssues = [];
     this.rowCounter = 0;
     this.addParticipantRow();
     this.formDirty = false;
-    form.addEventListener('input', () => { this.formDirty = true; });
-    form.addEventListener('change', () => { this.formDirty = true; });
+    this._manualFormEdits = false;
+    const markEdit = event => {
+      if (event.target.matches('input[type="file"]')) return;
+      this.formDirty = true; this._manualFormEdits = true;
+      this._formEditVersion = (this._formEditVersion || 0) + 1;
+      this.cancelScheduledImageScan();
+    };
+    form.addEventListener('input', markEdit);
+    form.addEventListener('change', markEdit);
 
     form.querySelector('#addPracticePlayer')?.addEventListener('click', () => {
       const rowCount = form.querySelectorAll('.submission-player-row').length;
@@ -303,9 +329,9 @@ window.SubmissionManager = class SubmissionManager {
       zone.addEventListener('drop', event => {
         event.preventDefault();
         zone.classList.remove('is-dragging');
-        this.readImage(event.dataTransfer?.files?.[0], index);
+        this.readImages(event.dataTransfer?.files, index);
       });
-      input?.addEventListener('change', event => this.readImage(event.target.files?.[0], index));
+      input?.addEventListener('change', event => this.readImages(event.target.files, index));
     });
     form.querySelectorAll('[data-remove-index]').forEach(button => {
       button.addEventListener('click', event => {
@@ -313,6 +339,9 @@ window.SubmissionManager = class SubmissionManager {
         this.invalidateOcrWork();
         this._imageReads ||= [0, 0];
         this._imageReads[Number(button.dataset.removeIndex)]++;
+        this._imageConversions?.[Number(button.dataset.removeIndex)]?.abort();
+        if (this._imageLoading) this._imageLoading[Number(button.dataset.removeIndex)] = false;
+        if (this._imageReadFailed) this._imageReadFailed[Number(button.dataset.removeIndex)] = false;
         this.images[Number(button.dataset.removeIndex)] = null;
         this.imageNames[Number(button.dataset.removeIndex)] = '';
         this.updateImageSlots();
@@ -347,7 +376,7 @@ window.SubmissionManager = class SubmissionManager {
       <div class="submission-player-row__index">${String(index).padStart(2, '0')}</div>
       <label><span>O‘yinchi</span><select class="form-select" data-field="playerId" required><option value="">Tanlang…</option>${players.map(player => `<option value="${this.escape(player.id)}" ${player.id === values.playerId ? 'selected' : ''}>${this.escape(player.name)}</option>`).join('')}</select></label>
       <label><span>Qahramon</span><input class="form-input" data-field="heroUsed" list="practiceHeroes${index}" value="${this.escape(values.heroUsed || '')}" required><datalist id="practiceHeroes${index}">${heroes.map(hero => `<option value="${this.escape(hero.name)}">${this.escape(hero.role || '')}</option>`).join('')}</datalist></label>
-      <label><span>Rol</span><select class="form-select" data-field="rolePlayed" required><option value="">Tanlang…</option>${roles.map(role => `<option value="${role}" ${role === values.rolePlayed ? 'selected' : ''}>${role}</option>`).join('')}</select></label>
+      <label><span>Matchdagi rol · ixtiyoriy</span><select class="form-select" data-field="rolePlayed"><option value="">Noma’lum</option>${roles.map(role => `<option value="${role}" ${role === values.rolePlayed ? 'selected' : ''}>${role}</option>`).join('')}</select></label>
       <label class="submission-kda"><span>K / D / A</span><span><input class="form-input" data-field="kills" type="number" min="0" max="200" value="${this.escape(values.kills ?? '')}" required><input class="form-input" data-field="deaths" type="number" min="0" max="200" value="${this.escape(values.deaths ?? '')}" required><input class="form-input" data-field="assists" type="number" min="0" max="500" value="${this.escape(values.assists ?? '')}" required></span></label>
       <label><span>Baho <em>ixtiyoriy</em></span><input class="form-input" data-field="inGameScore" type="number" min="0" max="20" step="0.1" value="${this.escape(values.inGameScore ?? '')}"></label>
       <label><span>Medal <em>ixtiyoriy</em></span><select class="form-select" data-field="medal"><option value="">Noma’lum</option>${['mvp', 'gold', 'silver', 'bronze'].map(medal => `<option value="${medal}" ${String(values.medal || '').toLowerCase() === medal ? 'selected' : ''}>${medal.toUpperCase()}</option>`).join('')}</select></label>
@@ -364,22 +393,86 @@ window.SubmissionManager = class SubmissionManager {
 
   readImage(file, index) {
     if (!file) return;
-    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowed.includes(file.type)) return window.showToast?.('Faqat JPEG, PNG yoki WEBP rasm tanlang.', 'warning');
-    if (file.size > 3 * 1024 * 1024) return window.showToast?.('Rasm 3 MB dan kichik bo‘lishi kerak.', 'warning');
+    try { window.EclipseImageUpload.validate(file); }
+    catch (error) { return window.showToast?.(error.message, 'warning'); }
+    const heic = window.EclipseImageUpload.isHeic(file);
+    const replacingPrimary = index === 0 && Boolean(this.images[0] || this._imageLoading?.[0]);
+    this._imageConversions ||= [];
+    this._imageConversions[index]?.abort();
     this.invalidateOcrWork();
     this._imageReads ||= [0, 0];
+    this._imageLoading ||= [false, false];
+    this._imageReadFailed ||= [false, false];
+    if (replacingPrimary) {
+      // A new scoreboard starts a new match. A batch will install its new
+      // secondary image next; a pending read from the old match must stay stale.
+      this._imageReads[1]++; this._imageLoading[1] = false; this._imageReadFailed[1] = false;
+      this._imageConversions[1]?.abort();
+      this.images[1] = null; this.imageNames[1] = '';
+    }
+    this.images[index] = null; this.imageNames[index] = '';
+    this._imageLoading[index] = true;
+    this._imageReadFailed[index] = false;
     const readId = ++this._imageReads[index];
     const form = this.container?.querySelector('#practiceSubmissionForm');
+    this.updateImageSlots();
+    if (form) form.querySelector('#practiceScanStatus').textContent = heic ? 'HEIC qurilmangizda JPEG’ga aylantirilmoqda…' : 'Rasm yuklanmoqda…';
+    const editVersion = this._formEditVersion || 0;
     const reader = new FileReader();
     reader.onload = event => {
       if (readId !== this._imageReads[index] || !form?.isConnected || this.container?.querySelector('#practiceSubmissionForm') !== form) return;
+      this._imageLoading[index] = false;
       this.formDirty = true;
       this.images[index] = event.target.result;
       this.imageNames[index] = file.name || `${index + 1}-skrinshot`;
       this.updateImageSlots();
+      if (!this._manualFormEdits && (this._formEditVersion || 0) === editVersion) this.scheduleImageScan();
+      else form.querySelector('#practiceScanStatus').textContent = 'Rasm yuklandi. Kiritgan tuzatishlaringiz saqlandi; yangi rasmni o‘qish uchun “Qayta o‘qish”ni bosing.';
     };
-    reader.readAsDataURL(file);
+    reader.onerror = error => {
+      if (readId !== this._imageReads[index] || !form?.isConnected || this.container?.querySelector('#practiceSubmissionForm') !== form) return;
+      this._imageLoading[index] = false;
+      this._imageReadFailed[index] = true;
+      this.cancelScheduledImageScan();
+      const message = error?.message || 'Rasm ochilmadi. Qayta tanlang; formadagi ma’lumotlar saqlandi.';
+      form.querySelector('#practiceScanStatus').textContent = message;
+      window.showToast?.(message, 'warning');
+    };
+    if (!heic) reader.readAsDataURL(file);
+    else {
+      const controller = new AbortController(); this._imageConversions[index] = controller;
+      window.EclipseImageUpload.toJpeg(file, { signal: controller.signal }).then(jpeg => {
+        if (readId === this._imageReads[index] && form?.isConnected && this.container?.querySelector('#practiceSubmissionForm') === form) reader.readAsDataURL(jpeg);
+      }).catch(reader.onerror).finally(() => { if (this._imageConversions[index] === controller) this._imageConversions[index] = null; });
+    }
+  }
+
+  readImages(files, index = 0) {
+    [...(files || [])].slice(0, 2 - index).forEach((file, offset) => this.readImage(file, index + offset));
+  }
+
+  cancelScheduledImageScan() {
+    clearTimeout(this._autoScanTimer); this._autoScanTimer = null; this._pendingImageScan = null;
+  }
+
+  scheduleImageScan() {
+    this.cancelScheduledImageScan();
+    if (this._imageLoading?.some(Boolean) || this._imageReadFailed?.some(Boolean) || this._manualFormEdits || !this.images.some(Boolean)) return;
+    const form = this.container?.querySelector('#practiceSubmissionForm');
+    const pending = { generation: this._ocrGeneration, form, editVersion: this._formEditVersion || 0 };
+    this._autoScanTimer = setTimeout(() => {
+      this._autoScanTimer = null; this._pendingImageScan = pending; this.runPendingImageScan();
+    }, 300);
+  }
+
+  runPendingImageScan() {
+    if (this.scanning) return;
+    const pending = this._pendingImageScan; this._pendingImageScan = null;
+    if (!pending || pending.generation !== this._ocrGeneration || this._manualFormEdits || this._imageLoading?.some(Boolean) || this._imageReadFailed?.some(Boolean)
+      || pending.editVersion !== (this._formEditVersion || 0) || !pending.form?.isConnected
+      || this.container?.querySelector('#practiceSubmissionForm') !== pending.form
+      || (pending.form.closest('.page-section') && !pending.form.closest('.page-section').classList.contains('active'))) return;
+    this.scanImages({ automatic: true });
   }
 
   updateImageSlots() {
@@ -406,6 +499,11 @@ window.SubmissionManager = class SubmissionManager {
   }
 
   invalidateOcrWork() {
+    this.cancelScheduledImageScan();
+    this.setScanDetailsOpen?.(true);
+    this.container?.querySelector('[data-scan-summary]')?.remove();
+    const status = this.container?.querySelector('#practiceScanStatus');
+    if (status) status.textContent = '';
     this._ocrGeneration = (this._ocrGeneration || 0) + 1;
     this._ocrController?.abort();
     this._ocrController = null;
@@ -415,7 +513,7 @@ window.SubmissionManager = class SubmissionManager {
       row._cropGeneration = (row._cropGeneration || 0) + 1;
       row._matchGeneration = (row._matchGeneration || 0) + 1;
       row._portraitCrop = null;
-      row.querySelector('.match-hero-review > canvas')?.remove();
+      row.querySelector('[data-portrait-tools] > canvas')?.remove();
       row.querySelector('[data-hero-candidates]')?.remove();
       row.querySelector('[data-crop-editor]')?.remove();
       const rescan = row.querySelector('[data-rescan-hero]');
@@ -453,6 +551,11 @@ window.SubmissionManager = class SubmissionManager {
     const page = form.closest('.page-section');
     const context = { generation: this._ocrGeneration, form, container: this.container, slots: [...this.images], images, signal: controller.signal, page: page?.classList.contains('active') ? page : null };
     const current = () => this.isOcrContextCurrent(context);
+    // Reference preparation is cached by the matcher and can run alongside OCR.
+    try {
+      if (!this.portraitMatcher && window.HeroPortraitMatcher) this.portraitMatcher = new window.HeroPortraitMatcher(this.auth);
+      Promise.resolve(this.portraitMatcher?.prepare()).catch(() => {});
+    } catch (_) { /* A missing catalog must not stop numeric extraction. */ }
     let awaitingProvider = true;
     const preserveEdit = () => {
       if (!awaitingProvider || !current()) return;
@@ -473,6 +576,10 @@ window.SubmissionManager = class SubmissionManager {
     if (status) status.innerHTML = '<span class="is-loading"><i class="fa-solid fa-wave-square"></i> Scoreboard tahlil qilinmoqda. Bu bir daqiqagacha davom etishi mumkin.</span>';
     try {
       const token = this.auth.getAccessToken();
+      let detailImage;
+      try { if (window.EclipseScanDetails?.create) detailImage = await window.EclipseScanDetails.create(images, { signal: controller.signal }); }
+      catch (error) { if (error?.name === 'AbortError') throw error; }
+      if (!current()) return;
       const response = await fetch('/api/ocr', {
         method: 'POST',
         signal: controller.signal,
@@ -480,6 +587,7 @@ window.SubmissionManager = class SubmissionManager {
         body: JSON.stringify({
           purpose: 'practice_submission',
           images,
+          ...(detailImage ? { detailImage } : {}),
           rosterPlayers: (this.db.getActivePlayers?.() || this.db.getPlayers()).map(player => ({ id: player.id, name: player.name, role: player.primaryRole || '' })),
           heroList: (this.heroDb?.getAll?.() || []).map(hero => ({ id: hero.id, name: hero.name, role: hero.role }))
         })
@@ -495,7 +603,10 @@ window.SubmissionManager = class SubmissionManager {
       this.renderOcrMeta(status, this.ocrMeta);
       await this.applyOcrData(payload.data, context);
       if (!current()) return;
-      if (status) status.innerHTML = `<span class="is-success"><i class="fa-solid fa-circle-check"></i> Raqamlar tayyor. ${this.ocrExcludedRows || 0} ta guest yoki aniqlanmagan qator olinmadi. Qahramon, medal va raqamlarni tekshirib tasdiqlang.</span>`;
+      const ready = this.refreshScanSummary?.({ collapse: true });
+      if (status) status.innerHTML = ready
+        ? `<span class="is-success"><i class="fa-solid fa-circle-check"></i> Yuborishga tayyor. Faqat kerak bo‘lsa tahrirlang.${this.ocrExcludedRows ? ` ${this.ocrExcludedRows} ta guest yoki aniqlanmagan qator olinmadi.` : ''}</span>`
+        : '<span class="is-error"><i class="fa-solid fa-triangle-exclamation"></i> O‘qish tugadi. Aniqlanmagan majburiy maydonlar ochiq: tiniqroq skrinshot yuklang yoki yetishmagan ma’lumotni kiriting.</span>';
       this.renderOcrMeta(status, this.ocrMeta);
     } catch (error) {
       if (!current()) return;
@@ -510,7 +621,7 @@ window.SubmissionManager = class SubmissionManager {
       if (this._ocrController === controller) this._ocrController = null;
       if (context.generation === this._ocrGeneration && button?.isConnected && this.container?.querySelector('#practiceSubmissionForm') === form) {
         button.disabled = !this.images.some(Boolean);
-        button.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI bilan o‘qish';
+        button.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Qayta o‘qish';
       }
     }
   }
@@ -520,6 +631,7 @@ window.SubmissionManager = class SubmissionManager {
     const rows = form?.querySelector('#practicePlayerRows');
     if (!form || !rows) return;
     const roster = this.db.getActivePlayers?.() || this.db.getPlayers();
+    const roles = ['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'];
     const normalize = value => String(value || '').toLocaleLowerCase('uz-UZ').replace(/[^a-z0-9]/g, '');
     const detected = (Array.isArray(data.players) ? data.players.slice(0, 5) : []).map(player => {
       const byId = roster.find(item => item.id === player.matchedPlayerId);
@@ -531,6 +643,7 @@ window.SubmissionManager = class SubmissionManager {
     if (trackedCount > 5) throw new Error('Bitta jamoada ko‘pi bilan 5 ta Eclipse a’zosi bo‘lishi mumkin.');
     if (!trackedCount) throw new Error('Eclipse a’zosi ishonchli aniqlanmadi. O‘yinchini tanlab, ma’lumotni qo‘lda kiriting.');
     this.formDirty = true;
+    this._manualFormEdits = false;
     this.ocrExcludedRows = (data.players?.length || 0) - detected.length;
     rows.innerHTML = '';
     this.rowCounter = 0;
@@ -543,13 +656,16 @@ window.SubmissionManager = class SubmissionManager {
       }
       if (used.has(playerId)) return;
       if (playerId) used.add(playerId);
+      const detectedRole = roles.includes(player.rolePlayed) ? player.rolePlayed : '';
       this.addParticipantRow({
         ...player,
         playerId,
         // A catalog-valid name from AI is not visual hero recognition.
         heroUsed: '',
         portraitBox: null,
-        rolePlayed: player.rolePlayed || '',
+        rolePlayed: detectedRole,
+        roleSource: detectedRole ? 'ocr' : 'unknown',
+        medalSource: 'ocr',
         kills: player.kills,
         deaths: player.deaths,
         assists: player.assists,
@@ -557,12 +673,9 @@ window.SubmissionManager = class SubmissionManager {
         medal: player.medal
       });
     });
-    if (data.result) {
-      const resultInput = form.querySelector(`input[name="practice-result"][value="${data.result}"]`);
-      if (resultInput) resultInput.checked = true;
-    }
+    form.querySelectorAll('input[name="practice-result"]').forEach(input => { input.checked = input.value === data.result; });
     if (data.matchType) form.querySelector('#practiceMatchType').value = data.matchType;
-    if (data.durationFormatted || data.duration) form.querySelector('#practiceDuration').value = data.durationFormatted || data.duration;
+    form.querySelector('#practiceDuration').value = data.durationFormatted || data.duration || '';
     const firstMapped = rows.querySelector('[data-field="playerId"]')?.value;
     if (firstMapped) form.querySelector('#practiceSubmitter').value = firstMapped;
   }
@@ -585,6 +698,7 @@ window.SubmissionManager = class SubmissionManager {
         heroUsed: canonicalHero?.name || enteredHero,
         heroResolution: canonicalHero?.id ? 'canonical' : enteredHero ? 'legacy_name' : 'unresolved',
         rolePlayed: this.formValue(row, 'rolePlayed'),
+        roleSource: row.dataset.roleSource || 'unknown',
         kills: this.formValue(row, 'kills'),
         deaths: this.formValue(row, 'deaths'),
         assists: this.formValue(row, 'assists'),
@@ -596,8 +710,8 @@ window.SubmissionManager = class SubmissionManager {
     const result = form.querySelector('input[name="practice-result"]:checked')?.value || '';
     if (!claimedPlayerId) throw new Error('Kim yuborayotganini tanlang.');
     if (!result) throw new Error('Match natijasini W yoki L qilib tanlang.');
-    if (playerStats.some(stat => !stat.playerId || !stat.heroUsed || !stat.rolePlayed || stat.kills === '' || stat.deaths === '' || stat.assists === '')) {
-      throw new Error('Har bir o‘yinchi uchun roster, qahramon, rol va K/D/A ni to‘ldiring.');
+    if (playerStats.some(stat => !stat.playerId || !stat.heroUsed || stat.kills === '' || stat.deaths === '' || stat.assists === '')) {
+      throw new Error('Har bir o‘yinchi uchun roster, qahramon va K/D/A ni to‘ldiring.');
     }
     if (!(this.auth.isAdmin() && claimedPlayerId === 'admin') && !playerStats.some(stat => stat.playerId === claimedPlayerId)) {
       throw new Error('Yuboruvchi qatnashchilar ichida bo‘lishi kerak.');

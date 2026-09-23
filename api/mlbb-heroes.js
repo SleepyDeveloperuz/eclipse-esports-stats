@@ -1,18 +1,19 @@
-import { requireMlbbAccess, sendMlbbError, setPrivateApiHeaders } from '../lib/mlbb/api.js';
+import { requirePublicMlbbRead, sendMlbbError, setPublicMlbbHeaders } from '../lib/mlbb/api.js';
 import { createRedisStore, MLBB_KEYS } from '../lib/mlbb/store.js';
-import { getHeroIntelligence, MLBB_FRESHNESS, publicCacheState } from '../lib/mlbb/sync.js';
+import { MLBB_FRESHNESS } from '../lib/mlbb/sync.js';
+import { readPublicHero, readPublicHeroId, readPublicCohort, publicMlbbState } from '../lib/mlbb/public-read.js';
 import { cleanText } from '../lib/mlbb/normalize.js';
 
 export default async function handler(req, res) {
-  setPrivateApiHeaders(res);
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!await requireMlbbAccess(req, res)) return;
+  if (!requirePublicMlbbRead(req, res)) return;
   try {
     const store = createRedisStore();
-    const heroId = Number(req.query?.id);
-    if (Number.isInteger(heroId) && heroId > 0) {
-      const value = await getHeroIntelligence(heroId, { store, rank: req.query?.rank, days: req.query?.days });
-      return res.status(200).json(publicCacheState(value, MLBB_FRESHNESS.heroMs));
+    if (req.query?.id !== undefined) {
+      const heroId = readPublicHeroId(req.query.id);
+      const { rank, days } = readPublicCohort(req.query);
+      const value = await readPublicHero(heroId, { store, rank, days });
+      setPublicMlbbHeaders(res);
+      return res.status(200).json(publicMlbbState(value, MLBB_FRESHNESS.heroMs));
     }
 
     const value = await store.getJSON(MLBB_KEYS.catalog);
@@ -30,8 +31,9 @@ export default async function handler(req, res) {
       isNew: false,
       isNewToCatalog: Boolean(hero.discoveredAt) && Date.now() - Date.parse(hero.discoveredAt) <= 14 * 24 * 60 * 60 * 1000
     }));
-    return res.status(200).json({ ...publicCacheState(value, MLBB_FRESHNESS.catalogMs), data });
+    setPublicMlbbHeaders(res);
+    return res.status(200).json({ ...publicMlbbState(value, MLBB_FRESHNESS.catalogMs), data });
   } catch (error) {
-    return sendMlbbError(res, error);
+    return sendMlbbError(res, error, { publicRead: true });
   }
 }

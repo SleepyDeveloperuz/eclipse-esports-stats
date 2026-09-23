@@ -70,7 +70,7 @@ test('Eclipse tier keeps exact source rates and labels low visibility separately
   }, { minRecords: 20, rank: 'mythic', days: '7' });
   const tier = buildEclipseTier(rows);
   assert.equal(tier.length, 20);
-  assert.equal(tier.filter(row => row.tier === 'S').length, 2);
+  assert.ok(tier.some(row => row.tier === 'SS'), 'Missing history must not suppress strong heroes');
   assert.ok(tier.some(row => row.visibility === 'low'));
   const source = rows.find(row => row.heroId === tier[0].heroId);
   assert.equal(tier[0].winRate, source.winRate);
@@ -205,8 +205,10 @@ test('sync writes validated datasets and keeps last-known-good catalog on malfor
   const epicBefore = await store.getJSON(MLBB_KEYS.rank('epic', '7'));
   const mythicBefore = await store.getJSON(MLBB_KEYS.rank('mythic', '7'));
   assert.notDeepEqual(epicBefore.data.eclipse.map(row => row.heroId), mythicBefore.data.eclipse.map(row => row.heroId));
-  assert.deepEqual([...new Set(mythicBefore.data.eclipse.map(row => row.tier))], ['SS', 'S', 'A', 'B', 'C', 'D']);
-  assert.equal((await store.getJSON(MLBB_KEYS.rankHistory)).data.length, 4);
+  assert.ok(mythicBefore.data.eclipse.every(row => row.quality.status !== 'stable'));
+  assert.ok(mythicBefore.data.eclipse.some(row => row.tier === 'SS'));
+  assert.equal(await store.getJSON(MLBB_KEYS.rankHistory), null, 'Legacy history is not rewritten');
+  for (const rank of seenRanks) assert.equal((await store.getJSON(MLBB_KEYS.rankTimeline(rank, '7'))).data.snapshots.length, 1);
   assert.equal((await store.getJSON(MLBB_KEYS.catalog)).data.length, 100);
   assert.ok((await store.getJSON(MLBB_KEYS.catalog)).data.every(hero => hero.discoveredAt === null), 'Initial import must not label every hero as newly discovered');
 
@@ -217,7 +219,8 @@ test('sync writes validated datasets and keeps last-known-good catalog on malfor
   assert.ok(second.data.errors['rank:epic']);
   assert.deepEqual(await store.getJSON(MLBB_KEYS.rank('epic', '7')), epicBefore);
   assert.equal((await store.getJSON(MLBB_KEYS.rank('glory', '7'))).updatedAt, '2026-09-02T00:00:00.000Z');
-  assert.equal((await store.getJSON(MLBB_KEYS.rankHistory)).data.length, 7);
+  assert.equal((await store.getJSON(MLBB_KEYS.rankTimeline('epic', '7'))).data.snapshots.length, 1);
+  for (const rank of ['legend', 'mythic', 'glory']) assert.equal((await store.getJSON(MLBB_KEYS.rankTimeline(rank, '7'))).data.snapshots.length, 2);
   assert.equal(second.data.errors.catalog.code, 'UPSTREAM_SCHEMA_INVALID');
   assert.equal((await store.getJSON(MLBB_KEYS.catalog)).data.length, 100);
 });

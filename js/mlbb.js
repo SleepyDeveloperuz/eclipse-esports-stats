@@ -34,7 +34,7 @@ window.MlbbDataManager = class MlbbDataManager {
       method: options.method || 'GET',
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
-      cache: 'no-store'
+      cache: token ? 'no-store' : 'default'
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -50,7 +50,7 @@ window.MlbbDataManager = class MlbbDataManager {
     if (!force && this.cache.has(key) && Date.now() - this.cache.get(key).cachedAt < 5 * 60 * 1000) return this.cache.get(key).payload;
     if (!force && this.pending.has(key)) return this.pending.get(key);
     const request = this.request(path).then(payload => {
-      this.cache.set(key, { payload, cachedAt: Date.now() });
+      if (this.pending.get(key) === request) this.cache.set(key, { payload, cachedAt: Date.now() });
       return payload;
     }).finally(() => {
       if (this.pending.get(key) === request) this.pending.delete(key);
@@ -64,7 +64,7 @@ window.MlbbDataManager = class MlbbDataManager {
   }
 
   getMeta(force = false) {
-    return this.cachedRequest(`meta:${this.selectedRank}`, `/api/mlbb-meta?rank=${encodeURIComponent(this.selectedRank)}`, force);
+    return this.cachedRequest(`meta:${this.selectedRank}`, `/api/mlbb-meta?rank=${encodeURIComponent(this.selectedRank)}&method=5`, force);
   }
 
   getPatches(force = false) {
@@ -190,6 +190,7 @@ window.MlbbDataManager = class MlbbDataManager {
   }
 
   formatRate(value, digits = 2) {
+    if (value === null || value === undefined || value === '') return '—';
     const number = Number(value);
     return Number.isFinite(number) ? `${(number * 100).toFixed(digits)}%` : '—';
   }
@@ -257,7 +258,8 @@ window.MlbbDataManager = class MlbbDataManager {
           ${[
             ['tier', 'fa-ranking-star', 'Eclipse Tier'],
             ['heroes', 'fa-shield-halved', 'Hero Dossier'],
-            ['patches', 'fa-code-branch', 'Patch Radar']
+            ['patches', 'fa-code-branch', 'Patch Radar'],
+            ...(this.extraViews?.() || [])
           ].map(([view, icon, label]) => `<button type="button" data-meta-view="${view}" class="${this.currentView === view ? 'active' : ''}" aria-pressed="${this.currentView === view}"><i class="fa-solid ${icon}"></i>${label}</button>`).join('')}
         </nav>
         <div class="meta-lab-health">
@@ -284,15 +286,15 @@ window.MlbbDataManager = class MlbbDataManager {
   }
 
   tierMarkup() {
-    const rows = [...(this.state.meta?.data?.eclipse || [])].sort((a, b) => (Number(a.officialRank) || Infinity) - (Number(b.officialRank) || Infinity));
+    const rows = [...(this.state.meta?.data?.eclipse || [])].sort((a, b) => (a.eclipseRank ?? Infinity) - (b.eclipseRank ?? Infinity));
     if (!rows.length) return this.emptyMarkup('fa-ranking-star', 'Tier signali kutilmoqda', 'Birinchi syncdan keyin exact source rates va Eclipse scoring shu yerda ko‘rinadi.');
     const methodology = this.state.meta?.data?.methodology || {};
     return `
       <section class="meta-tier-console">
         <header class="meta-section-header">
-          <div><p class="section-eyebrow">MANBA STATISTIKASI / ${this.escape(this.state.meta?.data?.rank || 'MYTHIC').toUpperCase()}</p><h3>Hero meta ko‘rsatkichlari</h3><p>Manba tartibi va Win/Pick/Ban — asosiy raqamlar. Eclipse tier — Moonton bahosi emas, tajribaviy filtr: Win 65%, Pick 20%, Ban 15%. Tierlar oldindan belgilangan ulushlarga bo‘linadi; S tier g‘alabani kafolatlamaydi.</p></div>
+          <div><p class="section-eyebrow">MANBA STATISTIKASI / ${this.escape(this.state.meta?.data?.rank || 'MYTHIC').toUpperCase()}</p><h3>Hero meta ko‘rsatkichlari</h3><p>Eclipse — tajribaviy ${methodology.purpose === 'draft-priority' ? 'Win + Pick + Ban asosidagi draft ustuvorligi' : 'meta bahosi'}, Moonton reytingi yoki statistik ishonch emas. Jadval Eclipse o‘rni bo‘yicha. SS kvotasi yo‘q. U — ma’lumot yetarli emas.</p></div>
           <div class="meta-tier-legend" aria-label="Tajribaviy Eclipse tier filtri">
-            ${['all', 'SS', 'S', 'A', 'B', 'C', 'D'].map(tier => `<button type="button" data-tier-filter="${tier}" class="${this.tierFilter === tier ? 'active' : ''}">${tier === 'all' ? 'ALL' : tier}</button>`).join('')}
+            ${['all', 'SS', 'S', 'A', 'B', 'C', 'D', 'U'].map(tier => `<button type="button" data-tier-filter="${tier}" class="${this.tierFilter === tier ? 'active' : ''}">${tier === 'all' ? 'ALL' : tier}</button>`).join('')}
           </div>
         </header>
         <div class="meta-tier-tools">
@@ -311,8 +313,8 @@ window.MlbbDataManager = class MlbbDataManager {
                   <td>${this.formatRate(row.pickRate, 3)}</td>
                   <td>${this.formatRate(row.banRate, 2)}</td>
                   <td><span class="meta-tier-badge is-${this.escape(String(row.tier).toLowerCase())}">${this.escape(row.tier)}</span></td>
-                  <td>${Number(row.eclipseScore).toFixed(2)}</td>
-                  <td>#${Number(row.eclipseRank)}</td>
+                  <td>${row.eclipseScore == null ? '—' : Number(row.eclipseScore).toFixed(2)}</td>
+                  <td>${row.eclipseRank == null ? '—' : '#' + Number(row.eclipseRank)}</td>
                   <td><span class="meta-visibility is-${this.escape(row.visibility)}"><i></i>${this.escape(row.visibility)}</span></td>
                 </tr>`).join('')}
             </tbody>

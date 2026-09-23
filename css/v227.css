@@ -1,0 +1,45 @@
+.progress-heading { display:flex; justify-content:space-between; align-items:center; gap:24px; margin:12px 0 30px }
+.progress-heading h2 { font-size:clamp(32px,4vw,58px); letter-spacing:-.05em; margin:8px 0 }
+.progress-heading p,.progress-note,.progress-report>p,.progress-empty p { color:#b4b7ac; line-height:1.7 }
+.progress-tabs { display:flex; flex-wrap:wrap; gap:6px; border-bottom:1px solid #e9c86c30; padding-bottom:14px }
+.progress-tabs button,.progress-archive button { padding:12px 16px; border:1px solid transparent; border-radius:8px; background:transparent; color:#afb2ad; font:inherit; cursor:pointer }
+.progress-tabs button[aria-pressed=true] { background:#e9c86c15; border-color:#e9c86c65; color:#f1d686 }
+.progress-filters { display:flex; flex-wrap:wrap; gap:16px; margin:24px 0 }
+.progress-filters label { flex:1 1 170px; display:grid; gap:8px; font-size:13px; color:#c3c4ba }
+.progress-report { background:linear-gradient(125deg,#111510f5,#0b0d10fa); border:1px solid #e9c86c30; border-radius:20px; padding:clamp(20px,3vw,38px); margin-bottom:24px; overflow:hidden }
+.progress-report h3 { font-size:clamp(24px,3vw,36px); letter-spacing:-.04em; margin:12px 0 }
+.progress-report h4 { margin:25px 0 14px }
+.progress-numbers { display:flex; gap:60px; margin:30px 0 }
+.progress-numbers strong { display:block; font:700 clamp(42px,5vw,72px) 'JetBrains Mono',monospace; color:#edd075 }
+.progress-numbers span { font:12px 'JetBrains Mono',monospace; color:#b7bbae; letter-spacing:.1em }
+.progress-table-wrap { overflow:auto; margin:24px 0 }
+.progress-table-wrap table { width:100%; border-collapse:collapse; text-align:left; min-width:520px }
+.progress-table-wrap caption { text-align:left; color:#a1a79a; font-size:12px; padding-bottom:15px }
+.progress-table-wrap th,.progress-table-wrap td { padding:16px 12px; border-bottom:1px solid #ffffff12; vertical-align:top }
+.progress-table-wrap thead { font-size:12px; text-transform:uppercase; color:#a4a992 }
+.progress-table-wrap td { font-variant-numeric:tabular-nums }
+.progress-table-wrap small { display:block; color:#9da891; font-size:11px; margin-top:5px }
+.progress-note { border-left:2px solid #e9c86c7a; padding:12px 18px; background:#e9c86c08; margin:16px 0 }
+.progress-empty { padding:50px 26px; border:1px dashed #e9c86c40; border-radius:16px; margin:20px 0 }
+.progress-empty h3 { font-size:24px; margin-bottom:12px }
+.progress-match { display:flex; justify-content:space-between; gap:15px; padding:15px 0; border-bottom:1px solid #ffffff12; font-size:14px }
+.progress-match strong { color:#e9c86c }
+.moment-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr)); gap:20px }
+.progress-pick { display:grid; gap:12px; margin:20px 0 }
+.progress-correction { background:#0b1016e8; border:1px solid #ffffff20; border-radius:12px; padding:20px; margin:12px 0 }
+.progress-correction summary { cursor:pointer; line-height:1.6; overflow-wrap:anywhere }
+.progress-correction td { max-width:400px; overflow-wrap:anywhere }
+.progress-archive { margin:25px 0 }
+.progress-archive button { display:block; text-align:left }
+.progress-feedback { min-height:24px; color:#f1cb73; padding:10px 0 }
+.progress-report .btn { margin:8px 8px 0 0 }
+#progressContainer button:focus-visible,#batchContainer button:focus-visible { outline:2px solid #e9c86c; outline-offset:4px }
+.batch-queue { display:grid; gap:16px; margin:24px 0 }
+.batch-item { border:1px solid #e9c86c40; padding:20px; border-radius:16px; background:#0d1115ed }
+.batch-item header { display:flex; justify-content:space-between; gap:16px; margin-bottom:16px }
+.batch-item .batch-preview { display:flex; gap:10px; margin:10px 0 }
+.batch-preview img { width:140px; max-width:45%; border-radius:6px }
+.batch-worker[hidden] { display:none }
+.batch-toolbar { display:flex; flex-wrap:wrap; gap:12px; margin:16px 0 }
+.batch-entry-link { margin:12px 0 24px }
+@media(max-width:600px) { .progress-heading { align-items:start; flex-direction:column } .progress-numbers { gap:26px } .progress-table-wrap th,.progress-table-wrap td { padding:12px 9px } }

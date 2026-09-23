@@ -1,0 +1,41 @@
+/* Public reading surface: existing Solar Eclipse tokens, no private app shell. */
+/* The private app uses a flex-row body. Public pages must own their page flow. */
+body.public-meta { display: block; width: 100%; min-width: 0; min-height: 100dvh; }
+.public-meta-header, .public-meta-content, .public-meta-footer {
+  width: min(calc(100% - 3rem), 1500px);
+  min-width: 0;
+  margin-inline: auto;
+}
+.public-meta-header {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 1.5rem;
+  min-height: 88px; padding-block: 1rem; border-bottom: 1px solid var(--border-light);
+}
+.public-meta-brand { display: flex; align-items: center; gap: .9rem; min-width: 0; color: var(--text-primary); text-decoration: none; font-size: 1.05rem; font-weight: 600; }
+.public-meta-brand img { flex: 0 0 42px; width: 42px; height: 42px; }
+.public-meta-brand > span { white-space: nowrap; }
+.public-meta-brand strong { color: var(--primary); font-weight: 600; }
+.public-meta-access { color: var(--text-secondary); font-size: .8rem; white-space: nowrap; }
+.public-meta-actions { display: flex; align-items: center; gap: .65rem; min-width: 0; }
+.public-meta-actions .btn { min-height: 44px; white-space: nowrap; }
+.public-meta-login { text-decoration: none; margin-left: 0; }
+.public-meta-content { padding-block: 2rem 3rem; min-height: 65dvh; }
+.public-meta-content > * { min-width: 0; max-width: 100%; }
+.public-meta-content .meta-lab-hero { margin-top: 0; }
+.public-meta-content .meta-lab-commandbar { top: 0; }
+.public-meta-footer { padding-block: 1.5rem 2rem; border-top: 1px solid var(--border-light); display: flex; flex-wrap: wrap; gap: .75rem 2rem; justify-content: space-between; color: var(--text-secondary); font-size: .75rem; line-height: 1.7; }
+.public-meta-loading, .public-meta-note { padding: 3rem; color: var(--text-secondary); }
+.public-meta-toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 2000; max-width: min(90vw, 600px); padding: 1rem 1.5rem; background: var(--bg-card); border: 1px solid var(--primary); border-radius: var(--radius-md); color: var(--text-primary); box-shadow: var(--shadow-lg); }
+.public-meta a:focus-visible, .public-meta button:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
+.public-meta-link { margin-top: 1rem; display: flex; justify-content: center; text-decoration: none; }
+@media (max-width: 850px) {
+  .public-meta-header { grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; }
+  .public-meta-access { display: none; }
+}
+@media (max-width: 600px) {
+  .public-meta-header, .public-meta-content, .public-meta-footer { width: calc(100% - 1.5rem); }
+  .public-meta-header { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  .public-meta-brand { font-size: .9rem; gap: .6rem; }
+  .public-meta-actions { width: 100%; flex-wrap: wrap; }
+  .public-meta-actions .btn { flex: 1 1 8rem; justify-content: center; padding: .65rem .6rem; font-size: .75rem; }
+  .public-meta-content { padding-top: 1rem; }
+}

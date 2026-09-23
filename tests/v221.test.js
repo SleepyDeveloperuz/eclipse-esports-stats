@@ -114,13 +114,14 @@ test('statistics, roster and profile templates render in both contexts without m
   }
 });
 
-test('meta board is ordered by the source rank rather than experimental score', () => {
+test('meta numeric table follows Eclipse rank while retaining source rank', () => {
   const manager = new window.MlbbDataManager({}, {}, {}, {});
   manager.state.meta = { data: { eclipse: [{ heroId: 1, name: 'ExperimentFirst', officialRank: 20, eclipseRank: 1, tier: 'S', eclipseScore: 99 },
     { heroId: 2, name: 'SourceFirst', officialRank: 1, eclipseRank: 8, tier: 'A', eclipseScore: 80 }] } };
   const markup = manager.tierMarkup();
-  assert.ok(markup.indexOf('SourceFirst') < markup.indexOf('ExperimentFirst'));
-  assert.match(markup, /Moonton bahosi emas/);
+  assert.ok(markup.indexOf('ExperimentFirst') < markup.indexOf('SourceFirst'));
+  assert.match(markup, /Moonton reytingi yoki statistik ishonch emas/);
+  assert.match(markup, /Manba o‘rni/);
 });
 
 test('patch parser cannot claim high confidence just from a long article', () => {

@@ -573,6 +573,7 @@ window.EclipseApp = {
       return;
     }
 
+    if (pageId !== 'batch' && this.batchManager?.busy) this.batchManager.stop();
     document.querySelectorAll('.page-section').forEach(el => {
       el.classList.remove('active');
       el.setAttribute('hidden', '');
@@ -597,6 +598,8 @@ window.EclipseApp = {
       'players': 'Jamoa',
       'player-profile': 'O‘yinchi profili',
       'statistics': 'Tahlil',
+      'progress': 'Eclipse Progress',
+      'batch': 'Multi-match upload',
       'briefing': 'Briefing',
       'meta-lab': 'Meta Lab',
       'settings': 'Sozlamalar'
@@ -618,6 +621,14 @@ window.EclipseApp = {
     const allPlayers = this.dataStore.getAllPlayers?.() || this.dataStore.getPlayers();
 
     switch (pageId) {
+      case 'progress':
+        this.progressHub ||= new window.ProgressHub(this);
+        this.progressHub.render();
+        break;
+      case 'batch':
+        this.batchManager ||= new window.BatchUpload(this);
+        this.batchManager.render();
+        break;
       case 'dashboard':
         this.renderDashboard(matches, players);
         break;

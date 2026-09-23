@@ -13,9 +13,9 @@ const engine = new S({});
 
 function ocrManager(roster) {
   const manager = new window.SubmissionManager({}, { getPlayers: () => roster }, {}, {});
-  const fields = { '#practicePlayerRows': {}, '#practiceSubmitter': {} };
+  const fields = { '#practicePlayerRows': {}, '#practiceSubmitter': {}, '#practiceDuration': {} };
   fields['#practicePlayerRows'].querySelector = () => null;
-  const form = { querySelector: selector => fields[selector] };
+  const form = { querySelector: selector => fields[selector], querySelectorAll: () => [] };
   manager.container = { querySelector: () => form };
   manager.rows = [];
   manager.addParticipantRow = value => manager.rows.push(value);

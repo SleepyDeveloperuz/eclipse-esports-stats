@@ -1,0 +1,21 @@
+{
+  "id": "/",
+  "name": "Eclipse Esports",
+  "short_name": "Eclipse",
+  "description": "Eclipse Esports: jamoa statistikasi va ommaviy MLBB Meta Lab.",
+  "lang": "uz",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080806",
+  "theme_color": "#080806",
+  "icons": [
+    { "src": "/assets/eclipse-app-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/assets/eclipse-app-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Meta Lab", "url": "/meta-lab", "icons": [{ "src": "/assets/eclipse-app-192.png", "sizes": "192x192" }] },
+    { "name": "Jamoa", "url": "/", "icons": [{ "src": "/assets/eclipse-app-192.png", "sizes": "192x192" }] }
+  ],
+  "prefer_related_applications": false
+}

@@ -1,4 +1,6 @@
 import crypto from 'crypto';
+import { isProgressRequest, progressRequest } from '../lib/progress-api.js';
+import { cleanBattleId } from '../js/batch-model.js';
 import { createSessionSecurity } from '../lib/session-security.js';
 import { readTeamFiles, writeTeamFiles, withTeamTransaction } from '../lib/team-store.js';
 import { createRedisStore, MLBB_KEYS } from '../lib/mlbb/store.js';
@@ -214,7 +216,7 @@ export function normalisePracticeDraft(raw, officialData = {}, options = {}) {
     const heroReference = heroByKey.get(heroCandidate.toLocaleLowerCase('en-US')) || null;
     if (!heroReference) fail(`${rosterPlayer.name}: qahramon bazada topilmadi`);
     const rolePlayed = ROLES.has(row?.rolePlayed) ? row.rolePlayed : '';
-    if (!rolePlayed) fail(`${rosterPlayer.name}: rolni tanlang`);
+    if (row?.rolePlayed && !rolePlayed) fail(`${rosterPlayer.name}: rol noto‘g‘ri`);
     const kills = nullableNumber(row?.kills, { min: 0, max: 200, integer: true });
     const deaths = nullableNumber(row?.deaths, { min: 0, max: 200, integer: true });
     const assists = nullableNumber(row?.assists, { min: 0, max: 500, integer: true });
@@ -231,6 +233,7 @@ export function normalisePracticeDraft(raw, officialData = {}, options = {}) {
       heroUsed: heroReference.name,
       heroResolution: heroReference.id ? 'canonical' : 'legacy_name',
       rolePlayed,
+      roleSource: rolePlayed ? (['manual', 'ocr', 'inferred', 'legacy', 'roster'].includes(row?.roleSource) ? row.roleSource : 'legacy') : 'unknown',
       kills,
       deaths,
       assists,
@@ -256,6 +259,7 @@ export function normalisePracticeDraft(raw, officialData = {}, options = {}) {
   const scope = playerStats.length === 5 ? 'team5' : playerStats.length === 1 ? 'individual' : 'squad';
   return {
     date,
+    sourceBattleId: cleanBattleId(source.sourceBattleId),
     ...fullDraftFields(source, true),
     matchType,
     result,
@@ -275,6 +279,7 @@ export function normalisePracticeDraft(raw, officialData = {}, options = {}) {
 export function probableMatchIds(draft, matches = []) {
   const key = row => String(row?.heroUsed || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   return matches.filter(match => {
+    if (cleanBattleId(draft.sourceBattleId) && draft.sourceBattleId === match.sourceBattleId) return true;
     if (match.date !== draft.date || match.result !== draft.result || match.matchType !== draft.matchType) return false;
     if (match.durationSeconds && draft.durationSeconds && Math.abs(match.durationSeconds - draft.durationSeconds) > 30) return false;
     const overlapping = (draft.playerStats || []).map(row => [row, (match.playerStats || []).find(other => other.playerId === row.playerId)]).filter(([, other]) => other);
@@ -314,6 +319,12 @@ export function practiceFingerprint(draft) {
   })).digest('hex');
 }
 
+export function sameBattleRoster(first, second) {
+  if (!cleanBattleId(first?.sourceBattleId) || first.sourceBattleId !== second?.sourceBattleId) return false;
+  const ids = value => (value.playerStats || []).map(row => row.playerId).sort().join('|');
+  return ids(first) === ids(second);
+}
+
 export function submissionFileName(fingerprint) {
   const cleanFingerprint = cleanText(fingerprint, 64).toLowerCase();
   return /^[a-f0-9]{64}$/.test(cleanFingerprint)
@@ -336,6 +347,7 @@ function normaliseStoredDraft(raw) {
         playerName: cleanText(row?.playerName, 80),
         ...normaliseHeroReference(row),
         rolePlayed: ROLES.has(row?.rolePlayed) ? row.rolePlayed : '',
+        roleSource: ROLES.has(row?.rolePlayed) ? (['manual', 'ocr', 'inferred', 'legacy', 'roster'].includes(row?.roleSource) ? row.roleSource : 'legacy') : 'unknown',
         kills: nullableNumber(row?.kills, { min: 0, max: 200, integer: true }),
         deaths: nullableNumber(row?.deaths, { min: 0, max: 200, integer: true }),
         assists: nullableNumber(row?.assists, { min: 0, max: 500, integer: true }),
@@ -349,6 +361,7 @@ function normaliseStoredDraft(raw) {
   );
   return {
     date: cleanDate(source.date),
+    sourceBattleId: cleanBattleId(source.sourceBattleId),
     ...fullDraftFields(source),
     matchType: MATCH_TYPES.has(source.matchType) ? source.matchType : '',
     result: MATCH_RESULTS.has(source.result) ? source.result : '',
@@ -423,6 +436,7 @@ export function officialMatchFromDraft(draft, officialData, metadata) {
   return {
     id: metadata.id,
     date: draft.date,
+    sourceBattleId: cleanBattleId(draft.sourceBattleId) || cleanBattleId(metadata.sourceBattleId),
     matchType: draft.matchType,
     result: draft.result,
     scope: draft.scope,
@@ -543,11 +557,12 @@ async function createSubmission(req, identity) {
   const fingerprint = practiceFingerprint(draft);
   const filename = submissionFileName(fingerprint);
   const identityFingerprint = matchIdentityFingerprint(draft);
-  const existingSubmission = bundle.submissions.find(item => item.fingerprint === fingerprint || (item.status !== 'rejected' && matchIdentityFingerprint(item.review.correctedDraft || item.draft) === identityFingerprint));
+  const existingSubmission = bundle.submissions.find(item => item.fingerprint === fingerprint || (item.status !== 'rejected' && (matchIdentityFingerprint(item.review.correctedDraft || item.draft) === identityFingerprint || sameBattleRoster(draft, item.review.correctedDraft || item.draft))));
   const existingOfficialMatch = bundle.officialData.matches.find(match => (
     match.id === `practice_${fingerprint.slice(0, 24)}`
     || match.sourceSubmissionId === submissionId(fingerprint)
     || matchIdentityFingerprint(match) === identityFingerprint
+    || sameBattleRoster(draft, match)
   ));
   if (existingOfficialMatch || (existingSubmission && existingSubmission.status !== 'rejected')) {
     fail('Bu match avval yuborilgan', 'DUPLICATE_SUBMISSION', 409);
@@ -675,6 +690,12 @@ export default async function handler(req, res) {
   try {
     if (!GIST_ID) return res.status(503).json({ error: 'Submission bazasi sozlanmagan' });
 
+    if (isProgressRequest(req)) {
+      const identity = await requireAccess(req, res);
+      if (!identity) return;
+      return progressRequest(req, res, identity);
+    }
+
     if (req.method === 'GET') {
       const identity = await requireAccess(req, res);
       if (!identity) return;
@@ -746,7 +767,7 @@ export default async function handler(req, res) {
           const record = findSubmission(bundle, id);
           if (!record) fail('Submission topilmadi', 'SUBMISSION_NOT_FOUND', 404);
           if (record.status !== 'pending' || record.updatedAt !== req.body.expectedUpdatedAt) fail('Yozuv o‘zgargan. Navbatni yangilang', 'SUBMISSION_CONFLICT', 409);
-          const correctedDraft = normalisePracticeDraft(req.body.draft, bundle.officialData, { adminAuthor: record.submitter.role === 'admin', allowArchived: true });
+          const correctedDraft = normalisePracticeDraft({ ...req.body.draft, sourceBattleId: record.draft.sourceBattleId || req.body.draft?.sourceBattleId }, bundle.officialData, { adminAuthor: record.submitter.role === 'admin', allowArchived: true });
           const duplicate = bundle.officialData.matches.some(match => match.sourceSubmissionId !== record.id && matchIdentityFingerprint(match) === matchIdentityFingerprint(correctedDraft));
           if (duplicate) fail('Bu match statistikada bor', 'DUPLICATE_SUBMISSION', 409);
           const updated = { ...record, review: { ...record.review, correctedDraft }, updatedAt: new Date().toISOString() };

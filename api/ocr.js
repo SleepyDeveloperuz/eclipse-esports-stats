@@ -1,11 +1,14 @@
 import { getValidAccessIdentity, isAuthConfigured } from './auth.js';
 import { createSessionSecurity } from '../lib/session-security.js';
 import { configuredOcrModels, requestOcrProvider } from '../lib/ocr-provider.js';
+import { extractWithRecheck } from '../lib/ocr-recheck.js';
+import { batchIndexRequest, normalizeBatchIndex } from '../lib/batch-index.js';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const MAX_IMAGES = 2;
 const MAX_IMAGE_DATA_LENGTH = 4 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
+const MAX_DETAIL_BYTES = 450000;
 const OCR_MODELS = configuredOcrModels(process.env.GEMINI_OCR_MODELS);
 const OCR_RATE_WINDOW_MS = 60 * 60 * 1000;
 const OCR_VIEWER_RATE_LIMIT = 12;
@@ -211,7 +214,17 @@ export function normaliseOcrPayload(parsedData, rosterPlayers = [], heroList = [
 const nullableMetric = (maximum, type = 'integer') => ({ type: [type, 'null'], minimum: 0, maximum });
 const nullableChoice = choices => ({ type: ['string', 'null'], enum: [...choices, null] });
 
-export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], heroes = [], imageParts = [] } = {}) {
+export function parseDetailImage(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'string' || value.length > 600100) throw new Error('Detail image is too large or invalid');
+  const match = value.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/);
+  if (!match || match[2].length % 4 !== 0) throw new Error('Invalid detail image');
+  const bytes = Buffer.from(match[2], 'base64');
+  if (!bytes.length || bytes.byteLength > MAX_DETAIL_BYTES) throw new Error('Detail image is too large or empty');
+  return { inline_data: { mime_type: match[1], data: match[2] } };
+}
+
+export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], heroes = [], imageParts = [], detailPart = null } = {}) {
   const heroReview = mode === 'hero_review';
   const identityProperties = {
     matchedPlayerId: nullableChoice(roster.map(player => player.id)),
@@ -254,7 +267,7 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     'heroCandidates contains up to three visually plausible canonical names, or [] when uncertain. Never infer a hero from IGN or roster role.',
     'Canonical hero names: ' + JSON.stringify(heroNames)
   ] : [
-    'Extract only visible numeric match data and player IGNs from MLBB post-match screenshots.',
+    'Extract visible player IGNs, match statistics, result and medal badges from MLBB post-match screenshots.',
     'Hero identification is performed separately by a local icon matcher. Do not identify heroes, infer lanes, or return portrait boxes.',
     'Return the friendly left-hand team only, in its original top-to-bottom order. Never mix in the opposing right-hand team.',
     'sourceRow is the original vertical row number: top=1, then 2,3,4, bottom=5. Each sourceRow is unique. Never renumber when a row is missing or unreadable.',
@@ -265,6 +278,7 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     'matchType and teamTurtles/teamLords/teamTurrets must be null unless explicitly visible. Never infer destroyed turrets from turret damage.',
     'Read K/D/A, goldEarned and inGameScore from the scoreboard; damageDealt, damageReceived, turretDamage and teamfightParticipation from their named Data columns.',
     'medal is mvp only when the medal itself explicitly says MVP (including defeat MVP). Do not promote the highest score to MVP. Gold crossed swords are gold, not MVP. Use silver or bronze only when visible; uncertainty=null. At most one friendly-team MVP is possible.',
+    detailPart ? 'A final supplementary image contains enlarged medal-column strips labelled Image 1/2 detail, taken from the full originals above. They are the same rows, not additional players. Read each medal from the scoreboard strip and match its vertical position to the original screenshot; a Data/Damage strip has no medal evidence. A round silver medallion with a single sword is silver; the brown/copper version is bronze. none means an explicitly absent badge, never a silver or bronze badge. If the strip is not the medal column for this layout, use the full original image.' : '',
     'savage/maniac require explicit evidence; missing badges do not establish false. Never infer multikills from KDA.',
     purpose === 'practice_submission' ? 'Eclipse may have 1–5 roster players here; visible row count does not determine team scope.' : ''
   ];
@@ -275,7 +289,7 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     'Return strictly the JSON object specified by the schema; no Markdown or explanation.'
   ].filter(Boolean).join('\n');
   return {
-    contents: [{ parts: [{ text: prompt }, ...imageParts] }],
+    contents: [{ parts: [{ text: prompt }, ...imageParts, ...(!heroReview && detailPart ? [detailPart] : [])] }],
     generationConfig: {
       responseMimeType: 'application/json', maxOutputTokens: 8192,
       responseJsonSchema: { type: 'object', additionalProperties: false, properties, required: Object.keys(properties) }
@@ -316,12 +330,14 @@ export default async function handler(req, res) {
     }
 
     const { images, rosterPlayers, heroList } = req.body || {};
+    const batchIndex = req.body?.mode === 'batch_index';
+    if (batchIndex && Buffer.byteLength(JSON.stringify(req.body || {})) > 3800000) return res.status(413).json({ error: 'Batch rasmlari hajmi katta. Kamroq rasm tanlang.' });
 
     if (!images || !Array.isArray(images) || images.length === 0) {
       return res.status(400).json({ error: "Kamida 1 ta skrinshot (rasm) yuborilishi kerak." });
     }
 
-    if (images.length > MAX_IMAGES) {
+    if (images.length > (batchIndex ? 10 : MAX_IMAGES)) {
       return res.status(400).json({ error: `Ko'pi bilan ${MAX_IMAGES} ta skrinshot yuborish mumkin.` });
     }
 
@@ -390,6 +406,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Rasmlarni o'qishda xatolik yuz berdi." });
     }
 
+    if (batchIndex) {
+      if (imageParts.length !== images.length) return res.status(400).json({ error: 'Batch rasmlaridan biri yaroqsiz.' });
+      const provider = await requestOcrProvider({ apiKey: GEMINI_API_KEY, models: OCR_MODELS, requestBody: batchIndexRequest(imageParts), batchCount: images.length,
+        validate: data => { try { normalizeBatchIndex(data, images.length); return true; } catch { return false; } } });
+      if (!provider.success) return res.status(502).json({ error: 'Rasmlarni juftlash bajarilmadi. Qayta urinib ko‘ring.', ocrMeta: provider.meta });
+      return res.status(200).json({ success: true, data: normalizeBatchIndex(provider.data, images.length), ocrMeta: provider.meta });
+    }
+
     const seenRosterIds = new Set();
     const safeRoster = (Array.isArray(rosterPlayers) ? rosterPlayers : [])
       .slice(0, MAX_ROSTER_PLAYERS)
@@ -414,14 +438,20 @@ export default async function handler(req, res) {
         return true;
       });
     const mode = req.body?.mode === 'hero_review' ? 'hero_review' : 'scoreboard';
+    let detailPart = null;
+    try { detailPart = mode === 'scoreboard' ? parseDetailImage(req.body?.detailImage) : null; }
+    catch { return res.status(400).json({ error: 'AI uchun ajratilgan rasm yaroqsiz. Skrinshotlarni qayta yuklang.' }); }
     const requestBody = buildOcrRequest({
-      mode, purpose: req.body?.purpose, roster: safeRoster, heroes: safeHeroes, imageParts
+      mode, purpose: req.body?.purpose, roster: safeRoster, heroes: safeHeroes, imageParts, detailPart
     });
-    const provider = await requestOcrProvider({
+    const providerOptions = {
       apiKey: GEMINI_API_KEY, requestBody, models: OCR_MODELS,
       validate: parsed => (mode !== 'hero_review' || parsed.players.length === 1)
         && normaliseOcrPayload(parsed, safeRoster, safeHeroes, { mode }).players.length > 0
-    });
+    };
+    const provider = mode === 'scoreboard'
+      ? await extractWithRecheck({ ...providerOptions, normalize: parsed => normaliseOcrPayload(parsed, safeRoster, safeHeroes, { mode }) })
+      : await requestOcrProvider(providerOptions);
     if (!provider.success) {
       const hasTimeout = provider.meta.attempts.some(attempt => attempt.status === 'timeout');
       const isRateLimited = provider.meta.attempts.some(attempt => attempt.status === 429);
@@ -437,7 +467,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const normalizedData = normaliseOcrPayload(provider.data, safeRoster, safeHeroes, { mode });
+    const normalizedData = provider.normalized ? provider.data : normaliseOcrPayload(provider.data, safeRoster, safeHeroes, { mode });
     return res.status(200).json({ success: true, data: normalizedData, ocrMeta: provider.meta });
   } catch (error) {
     // Do not log exception text: upstream errors can contain request secrets.

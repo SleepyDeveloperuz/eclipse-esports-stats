@@ -1,5 +1,6 @@
-import { requireMlbbAccess, setPrivateApiHeaders, sendMlbbError } from '../lib/mlbb/api.js';
+import { requirePublicMlbbRead, setPublicMlbbHeaders, sendMlbbError } from '../lib/mlbb/api.js';
 import { createRedisStore, MLBB_KEYS } from '../lib/mlbb/store.js';
+import { findPublicHero, readPublicHeroId, readPublicPortrait } from '../lib/mlbb/public-read.js';
 
 export function allowedPortraitUrl(value) {
   try {
@@ -9,29 +10,17 @@ export function allowedPortraitUrl(value) {
 }
 
 export default async function handler(req, res) {
-  setPrivateApiHeaders(res);
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!await requireMlbbAccess(req, res)) return;
-  const id = Number(req.query?.id);
-  if (!Number.isInteger(id) || id < 1 || id > 10000) return res.status(400).json({ error: 'Hero ID kerak' });
+  if (!requirePublicMlbbRead(req, res)) return;
   try {
-    const catalog = await createRedisStore().getJSON(MLBB_KEYS.catalog);
-    const hero = catalog?.data?.find(h => Number(h.id) === id);
+    const id = readPublicHeroId(req.query?.id);
+    const store = createRedisStore();
+    const catalog = await store.getJSON(MLBB_KEYS.catalog);
+    const hero = findPublicHero(catalog, id);
     const url = allowedPortraitUrl(hero?.images?.portrait || hero?.image);
     if (!url) return res.status(404).json({ error: 'Portret topilmadi' });
-    const upstream = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(10000) });
-    const type = (upstream.headers.get('content-type') || '').split(';')[0];
-    if (!upstream.ok || !['image/png', 'image/jpeg', 'image/webp'].includes(type)) return res.status(502).json({ error: 'Portret manbasi javob bermadi' });
-    const reader = upstream.body.getReader(); const chunks = []; let size = 0;
-    try {
-      while (true) {
-        const { value, done } = await reader.read(); if (done) break;
-        size += value.byteLength;
-        if (size > 2 * 1024 * 1024) { await reader.cancel(); return res.status(413).json({ error: 'Portret hajmi katta' }); }
-        chunks.push(Buffer.from(value));
-      }
-    } finally { reader.releaseLock(); }
+    const { type, bytes } = await readPublicPortrait(id, url, { store });
+    setPublicMlbbHeaders(res, { image: true });
     res.setHeader('Content-Type', type);
-    return res.status(200).send(Buffer.concat(chunks));
-  } catch (error) { return sendMlbbError(res, error); }
+    return res.status(200).send(bytes);
+  } catch (error) { return sendMlbbError(res, error, { publicRead: true }); }
 }
