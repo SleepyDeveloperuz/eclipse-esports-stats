@@ -91,12 +91,12 @@
 
     roleNote(row) {
       const role = this.formValue(row, 'rolePlayed');
-      const suggestion = Base.roleSuggestion(this.heroDb.resolve?.(this.formValue(row, 'heroUsed')), this.availablePlayers().find(p => p.id === this.formValue(row, 'playerId')));
+      const suggestion = Base.roleSuggestion(this.roleHero(this.formValue(row, 'heroUsed')), this.availablePlayers().find(p => p.id === this.formValue(row, 'playerId')));
       const warnings = [];
       if (role && suggestion.allowed.length && !suggestion.allowed.includes(role)) warnings.push('Asosiy/qo‘shimcha roldan tashqari — captain tekshirsin');
       if (role && suggestion.lanes.length && !suggestion.lanes.includes(role)) warnings.push('Hero katalogidagi laynga mos emas — tekshiring');
-      const label = !role ? (suggestion.reason === 'conflict' ? 'Hero va roster laynlari mos emas. Rol noma’lum; yuborish mumkin.' : 'Rol noma’lum; yuborish mumkin.')
-        : row.dataset.roleSource === 'inferred' ? 'Taxmin: hero layni + asosiy/qo‘shimcha rol'
+      const label = !role ? (row._roleLoading ? 'Hero layni tekshirilmoqda…' : suggestion.reason === 'conflict' ? 'Hero va roster laynlari mos emas. Rol noma’lum; yuborish mumkin.' : 'Rol noma’lum; yuborish mumkin.')
+        : row.dataset.roleSource === 'inferred' ? (suggestion.reason === 'hero_only' ? 'Taxmin: heroning yagona layni' : 'Taxmin: hero layni + asosiy/qo‘shimcha rol')
         : row.dataset.roleSource === 'ocr' ? 'Skrinshotdan o‘qildi'
         : ['legacy', 'roster'].includes(row.dataset.roleSource) ? 'Oldingi rol — avtomatik tekshirilmagan' : 'Qo‘lda belgilangan rol';
       return [label, ...warnings].join(' · ');
@@ -106,11 +106,57 @@
       // Preserve explicit corrections (including deliberately unknown), screenshot evidence,
       // and historical values. Only fresh automatic suggestions are recalculated.
       if (!row._preserveSavedRole && !['manual', 'ocr', 'legacy'].includes(row.dataset.roleSource)) {
-        const suggestion = Base.roleSuggestion(this.heroDb.resolve?.(this.formValue(row, 'heroUsed')), this.availablePlayers().find(p => p.id === this.formValue(row, 'playerId')));
+        const hero = this.roleHero(this.formValue(row, 'heroUsed'));
+        const suggestion = Base.roleSuggestion(hero, this.availablePlayers().find(p => p.id === this.formValue(row, 'playerId')));
         row.querySelector('[data-field="rolePlayed"]').value = suggestion.role;
         row.dataset.roleSource = suggestion.role ? 'inferred' : 'unknown';
+        if (!suggestion.lanes.length && Number.isInteger(hero?.id) && hero.id > 0 && typeof window.fetch === 'function') this.ensureRoleLanes(row, hero.id);
       }
       if (row.querySelector('[data-role-status]')) this.updateRowProvenance(row);
+    }
+
+    roleHero(value) {
+      const hero = this.heroDb.resolve?.(value);
+      const cached = this._roleMetadata?.get(hero?.id);
+      return cached?.lanes?.length && cached.expiresAt > Date.now() ? { ...hero, lanes: cached.lanes } : hero;
+    }
+
+    ensureRoleLanes(row, heroId) {
+      this._roleMetadata ||= new Map();
+      let entry = this._roleMetadata.get(heroId);
+      if (entry && entry.expiresAt > Date.now() && !entry.pending) return;
+      if (!entry || entry.expiresAt <= Date.now()) {
+        entry = { pending: true, expiresAt: Infinity, lanes: [] };
+        this._roleMetadata.set(heroId, entry);
+        // Fetch only the selected hero, share in-flight requests, and bound the
+        // wait. Do not send screenshots, roster data or credentials to this API.
+        entry.promise = (async () => {
+          const controller = new AbortController();
+          let timer;
+          try {
+            const detail = await Promise.race([
+              window.fetch(`/api/mlbb-heroes?id=${heroId}&rank=mythic&days=7`, { signal: controller.signal, credentials: 'omit' })
+                .then(async response => { if (!response.ok) throw new Error('Lane metadata unavailable'); return (await response.json()).data; }),
+              new Promise((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(new Error('Lane lookup timed out')); }, 8000); })
+            ]);
+            if (Number(detail?.id) === heroId) entry.lanes = Base.roleSuggestion(detail, null).lanes;
+          } catch (_) { /* An unavailable provider must not block match submission. */ }
+          finally { clearTimeout(timer); entry.pending = false; entry.expiresAt = Date.now() + (entry.lanes.length ? 600000 : 30000); }
+        })();
+      }
+      const playerId = this.formValue(row, 'playerId'), heroName = this.formValue(row, 'heroUsed');
+      const generation = this._ocrGeneration, editVersion = row._heroEditVersion || 0;
+      const key = JSON.stringify([heroId, playerId, heroName, generation, editVersion]);
+      if (row._roleLookupKey === key && row._roleLoading) return;
+      row._roleLookupKey = key; row._roleLoading = true;
+      row._roleLookupPromise = entry.promise.then(() => {
+        if (row._roleLookupKey !== key) return;
+        row._roleLoading = false;
+        if (!row.isConnected || this._ocrGeneration !== generation || (row._heroEditVersion || 0) !== editVersion
+          || this.formValue(row, 'heroUsed') !== heroName || this.formValue(row, 'playerId') !== playerId
+          || !this.container?.contains(row) || !this.container.closest('.page-section')?.classList.contains('active')) return;
+        this.resolveMatchRole(row); this.refreshScanSummary(); this.saveDraft();
+      });
     }
 
     heroPreview(row) {
@@ -456,8 +502,14 @@
       if (this.saving) return;
       if (this.auth.isAdmin() && this.cloudSync?.getStatus?.().pending) return window.showToast?.('Avval oldingi mahalliy o‘zgarishlar cloudga saqlansin. So‘ng qayta yuboring.', 'warning');
       this.saving = true;
+      const submittedForm = this.container.querySelector('#practiceSubmissionForm');
       const controls = [...this.container.querySelectorAll('input, select, textarea, button')].map(el => [el, el.disabled]);
       try {
+        controls.forEach(([el]) => { el.disabled = true; });
+        await Promise.all([...this.container.querySelectorAll('.submission-player-row')].map(row => row._roleLookupPromise));
+        if (!submittedForm?.isConnected || this.container?.querySelector('#practiceSubmissionForm') !== submittedForm) return;
+        // Restore original validation state before the base submit collects the form.
+        controls.forEach(([el, disabled]) => { if (el.isConnected) el.disabled = disabled; });
         const save = super.submitForm(event);
         controls.forEach(([el]) => { el.disabled = true; });
         await save;
@@ -504,6 +556,7 @@
       this.container.querySelectorAll('[data-team-field]').forEach(el => { if (el.dataset.teamField !== 'sessionLabel') el.value = data[el.dataset.teamField] ?? ''; });
       this.saveDraft();
       await this.locateOcrPortraits(context);
+      await Promise.all([...this.container.querySelectorAll('.submission-player-row')].map(row => row._roleLookupPromise));
       if (!context || this.isOcrContextCurrent(context)) { this.refreshScanSummary({ collapse: true }); this.saveDraft(); }
     }
 
@@ -558,7 +611,7 @@
       const unknown = allRows.reduce((count, row) => count + Object.keys(fields).filter(key => row[key] === null || row[key] === undefined || row[key] === '').length, 0);
       const issues = [...(item.quality?.reviewIssues || [])];
       for (const stat of draft?.playerStats || []) {
-        const suggestion = Base.roleSuggestion(this.heroDb.resolve?.(stat.heroUsed), this.availablePlayers().find(p => p.id === stat.playerId));
+        const suggestion = Base.roleSuggestion(this.roleHero(stat.heroUsed), this.availablePlayers().find(p => p.id === stat.playerId));
         const name = stat.playerName || stat.playerId;
         if (!stat.rolePlayed) issues.push(`${name}: rol noma’lum; umumiy statistika hisoblanadi`);
         else {

@@ -1,13 +1,16 @@
 window.SubmissionManager = class SubmissionManager {
   // Hero class is NOT a played lane. Only explicit catalog lanes may suggest one.
   static roleSuggestion(hero, player) {
-    const aliases = { exp: 'EXP Laner', 'exp lane': 'EXP Laner', 'exp laner': 'EXP Laner', jungle: 'Jungler', jungler: 'Jungler', mid: 'Mid Laner', 'mid lane': 'Mid Laner', 'mid laner': 'Mid Laner', gold: 'Gold Laner', 'gold lane': 'Gold Laner', 'gold laner': 'Gold Laner', roam: 'Roamer', roamer: 'Roamer' };
-    const normalize = value => aliases[String(value || '').trim().toLowerCase()] || '';
+    const aliases = { exp: 'EXP Laner', 'exp lane': 'EXP Laner', 'exp laner': 'EXP Laner', jungle: 'Jungler', jungler: 'Jungler', jungling: 'Jungler', mid: 'Mid Laner', 'mid lane': 'Mid Laner', 'mid laner': 'Mid Laner', gold: 'Gold Laner', 'gold lane': 'Gold Laner', 'gold laner': 'Gold Laner', roam: 'Roamer', roamer: 'Roamer', roaming: 'Roamer', 'roam lane': 'Roamer' };
+    const normalize = value => aliases[String(value || '').trim().toLowerCase().replace(/\s+/g, ' ')] || '';
     const lanes = [...new Set((Array.isArray(hero?.lanes) ? hero.lanes : []).map(normalize).filter(Boolean))];
     const allowed = [...new Set([player?.primaryRole, player?.secondaryRole].map(normalize).filter(Boolean))];
-    const candidates = lanes.filter(role => allowed.includes(role));
-    return { role: candidates.length === 1 ? candidates[0] : '', lanes, allowed,
-      reason: !lanes.length ? 'catalog_missing' : !allowed.length ? 'roster_missing' : !candidates.length ? 'conflict' : candidates.length > 1 ? 'ambiguous' : 'inferred' };
+    // Roster order is intentional: prefer primary, then secondary, but only
+    // when supported by this hero's actual lane metadata. Never map class to lane.
+    const candidates = allowed.filter(role => lanes.includes(role));
+    const role = candidates[0] || (lanes.length === 1 ? lanes[0] : '');
+    return { role, lanes, allowed,
+      reason: !lanes.length ? 'catalog_missing' : candidates.length ? 'inferred' : role ? 'hero_only' : allowed.length ? 'conflict' : 'ambiguous' };
   }
   constructor(authManager, dataStore, heroDb, cloudSync) {
     this.auth = authManager;

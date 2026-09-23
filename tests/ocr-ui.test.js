@@ -236,10 +236,10 @@ domTest('roles use catalog lanes with roster roles, never a blind primary-role d
     assert.match(form.querySelector('[data-role-status]').textContent, /Skrinshotdan/);
     delete roster[0].primaryRole;
     await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { rolePlayed: 'Marksman' })] });
-    assert.equal(form.querySelector('[data-field="rolePlayed"]').value, '');
-    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, '');
-    assert.equal(desk.collectDraft().draft.playerStats[0].roleSource, 'unknown');
-    assert.match(form.querySelector('[data-scan-summary]').textContent, /Rol noma’lum/);
+    assert.equal(form.querySelector('[data-field="rolePlayed"]').value, 'Gold Laner');
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, 'Gold Laner');
+    assert.equal(desk.collectDraft().draft.playerStats[0].roleSource, 'inferred');
+    assert.match(form.querySelector('[data-scan-summary]').textContent, /heroning yagona layni/);
   } finally { w.close(); }
 });
 
@@ -255,7 +255,7 @@ domTest('an unreadable hero stays unresolved with a clear correction path', asyn
   } finally { w.close(); }
 });
 
-domTest('secondary lane is suggested; conflicting and flexible lanes stay unknown without blocking upload', async () => {
+domTest('lane selection prefers compatible primary, then secondary, then a unique hero lane', async () => {
   const { w, desk, roster } = setup();
   try {
     roster[0].primaryRole = 'Roamer'; roster[0].secondaryRole = 'Gold Laner';
@@ -264,13 +264,122 @@ domTest('secondary lane is suggested; conflicting and flexible lanes stay unknow
     const hero = desk.heroDb.resolve('Miya');
     hero.lanes = ['Gold Lane', 'Roam'];
     const row = desk.container.querySelector('.submission-player-row'); desk.heroPreview(row);
-    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, '');
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, 'Roamer');
     hero.lanes = ['Jungle']; desk.heroPreview(row);
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, 'Jungler');
+    assert.match(row.querySelector('[data-role-status]').textContent, /roldan tashqari/);
+    hero.lanes = ['Jungle', 'EXP Lane']; desk.heroPreview(row);
     assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, '');
     assert.match(row.querySelector('[data-role-status]').textContent, /mos emas/);
     hero.lanes = []; hero.role = 'Marksman'; desk.heroPreview(row);
     assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, '');
     // A class label must never substitute for lane metadata.
+  } finally { w.close(); }
+});
+
+domTest('provider aliases normalize without turning hero classes into lanes', () => {
+  const { w } = setup();
+  try {
+    const suggest = w.SubmissionManager.roleSuggestion;
+    assert.equal(suggest({ lanes: [' Roaming '] }, { primaryRole: 'Roamer' }).role, 'Roamer');
+    assert.equal(suggest({ lanes: ['Gold   Lane'] }, { primaryRole: 'Roamer', secondaryRole: 'Gold Laner' }).role, 'Gold Laner');
+    assert.equal(suggest({ lanes: [], role: 'Marksman', roles: ['Assassin'] }, { primaryRole: 'Roamer' }).role, '');
+    assert.equal(suggest(null, { primaryRole: 'Roamer' }).role, '');
+  } finally { w.close(); }
+});
+
+domTest('OCR fills missing catalog lanes from selected hero details before finishing', async () => {
+  const { w, desk, roster } = setup();
+  try {
+    desk.heroDb.resolve('Miya').lanes = [];
+    roster[0].primaryRole = 'Roamer'; roster[0].secondaryRole = 'Gold Laner';
+    let calls = 0;
+    w.fetch = async (url, options) => {
+      calls++; assert.equal(url, '/api/mlbb-heroes?id=1&rank=mythic&days=7');
+      assert.equal(options.credentials, 'omit'); assert.equal(options.headers, undefined);
+      return { ok: true, json: async () => ({ data: { id: 1, lanes: ['Gold Lane'] } }) };
+    };
+    await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { rolePlayed: null })] });
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, 'Gold Laner');
+    assert.equal(desk.collectDraft().draft.playerStats[0].roleSource, 'inferred');
+    assert.match(desk.container.querySelector('[data-scan-summary]').textContent, /Gold Laner/);
+    desk.heroPreview(desk.container.querySelector('.submission-player-row'));
+    assert.equal(calls, 1);
+  } finally { w.close(); }
+});
+
+domTest('late lane metadata preserves manual corrections and never overwrites a changed hero', async () => {
+  const { w, desk } = setup();
+  try {
+    desk.heroDb.resolve('Miya').lanes = [];
+    const jobs = []; w.fetch = () => { const job = deferred(); jobs.push(job); return job.promise; };
+    desk.addParticipantRow({ playerId: 'p1', heroUsed: 'Miya' });
+    const row = desk.container.querySelector('#practicePlayerRows').lastElementChild;
+    const role = row.querySelector('[data-field="rolePlayed"]');
+    role.value = 'Roamer'; role.dispatchEvent(new w.Event('change', { bubbles: true }));
+    jobs[0].resolve({ ok: true, json: async () => ({ data: { id: 1, lanes: ['Gold Lane'] } }) });
+    await row._roleLookupPromise;
+    assert.equal(role.value, 'Roamer'); assert.equal(row.dataset.roleSource, 'manual');
+
+    desk._roleMetadata.clear();
+    row.dataset.roleSource = 'unknown'; desk.heroPreview(row);
+    const pending = row._roleLookupPromise;
+    const hero = row.querySelector('[data-field="heroUsed"]'); hero.value = 'Moskov';
+    desk.heroDb.resolve('Moskov').lanes = ['Jungle'];
+    hero.dispatchEvent(new w.Event('change', { bubbles: true }));
+    assert.equal(role.value, 'Jungler');
+    jobs[1].resolve({ ok: true, json: async () => ({ data: { id: 1, lanes: ['Gold Lane'] } }) });
+    await pending;
+    assert.equal(role.value, 'Jungler');
+  } finally { w.close(); }
+});
+
+domTest('missing or mismatched detail metadata remains unknown without repeated requests', async () => {
+  for (const response of [{ ok: false }, { ok: true, json: async () => ({ data: { id: 2, lanes: ['Gold Lane'] } }) }]) {
+    const { w, desk } = setup();
+    try {
+      desk.heroDb.resolve('Miya').lanes = [];
+      let calls = 0; w.fetch = async () => { calls++; return response; };
+      await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { rolePlayed: null })] });
+      const row = desk.container.querySelector('.submission-player-row'); desk.heroPreview(row);
+      assert.equal(calls, 1);
+      assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, '');
+      assert.equal(row._roleLoading, false);
+    } finally { w.close(); }
+  }
+});
+
+domTest('lane lookup has a bounded timeout and cannot prevent finishing OCR', async () => {
+  const { w, desk } = setup();
+  try {
+    desk.heroDb.resolve('Miya').lanes = [];
+    let signal;
+    w.fetch = (_, options) => { signal = options.signal; return new Promise(() => {}); };
+    const schedule = w.setTimeout.bind(w);
+    w.setTimeout = (fn, ms, ...args) => schedule(fn, ms === 8000 ? 0 : ms, ...args);
+    await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { rolePlayed: null })] });
+    assert.equal(signal.aborted, true);
+    assert.equal(desk.collectDraft().draft.playerStats[0].rolePlayed, '');
+  } finally { w.close(); }
+});
+
+domTest('submit waits for pending lane inference and serializes the inferred role', async () => {
+  const { w, desk } = setup();
+  try {
+    await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { rolePlayed: null })] });
+    desk.heroDb.resolve('Miya').lanes = [];
+    const pending = deferred(); w.fetch = () => pending.promise;
+    const row = desk.container.querySelector('.submission-player-row'); desk.heroPreview(row);
+    const writes = [];
+    desk.request = async (method, body) => { writes.push(body); return {}; };
+    desk.render = async () => {};
+    const submit = desk.submitForm({ preventDefault() {} });
+    assert.equal(writes.length, 0);
+    pending.resolve({ ok: true, json: async () => ({ data: { id: 1, lanes: ['Gold Lane'] } }) });
+    await submit;
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0].draft.playerStats[0].rolePlayed, 'Gold Laner');
+    assert.equal(writes[0].draft.playerStats[0].roleSource, 'inferred');
   } finally { w.close(); }
 });
 
