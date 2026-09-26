@@ -1,0 +1,74 @@
+/* Compact research workspace. Existing actions and solar palette are preserved. */
+.meta-qol { min-width:0; }
+.meta-qol .solar-tier-board { padding:clamp(.75rem,2vw,1.5rem); }
+.meta-qol .meta-tier-console > .meta-workspace { padding:clamp(.75rem,2vw,1.5rem); }
+.meta-workspace { display:grid; gap:.85rem; min-width:0; max-width:100%; padding:0 0 1rem; }
+.meta-qol .meta-lab-commandbar { position:relative; top:auto; z-index:4; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.6rem 1rem; margin:0; padding:0 0 .75rem; border:0; border-bottom:1px solid var(--border-light); background:transparent; backdrop-filter:none; }
+.meta-qol .meta-lab-tabs { position:relative; gap:.3rem; flex-wrap:wrap; max-width:100%; }
+.meta-qol .meta-lab-tabs button, .meta-tools-menu > summary { flex:none; min-height:44px; padding:.55rem .75rem; border-radius:.5rem; font-size:.875rem; line-height:1.35; white-space:normal; }
+.meta-tools-menu { position:static; min-width:0; }
+.meta-tools-menu > summary { display:flex; align-items:center; gap:.5rem; color:var(--text-secondary); border:1px solid var(--border-light); cursor:pointer; list-style:none; }
+.meta-tools-menu > summary::-webkit-details-marker { display:none; }
+.meta-tools-menu > summary::after { content:'⌄'; color:var(--primary); }
+.meta-tools-menu[open] > summary { color:var(--primary); background:rgba(228,196,110,.08); }
+.meta-tools-menu__items { position:absolute; top:calc(100% + .5rem); right:0; z-index:5; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:min(32rem,100%); padding:.5rem; gap:.3rem; border:1px solid var(--border-light); border-radius:.75rem; background:#151510; box-shadow:0 14px 35px #05050266; }
+.meta-tools-menu__items button { width:100%; text-align:left; }
+.meta-qol .meta-lab-health { padding:0; border:0; gap:.5rem; font-variant-numeric:tabular-nums; }
+.meta-qol .meta-lab-health .meta-health { padding:.45rem .55rem; font-size:.75rem; }
+.meta-qol .meta-lab-health > small { font-size:.75rem; }
+.meta-workspace-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:.75rem 1.25rem; }
+.meta-workspace-heading > header { display:block; min-width:0; max-width:none; padding:0; margin:0; border:0; }
+.meta-workspace-heading h3 { margin:.2rem 0 .45rem; font-size:clamp(1.55rem,2.5vw,2.2rem); line-height:1.18; text-wrap:balance; }
+.meta-workspace-heading .section-eyebrow { margin:0; font-size:.7rem; letter-spacing:.12em; }
+.meta-workspace-heading p:not(.section-eyebrow) { margin:0; font-size:.875rem; line-height:1.5; }
+.meta-workspace-actions { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; min-width:0; }
+.meta-workspace .btn { min-height:44px; margin:0; padding:.5rem .8rem; font-size:.875rem; box-shadow:none; }
+.meta-workspace-controls { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.65rem 1rem; }
+.meta-workspace-controls > [role="group"] { display:flex; gap:.3rem; padding:.2rem; border:1px solid var(--border-light); border-radius:.65rem; }
+.meta-workspace .meta-rank-picker { padding:0; gap:.3rem; margin:0; }
+.meta-workspace .meta-rank-picker > span { margin-right:.35rem; }
+.meta-workspace .meta-tier-tools { margin:0; padding:0; border:0; gap:.5rem .75rem; }
+.meta-workspace .meta-tier-tools > label { flex:1 1 14rem; min-width:0; border-radius:.5rem; }
+.meta-workspace .meta-tier-tools input { min-height:44px; font-size:1rem; }
+.meta-workspace .meta-tier-legend { justify-content:flex-start; gap:.25rem; }
+.meta-workspace .meta-tier-legend button { min-height:44px; height:auto; min-width:2.5rem; width:auto; padding:.45rem .6rem; font-size:.8rem; border-radius:.4rem; }
+.meta-workspace .meta-tier-legend button:first-child { width:auto; }
+.meta-workspace [data-meta-result-count] { color:var(--text-muted); font:500 .75rem/1.4 var(--font-mono); white-space:nowrap; }
+.meta-workspace-info, .meta-workspace-about { min-width:0; color:var(--text-secondary); font-size:.85rem; line-height:1.6; }
+.meta-workspace-info > summary, .meta-workspace-about > summary { width:fit-content; max-width:100%; min-height:44px; display:flex; align-items:center; gap:.5rem; cursor:pointer; }
+.meta-workspace-info > summary::before, .meta-workspace-about > summary::before { content:'+'; color:var(--primary); }
+.meta-workspace-info[open] > summary::before, .meta-workspace-about[open] > summary::before { content:'−'; }
+.meta-workspace-info > summary::-webkit-details-marker, .meta-workspace-about > summary::-webkit-details-marker { display:none; }
+.meta-workspace-info p, .meta-workspace-info small, .meta-workspace-info > span { display:block; max-width:90ch; margin:.4rem 0; font-size:.85rem; overflow-wrap:anywhere; }
+.meta-workspace .tier-export-status:empty { display:none; }
+.meta-workspace [data-meta-share-url] { width:100%; min-width:0; font-size:1rem; padding:.65rem; }
+.meta-workspace-about { margin:1rem 0; border-top:1px solid var(--border-light); }
+.meta-workspace-about .meta-lab-hero { margin:0; padding:1rem; background:transparent; border:0; }
+.meta-workspace-about .meta-lab-hero__copy { width:100%; }
+.meta-workspace-about .meta-lab-hero__copy h2 { font-size:1.5rem; }
+.meta-workspace-about .meta-lab-hero__orb { display:none; }
+.meta-workspace-about .meta-lab-telemetry { margin:.75rem 0 0; }
+.meta-qol .meta-decision { padding:clamp(.85rem,2vw,1.5rem); }
+.meta-qol .meta-decision-controls { margin:1rem 0; gap:.75rem; }
+.meta-qol .meta-decision h3 { margin:.25rem 0 .65rem; }
+.meta-qol [hidden] { display:none !important; }
+.meta-qol button:focus-visible, .meta-qol summary:focus-visible, .meta-qol input:focus-visible, .meta-qol select:focus-visible { outline:2px solid var(--primary); outline-offset:3px; }
+@media(max-width:1000px) {
+  .meta-workspace-heading { grid-template-columns:minmax(0,1fr); }
+  .meta-workspace-actions { justify-content:flex-start; }
+}
+@media(max-width:700px) {
+  .meta-qol .meta-lab-tabs { display:none; }
+  .meta-qol .meta-mobile-navigation { flex:1 1 100%; min-width:0; gap:.25rem; font-size:.8rem; }
+  .meta-qol .meta-lab-health { justify-content:flex-start; }
+  .meta-workspace { gap:.65rem; }
+  .meta-workspace-controls { display:grid; grid-template-columns:minmax(0,1fr); }
+  .meta-workspace .meta-rank-picker { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
+  .meta-workspace .meta-rank-picker > span { grid-column:1 / -1; }
+  .meta-workspace .meta-rank-picker button { width:100%; min-width:0; padding:.5rem; white-space:normal; }
+  .meta-workspace-controls > [role="group"] > button { flex:1; min-width:0; }
+  .meta-workspace .meta-tier-tools > label { flex-basis:100%; }
+  .meta-workspace .meta-tier-legend { flex-wrap:wrap; }
+  .meta-workspace .meta-tier-legend button { min-width:2.25rem; }
+  .meta-workspace-about .meta-lab-telemetry { grid-template-columns:minmax(0,1fr); }
+}

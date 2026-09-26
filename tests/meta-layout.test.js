@@ -88,3 +88,24 @@ test('both entry pages reference the corrected, cache-busted layout styles', () 
     assert.match(read(file), /meta-explore\.css\?v=2\.30\.1/);
   }
 });
+
+domTest('compact controls wrap on mobile and preserve usable targets on both entry pages', () => {
+  for (const privatePage of [false, true]) for (const width of [320, 390, 768, 1440]) {
+    const w = surface({ privatePage, width });
+    try {
+      const root = w.document.querySelector('#metaLabContainer'); root.classList.add('meta-qol');
+      root.innerHTML = '<div class="meta-workspace"><div class="meta-workspace-heading"><header>Tierlist</header></div><div class="meta-workspace-controls"><div class="meta-rank-picker"><span>Rank</span><button class="btn">Mythical Glory+</button></div></div><div class="meta-tier-tools"><label><input></label><div class="meta-tier-legend"><button>SS</button></div></div><button hidden>Hidden</button></div>';
+      const style = selector => w.getComputedStyle(root.querySelector(selector));
+      assert.equal(style('.meta-workspace').minWidth, '0');
+      assert.equal(style('.btn').minHeight, '44px');
+      assert.equal(style('.meta-tier-legend button').minHeight, '44px');
+      assert.equal(style('input').fontSize, '1rem');
+      assert.equal(style('[hidden]').display, 'none');
+      if (width <= 700) {
+        assert.equal(style('.meta-rank-picker').gridTemplateColumns, 'repeat(2,minmax(0,1fr))');
+        assert.equal(style('.meta-workspace-controls').display, 'grid');
+      }
+      assert.equal(style('.meta-workspace-heading').gridTemplateColumns, width <= 1000 ? 'minmax(0,1fr)' : 'minmax(0,1fr) auto');
+    } finally { w.close(); }
+  }
+});

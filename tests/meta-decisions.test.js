@@ -137,6 +137,61 @@ domTest('public tools navigate without private data and enforce draft exclusions
   } finally { window.close(); }
 });
 
+domTest('compact tier workspace groups existing controls with the board without duplicates', async () => {
+  const { window, manager } = surface('tier');
+  try {
+    await manager.render(); await tick();
+    const root = manager.container, panel = root.querySelector('.solar-tier-board > .meta-workspace');
+    assert.ok(panel);
+    for (const selector of ['.meta-lab-commandbar', '.meta-rank-picker', '#metaTierSearch', '[data-tier-export]', '[data-explore-action="share"]', '[data-meta-share-url]']) {
+      assert.equal(root.querySelectorAll(selector).length, 1, selector);
+      assert.ok(panel.contains(root.querySelector(selector)), selector);
+    }
+    assert.equal(panel.querySelectorAll('[data-meta-rank]').length, 4);
+    assert.equal(panel.querySelectorAll('[data-tier-view]').length, 2);
+    assert.equal(panel.querySelectorAll('.meta-tools-menu [data-meta-view]').length, 6);
+    assert.equal(root.querySelector('.meta-share-bar'), null);
+    assert.equal(root.querySelector('.tier-view-toolbar'), null);
+    assert.ok(root.querySelector('.meta-workspace-about .meta-lab-hero'));
+    assert.equal(root.querySelector('.meta-workspace-about').open, false);
+    assert.match(panel.querySelector('.meta-workspace-info summary').textContent, /tajribaviy/);
+    assert.equal(panel.querySelector('[data-meta-clear]').hidden, true);
+  } finally { window.close(); }
+});
+
+domTest('compact search, reset, display switch, export and share retain their actions', async () => {
+  const { window, manager } = surface('tier');
+  try {
+    await manager.render(); await tick(); const root = manager.container;
+    let input = root.querySelector('#metaTierSearch');
+    input.value = 'no-matching-hero'; input.dispatchEvent(new window.Event('input')); await tick();
+    assert.match(root.querySelector('[data-meta-result-count]').textContent, /^0 \/ /);
+    assert.equal(root.querySelector('[data-meta-clear]').hidden, false);
+    const table = root.querySelector('[data-tier-view="table"]'); table.focus(); table.click();
+    assert.ok(root.querySelector('.meta-tier-console > .meta-workspace'));
+    assert.equal(root.querySelectorAll('#metaTierSearch').length, 1);
+    assert.equal(root.querySelector('#metaTierSearch').value, 'no-matching-hero');
+    assert.equal(window.document.activeElement.dataset.tierView, 'table');
+    root.querySelector('[data-meta-clear]').click();
+    assert.equal(manager.searchQuery, ''); assert.equal(manager.tierFilter, 'all');
+    assert.equal(new URL(manager.shareUrl()).searchParams.has('q'), false);
+    assert.equal(window.document.activeElement.id, 'metaTierSearch');
+    let exported = false; manager.exportTierPng = () => { exported = true; };
+    root.querySelector('[data-tier-export]').click(); assert.equal(exported, true);
+    root.querySelector('[data-explore-action="share"]').click(); await tick();
+    assert.equal(root.querySelector('[data-meta-share-url]').hidden, false);
+    assert.equal(root.querySelector('[data-meta-share-url]').value, manager.shareUrl());
+    const info = root.querySelector('.meta-workspace-info'); info.open = true;
+    root.querySelector('[data-tier-view="board"]').click();
+    assert.equal(root.querySelector('.meta-workspace-info').open, true);
+    const menu = root.querySelector('.meta-tools-menu'); menu.open = true;
+    const draft = menu.querySelector('[data-meta-view="draft"]'); draft.focus(); draft.click(); await tick();
+    assert.equal(manager.currentView, 'draft');
+    assert.equal(window.document.activeElement, root.querySelector('.meta-tools-menu > summary'));
+    assert.ok(root.querySelector('[data-draft-lane]'));
+  } finally { window.close(); }
+});
+
 domTest('v5 explanation separates draft priority from evidence and discloses the actual formula', async () => {
   const { window, manager } = surface();
   try {
