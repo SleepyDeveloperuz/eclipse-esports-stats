@@ -5,6 +5,7 @@
   const views = ['tier', 'heroes', 'patches', 'lens', 'compare', 'watchlist', 'impact', 'draft', 'movers'];
   const tiers = ['all', 'SS', 'S', 'A', 'B', 'C', 'D', 'U'];
   const watchKey = 'eclipse:public:watchlist:v1';
+  const preferenceKey = 'eclipse:public:meta-preferences:v1';
   const id = value => /^[1-9]\d{0,4}$/.test(String(value)) ? Number(value) : 0;
   const uniqueIds = values => [...new Set(values.map(id).filter(Boolean))];
   const numeric = value => typeof value === 'number' && Number.isFinite(value);
@@ -18,6 +19,7 @@
         const saved = JSON.parse(localStorage.getItem(watchKey) || '[]');
         if (Array.isArray(saved)) this.watchIds = uniqueIds(saved).slice(0, 500);
       } catch (_) { this.watchPersistent = false; }
+      this.readPreferences();
       if (this.publicEntry) {
         this.readSharedState();
         window.addEventListener('popstate', () => { this.readSharedState(); this.render(); });
@@ -25,6 +27,7 @@
     }
     readSharedState() {
       const query = new URL(location.href).searchParams;
+      const shared = ['rank', 'view', 'tier', 'display', 'q', 'lens', 'compare', 'hero'].some(key => query.has(key));
       this.selectedRank = ranks.includes(query.get('rank')) ? query.get('rank') : 'mythic';
       this.currentView = views.includes(query.get('view')) ? query.get('view') : 'tier';
       this.tierFilter = tiers.includes(query.get('tier')) ? query.get('tier') : 'all';
@@ -33,6 +36,14 @@
       this.lensId = id(query.get('lens'));
       this.compareIds = uniqueIds((query.get('compare') || '').split(',')).slice(0, 3);
       this.pendingSharedHero = id(query.get('hero'));
+      if (!shared) this.readPreferences();
+    }
+    readPreferences() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(preferenceKey) || '{}');
+        if (ranks.includes(saved?.rank)) this.selectedRank = saved.rank;
+        if (['board', 'table'].includes(saved?.display)) this.tierDisplay = saved.display;
+      } catch (_) { /* Storage is optional, including in private browsing. */ }
     }
     shareUrl() {
       const url = new URL('/meta-lab', location.origin === 'null' ? 'https://eclipseesports.vercel.app' : location.origin);
@@ -48,6 +59,7 @@
     }
     syncShareUrl() {
       if (!this.exploreReady || typeof location === 'undefined') return;
+      try { localStorage.setItem(preferenceKey, JSON.stringify({ rank: this.selectedRank, display: this.tierDisplay === 'table' ? 'table' : 'board' })); } catch (_) { /* Keep working without persistence. */ }
       const url = this.shareUrl();
       if (this.publicEntry) {
         try { history.replaceState(null, '', url); } catch (_) { /* file preview */ }

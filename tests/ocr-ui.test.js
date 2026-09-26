@@ -66,6 +66,28 @@ domTest('HEIC pair converts before a single auto-scan; stale conversion cannot r
   } finally { w.close(); }
 });
 
+domTest('scan steps follow actual work and explicit retry preserves screenshots and typed notes', async () => {
+  const { w, desk, form } = setup();
+  try {
+    const pending = deferred(); w.fetch = () => pending.promise;
+    const note = form.querySelector('textarea'); note.value = 'Keep my note';
+    const originalImages = [...desk.images];
+    const work = desk.scanImages();
+    assert.equal(desk.container.querySelector('.submission-scan-steps [aria-current]').textContent, '2. AI o‘qishi');
+    pending.resolve({ ok: false, async json() { return { error: 'Vaqtincha aloqa yo‘q' }; } }); await work;
+    assert.equal(note.value, 'Keep my note'); assert.deepEqual([...desk.images], originalImages);
+    assert.equal(desk.container.querySelector('.submission-scan-steps').dataset.state, 'error');
+    const retry = desk.container.querySelector('[data-scan-retry]'); assert.ok(retry); assert.equal(retry.disabled, false);
+    w.fetch = async () => ({ ok: true, async json() { return { data: { result: 'win', players: [player(3)] } }; } });
+    const scan = desk.scanImages.bind(desk); let retried;
+    desk.scanImages = () => (retried = scan()); retry.click(); await retried;
+    assert.equal(desk.container.querySelector('[data-scan-retry]'), null);
+    assert.equal(desk._scanStage, 'ready');
+    assert.ok(['done', 'review'].includes(desk.container.querySelector('.submission-scan-steps').dataset.state));
+    desk.invalidateOcrWork(); assert.equal(desk.container.querySelector('.submission-scan-steps').hidden, true);
+  } finally { w.close(); }
+});
+
 domTest('HEIC failure blocks auto-scan and preserves existing typed fields', async () => {
   const { w, desk, form } = setup();
   try {

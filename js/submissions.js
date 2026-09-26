@@ -183,6 +183,7 @@ window.SubmissionManager = class SubmissionManager {
         <button type="button" class="btn btn-secondary submission-scan-btn" id="practiceScanBtn" disabled>
           <i class="fa-solid fa-wand-magic-sparkles"></i> Qayta o‘qish
         </button>
+        <ol class="submission-scan-steps" aria-label="Skrinshotni o‘qish bosqichlari" hidden></ol>
         <div id="practiceScanStatus" class="submission-status-line" role="status" aria-live="polite"></div>
 
         <div class="submission-form-grid">
@@ -419,6 +420,7 @@ window.SubmissionManager = class SubmissionManager {
     const readId = ++this._imageReads[index];
     const form = this.container?.querySelector('#practiceSubmissionForm');
     this.updateImageSlots();
+    this.setScanStage('image');
     if (form) form.querySelector('#practiceScanStatus').textContent = heic ? 'HEIC qurilmangizda JPEG’ga aylantirilmoqda…' : 'Rasm yuklanmoqda…';
     const editVersion = this._formEditVersion || 0;
     const reader = new FileReader();
@@ -437,6 +439,7 @@ window.SubmissionManager = class SubmissionManager {
       this._imageLoading[index] = false;
       this._imageReadFailed[index] = true;
       this.cancelScheduledImageScan();
+      this.setScanStage('image', 'error');
       const message = error?.message || 'Rasm ochilmadi. Qayta tanlang; formadagi ma’lumotlar saqlandi.';
       form.querySelector('#practiceScanStatus').textContent = message;
       window.showToast?.(message, 'warning');
@@ -503,6 +506,7 @@ window.SubmissionManager = class SubmissionManager {
 
   invalidateOcrWork() {
     this.cancelScheduledImageScan();
+    this.setScanStage('');
     this.setScanDetailsOpen?.(true);
     this.container?.querySelector('[data-scan-summary]')?.remove();
     const status = this.container?.querySelector('#practiceScanStatus');
@@ -537,9 +541,21 @@ window.SubmissionManager = class SubmissionManager {
     const text = value => typeof value === 'string' ? value.slice(0, 120) : Number.isFinite(value) ? String(value) : '—';
     const elapsed = value => Number.isFinite(value) && value >= 0 ? `${(value / 1000).toFixed(1)}s` : '—';
     const attempts = (Array.isArray(meta.attempts) ? meta.attempts.slice(0, 3) : []).map(attempt => `${text(attempt.model)}: ${text(attempt.status)} (${elapsed(attempt.durationMs)})`).join(' → ');
-    const line = document.createElement('small'); line.dataset.ocrMeta = '';
-    line.textContent = `Model: ${text(meta.model)} · Versiya: ${text(meta.modelVersion)} · ${elapsed(meta.durationMs)}${attempts ? ` · Urinishlar: ${attempts}` : ''}`;
+    const line = document.createElement('details'); line.dataset.ocrMeta = '';
+    const summary = document.createElement('summary'); summary.textContent = 'AI texnik tafsilotlari';
+    const info = document.createElement('small');
+    info.textContent = `Model: ${text(meta.model)} · Versiya: ${text(meta.modelVersion)} · ${elapsed(meta.durationMs)}${attempts ? ` · Urinishlar: ${attempts}` : ''}`;
+    line.append(summary, info);
     status.append(line);
+  }
+
+  setScanStage(stage, state = 'working') {
+    this._scanStage = stage;
+    const list = this.container?.querySelector('.submission-scan-steps'); if (!list) return;
+    const steps = [['image', 'Rasm tayyorlash'], ['read', 'AI o‘qishi'], ['heroes', 'Hero tekshiruvi'], ['ready', state === 'review' ? 'Tekshirish kerak' : 'Natija tayyor']];
+    const active = steps.findIndex(([key]) => key === stage);
+    list.hidden = active < 0; list.dataset.state = state;
+    list.innerHTML = steps.map(([key, label], index) => `<li ${index === active ? 'aria-current="step"' : ''} class="${index < active || state === 'done' ? 'is-complete' : ''}">${index + 1}. ${label}${index === active && state === 'error' ? ' · to‘xtadi' : ''}</li>`).join('');
   }
 
   async scanImages() {
@@ -563,6 +579,7 @@ window.SubmissionManager = class SubmissionManager {
     const preserveEdit = () => {
       if (!awaitingProvider || !current()) return;
       controller.abort();
+      this.setScanStage('read', 'error');
       if (status) status.textContent = 'Forma o‘zgartirildi. AI javobi qo‘llanmadi; kiritgan ma’lumotlaringiz saqlandi.';
     };
     form.addEventListener('input', preserveEdit);
@@ -576,13 +593,16 @@ window.SubmissionManager = class SubmissionManager {
       button.disabled = true;
       button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AI o‘qimoqda…';
     }
-    if (status) status.innerHTML = '<span class="is-loading"><i class="fa-solid fa-wave-square"></i> Scoreboard tahlil qilinmoqda. Bu bir daqiqagacha davom etishi mumkin.</span>';
+    this.setScanStage('image');
+    if (status) status.textContent = 'Rasm AI uchun tayyorlanmoqda…';
     try {
       const token = this.auth.getAccessToken();
       let detailImage;
       try { if (window.EclipseScanDetails?.create) detailImage = await window.EclipseScanDetails.create(images, { signal: controller.signal }); }
       catch (error) { if (error?.name === 'AbortError') throw error; }
       if (!current()) return;
+      this.setScanStage('read');
+      if (status) status.textContent = 'AI raqamlarni o‘qimoqda. Bu bir daqiqagacha davom etishi mumkin.';
       const response = await fetch('/api/ocr', {
         method: 'POST',
         signal: controller.signal,
@@ -602,18 +622,24 @@ window.SubmissionManager = class SubmissionManager {
       if (!response.ok || !payload.data) throw new Error(payload.error || 'AI skan bajarilmadi');
       this.ocrSource = 'ocr';
       this.ocrReviewIssues = Array.isArray(payload.data.reviewIssues) ? payload.data.reviewIssues : [];
+      this.setScanStage('heroes');
       if (status) status.textContent = 'Raqamlar o‘qildi. Original hero ikonkalari shu qurilmada tekshirilmoqda…';
       this.renderOcrMeta(status, this.ocrMeta);
       await this.applyOcrData(payload.data, context);
       if (!current()) return;
       const ready = this.refreshScanSummary?.({ collapse: true });
+      this.setScanStage('ready', ready ? 'done' : 'review');
       if (status) status.innerHTML = ready
         ? `<span class="is-success"><i class="fa-solid fa-circle-check"></i> Yuborishga tayyor. Faqat kerak bo‘lsa tahrirlang.${this.ocrExcludedRows ? ` ${this.ocrExcludedRows} ta guest yoki aniqlanmagan qator olinmadi.` : ''}</span>`
         : '<span class="is-error"><i class="fa-solid fa-triangle-exclamation"></i> O‘qish tugadi. Aniqlanmagan majburiy maydonlar ochiq: tiniqroq skrinshot yuklang yoki yetishmagan ma’lumotni kiriting.</span>';
       this.renderOcrMeta(status, this.ocrMeta);
     } catch (error) {
       if (!current()) return;
-      if (status) status.innerHTML = `<span class="is-error"><i class="fa-solid fa-triangle-exclamation"></i> ${this.escape(error.message)}</span>`;
+      this.setScanStage(this._scanStage || 'read', 'error');
+      if (status) {
+        status.innerHTML = `<span class="is-error"><i class="fa-solid fa-triangle-exclamation"></i> ${this.escape(error.message)}</span><p>Rasmlar va kiritgan ma’lumotlaringiz shu sahifada saqlandi. Aloqani tekshiring va qayta urining; sahifani yangilash shart emas.</p><button type="button" class="btn btn-secondary" data-scan-retry>Qayta urinish</button>`;
+        status.querySelector('[data-scan-retry]').onclick = () => this.scanImages();
+      }
       this.renderOcrMeta(status, this.ocrMeta);
       window.showToast?.(error.message, 'error');
     } finally {

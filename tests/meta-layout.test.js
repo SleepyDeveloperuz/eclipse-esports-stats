@@ -94,13 +94,17 @@ domTest('compact controls wrap on mobile and preserve usable targets on both ent
     const w = surface({ privatePage, width });
     try {
       const root = w.document.querySelector('#metaLabContainer'); root.classList.add('meta-qol');
-      root.innerHTML = '<div class="meta-workspace"><div class="meta-workspace-heading"><header>Tierlist</header></div><div class="meta-workspace-controls"><div class="meta-rank-picker"><span>Rank</span><button class="btn">Mythical Glory+</button></div></div><div class="meta-tier-tools"><label><input></label><div class="meta-tier-legend"><button>SS</button></div></div><button hidden>Hidden</button></div>';
+      root.innerHTML = '<div class="meta-workspace"><div class="meta-workspace-heading"><header>Tierlist</header></div><div class="meta-workspace-controls"><div class="meta-rank-picker"><span>Rank</span><button class="btn">Mythical Glory+</button></div></div><div class="meta-tier-tools"><label><input></label><button class="meta-filter-toggle btn">Filtrlar</button><div class="meta-extra-filters"><div class="meta-tier-legend"><button>SS</button></div></div></div><button hidden>Hidden</button></div>';
       const style = selector => w.getComputedStyle(root.querySelector(selector));
       assert.equal(style('.meta-workspace').minWidth, '0');
       assert.equal(style('.btn').minHeight, '44px');
       assert.equal(style('.meta-tier-legend button').minHeight, '44px');
       assert.equal(style('input').fontSize, '1rem');
       assert.equal(style('[hidden]').display, 'none');
+      assert.equal(style('.meta-filter-toggle').display, width <= 700 ? 'inline-flex' : 'none');
+      assert.equal(style('.meta-extra-filters').display, width <= 700 ? 'none' : 'flex');
+      root.querySelector('.meta-extra-filters').classList.add('is-expanded');
+      assert.equal(style('.meta-extra-filters').display, 'flex');
       if (width <= 700) {
         assert.equal(style('.meta-rank-picker').gridTemplateColumns, 'repeat(2,minmax(0,1fr))');
         assert.equal(style('.meta-workspace-controls').display, 'grid');

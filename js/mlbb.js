@@ -161,23 +161,23 @@ window.MlbbDataManager = class MlbbDataManager {
   freshnessMeta(payload) {
     if (!payload) return { label: 'Signal yo‘q', className: 'is-missing', icon: 'fa-circle-xmark' };
     if (payload.status === 'fresh') return { label: 'Yangilangan', className: 'is-fresh', icon: 'fa-circle-check' };
-    if (payload.status === 'partial') return { label: 'Qisman tayyor', className: 'is-stale', icon: 'fa-triangle-exclamation' };
+    if (payload.status === 'partial') return { label: 'Ayrim ma’lumotlar yangilanmadi', className: 'is-stale', icon: 'fa-triangle-exclamation' };
     if (payload.status === 'stale') return { label: 'Yangilanish kechikkan', className: 'is-stale', icon: 'fa-triangle-exclamation' };
-    return { label: 'Sync kutilmoqda', className: 'is-missing', icon: 'fa-clock' };
+    return { label: 'Yangilanish kutilmoqda', className: 'is-missing', icon: 'fa-clock' };
   }
 
   healthPresentation(health, freshness) {
     if (freshness.className === 'is-stale') {
-      return { label: 'Cache eskirgan · LKG', className: 'is-stale', icon: 'fa-triangle-exclamation' };
+      return { label: freshness.label, className: 'is-stale', icon: 'fa-triangle-exclamation' };
     }
     if (freshness.className === 'is-missing') {
       return { label: freshness.label, className: 'is-missing', icon: freshness.icon };
     }
     if (health?.partial) {
-      return { label: 'Partial sync · LKG', className: 'is-stale', icon: 'fa-triangle-exclamation' };
+      return { label: 'Ayrim ma’lumotlar yangilanmadi', className: 'is-stale', icon: 'fa-triangle-exclamation' };
     }
     if (health?.ok) {
-      return { label: 'All systems synced', className: 'is-fresh', icon: 'fa-signal' };
+      return { label: 'Ma’lumotlar yangilangan', className: 'is-fresh', icon: 'fa-signal' };
     }
     return { label: freshness.label, className: freshness.className, icon: freshness.icon };
   }
@@ -235,7 +235,7 @@ window.MlbbDataManager = class MlbbDataManager {
     const health = this.state.meta?.health?.data || null;
     const healthPresentation = this.healthPresentation(health, freshness);
     const errorNote = errors.length
-      ? `<div class="meta-lab-partial"><i class="fa-solid fa-triangle-exclamation"></i><span>${errors.length} ta dataset hozir yangilanmadi; mavjud last-known-good ko‘rsatildi.</span></div>`
+      ? `<div class="meta-lab-partial"><i class="fa-solid fa-triangle-exclamation"></i><span>${errors.length} ta ma’lumot manbasi yuklanmadi. Mavjud bo‘lsa, oxirgi saqlangan nusxa ko‘rsatiladi.</span></div>`
       : '';
 
     this.container.innerHTML = `
@@ -263,9 +263,9 @@ window.MlbbDataManager = class MlbbDataManager {
           ].map(([view, icon, label]) => `<button type="button" data-meta-view="${view}" class="${this.currentView === view ? 'active' : ''}" aria-pressed="${this.currentView === view}"><i class="fa-solid ${icon}"></i>${label}</button>`).join('')}
         </nav>
         <div class="meta-lab-health">
-          <span class="meta-health ${healthPresentation.className}"><i class="fa-solid ${healthPresentation.icon}"></i>${healthPresentation.label}</span>
+          <details class="meta-health-details"><summary><span class="meta-health ${healthPresentation.className}"><i class="fa-solid ${healthPresentation.icon}"></i>${healthPresentation.label}</span></summary><p>Manba holati: ${this.escape(this.state.meta?.status || 'missing')}. ${health?.partial ? 'Umumiy yangilanish qisman bajarilgan. ' : ''}LKG — oxirgi saqlangan nusxa; bu barcha manbalar yangi degani emas. Ma’lumot sanasiga ham qarang.</p></details>
           <small>${this.formatDate(this.state.meta?.updatedAt)}</small>
-          ${this.auth.isAdmin() ? '<button type="button" class="btn btn-sm btn-secondary" data-meta-action="sync"><i class="fa-solid fa-rotate"></i> Sync now</button>' : ''}
+          ${this.auth.isAdmin() ? '<button type="button" class="btn btn-sm btn-secondary" data-meta-action="sync"><i class="fa-solid fa-rotate"></i> Yangilash</button>' : ''}
         </div>
       </section>
       ${errorNote}
@@ -487,6 +487,12 @@ window.MlbbDataManager = class MlbbDataManager {
   async openHeroDossier(heroId, returnFocus = null) {
     const catalogHero = this.heroById(heroId) || { id: heroId, name: `Hero #${heroId}` };
     const focusTarget = returnFocus || this.dossierReturnFocus || document.activeElement;
+    if (!document.querySelector('.meta-dossier-overlay')) {
+      const anchors = new Set([document.scrollingElement, document.documentElement, document.body]);
+      for (let parent = focusTarget?.parentElement; parent; parent = parent.parentElement) anchors.add(parent);
+      this.dossierScroll = [...anchors].filter(Boolean).map(node => ({ node, top: node.scrollTop, left: node.scrollLeft }));
+      this.dossierOriginHero = focusTarget?.closest('[data-hero-id]')?.dataset.heroId;
+    }
     this.closeDossier({ restoreFocus: false });
     this.dossierReturnFocus = focusTarget;
     const overlay = document.createElement('div');
@@ -509,7 +515,7 @@ window.MlbbDataManager = class MlbbDataManager {
     document.addEventListener('keydown', this.dossierEscapeHandler);
     requestAnimationFrame(() => {
       overlay.classList.add('active');
-      overlay.querySelector('[data-dossier-close]')?.focus();
+      if (overlay.isConnected) overlay.querySelector('[data-dossier-close]')?.focus({ preventScroll: true });
     });
     try {
       const rank = this.selectedRank || 'mythic';
@@ -523,13 +529,13 @@ window.MlbbDataManager = class MlbbDataManager {
       await this.hydrateClientCatalog(catalog);
       overlay.querySelector('.meta-dossier').innerHTML = this.dossierMarkup(detail, payload.status);
       const closeButton = overlay.querySelector('[data-dossier-close]');
-      closeButton?.focus();
+      closeButton?.focus({ preventScroll: true });
     } catch (error) {
       if (!document.body.contains(overlay)) return;
       overlay.querySelector('.meta-dossier').innerHTML = `
         <button type="button" class="meta-dossier__close" data-dossier-close aria-label="Yopish"><i class="fa-solid fa-xmark"></i></button>
         <div class="meta-dossier-error"><i class="fa-solid fa-triangle-exclamation"></i><h3>Dossier ochilmadi</h3><p>${this.escape(error.message)}</p></div>`;
-      overlay.querySelector('[data-dossier-close]')?.focus();
+      overlay.querySelector('[data-dossier-close]')?.focus({ preventScroll: true });
     }
   }
 
@@ -584,6 +590,13 @@ window.MlbbDataManager = class MlbbDataManager {
     this.dossierEscapeHandler = null;
     this.dossierReturnFocus = null;
     if (!document.querySelector('.modal-overlay.active')) document.body.style.overflow = '';
-    if (options.restoreFocus !== false && returnFocus?.isConnected) returnFocus.focus();
+    if (options.restoreFocus !== false) {
+      const replacement = [...(this.container?.querySelectorAll('[data-hero-id]') || [])].find(node => node.dataset.heroId === this.dossierOriginHero);
+      (returnFocus?.isConnected ? returnFocus : replacement)?.focus({ preventScroll: true });
+      for (const position of this.dossierScroll || []) if (position.node.isConnected) {
+        position.node.scrollTop = position.top; position.node.scrollLeft = position.left;
+      }
+      this.dossierScroll = null; this.dossierOriginHero = null;
+    }
   }
 };

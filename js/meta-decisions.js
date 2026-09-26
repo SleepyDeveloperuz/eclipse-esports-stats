@@ -74,7 +74,11 @@
         toolbar?.remove(); panel.append(controls);
         if (filters) {
           const note = filters.querySelector(':scope > span'); if (note) details.append(note);
-          if (legend) filters.append(legend);
+          const extra = element('div', 'meta-extra-filters'); extra.id = 'metaExtraFilters';
+          const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'btn btn-secondary meta-filter-toggle'; toggle.setAttribute('aria-controls', extra.id);
+          toggle.onclick = () => { this.filtersExpanded = !this.filtersExpanded; this.updateCompactFilters(); };
+          if (mode) extra.append(mode);
+          if (legend) extra.append(legend);
           const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'btn btn-sm btn-secondary'; clear.dataset.metaClear = ''; clear.textContent = 'Tozalash';
           clear.onclick = () => {
             this.searchQuery = ''; this.tierFilter = 'all';
@@ -83,9 +87,12 @@
             this.applyFilters(); this.syncShareUrl(); input?.focus();
           };
           const count = document.createElement('output'); count.dataset.metaResultCount = ''; count.setAttribute('aria-live', 'polite');
-          filters.append(clear, count); panel.append(filters);
+          extra.append(clear); filters.append(toggle, count, extra); panel.append(filters);
         }
         panel.append(details);
+        const glossary = element('details', 'meta-workspace-info meta-glossary');
+        glossary.innerHTML = '<summary>Qisqa izohlar: Win, Pick, Ban va tier</summary><dl><dt>Win</dt><dd>Tanlangan rank va davrdagi g‘alabalar foizi.</dd><dt>Pick</dt><dd>Qahramonning tanlanish darajasi — manbadagi foiz.</dd><dt>Ban</dt><dd>Qahramonning taqiqlanish darajasi — manbadagi foiz.</dd><dt>Eclipse balli</dt><dd>Win, Pick va Ban asosidagi tajribaviy baho. G‘alaba ehtimoli yoki Moonton rasmiy reytingi emas.</dd><dt>Dastlabki</dt><dd>Barqarorlikni baholash uchun mos tarix hali yetarli emas. Kuchli tier bo‘lsa ham, natija kafolatlanmaydi.</dd></dl>';
+        panel.append(glossary);
         const status = view.querySelector('.tier-export-status'); if (status) panel.append(status);
         const empty = view.querySelector('[data-board-empty]'); if (empty) panel.append(empty);
       } else panel.append(actions);
@@ -103,6 +110,13 @@
     updateCompactFilters() {
       const root = this.container, clear = root?.querySelector('[data-meta-clear]'), count = root?.querySelector('[data-meta-result-count]');
       if (clear) clear.hidden = !this.searchQuery && this.tierFilter === 'all';
+      const toggle = root?.querySelector('.meta-filter-toggle'), extra = root?.querySelector('.meta-extra-filters');
+      if (toggle && extra) {
+        const active = Number(Boolean(this.searchQuery)) + Number(this.tierFilter !== 'all');
+        toggle.textContent = `Filtrlar${active ? ` · ${active} faol` : ''}`;
+        toggle.setAttribute('aria-expanded', String(Boolean(this.filtersExpanded)));
+        extra.classList.toggle('is-expanded', Boolean(this.filtersExpanded));
+      }
       if (count) {
         const rows = [...root.querySelectorAll('.solar-tier-hero, .meta-tier-table tbody tr')];
         count.textContent = `${rows.filter(row => !row.hidden && !row.closest('.solar-tier-row[hidden]')).length} / ${rows.length} hero`;

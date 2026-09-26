@@ -25,6 +25,25 @@
 .meta-workspace .btn { min-height:44px; margin:0; padding:.5rem .8rem; font-size:.875rem; box-shadow:none; }
 .meta-workspace-controls { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.65rem 1rem; }
 .meta-workspace-controls > [role="group"] { display:flex; gap:.3rem; padding:.2rem; border:1px solid var(--border-light); border-radius:.65rem; }
+.meta-extra-filters { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .75rem; flex:1 1 100%; min-width:0; }
+.meta-extra-filters > [role="group"] { display:flex; gap:.3rem; padding:.2rem; border:1px solid var(--border-light); border-radius:.65rem; }
+.meta-workspace .meta-filter-toggle { display:none; }
+.meta-health-details { position:relative; max-width:100%; }
+.meta-health-details summary { cursor:pointer; list-style:none; }
+.meta-health-details summary::-webkit-details-marker { display:none; }
+.meta-health-details .meta-health { min-height:44px; text-transform:none; line-height:1.5; }
+.meta-health-details p { position:absolute; top:100%; right:0; width:min(25rem,75vw); padding:1rem; border:1px solid var(--border-light); background:#151510; z-index:6; font:400 .875rem/1.6 var(--font-sans); }
+.meta-glossary dl { display:grid; grid-template-columns:minmax(5rem,auto) minmax(0,1fr); gap:.5rem 1rem; max-width:65ch; }
+.meta-glossary dt { color:var(--text-primary); font-weight:600; }
+.meta-glossary dd { margin:0; }
+.submission-scan-steps { display:flex; flex-wrap:wrap; gap:.4rem .8rem; list-style:none; padding:0; margin:.75rem 0; color:var(--text-muted); font-size:.8rem; }
+.submission-scan-steps[hidden] { display:none; }
+.submission-scan-steps li { border-bottom:2px solid var(--border-light); padding:.4rem 0; }
+.submission-scan-steps li[aria-current="step"] { color:var(--primary); border-color:var(--primary); }
+.submission-scan-steps .is-complete { color:var(--success); border-color:var(--success); }
+.submission-status-line > .btn { min-height:44px; margin:.5rem 0; }
+.submission-status-line details { margin-top:.5rem; }
+.submission-status-line details summary { cursor:pointer; min-height:44px; display:flex; align-items:center; }
 .meta-workspace .meta-rank-picker { padding:0; gap:.3rem; margin:0; }
 .meta-workspace .meta-rank-picker > span { margin-right:.35rem; }
 .meta-workspace .meta-tier-tools { margin:0; padding:0; border:0; gap:.5rem .75rem; }
@@ -58,6 +77,11 @@
   .meta-workspace-actions { justify-content:flex-start; }
 }
 @media(max-width:700px) {
+  .meta-workspace .meta-filter-toggle { display:inline-flex; }
+  .meta-extra-filters:not(.is-expanded) { display:none; }
+  .meta-extra-filters > [role="group"] { width:100%; }
+  .meta-extra-filters > [role="group"] > button { flex:1; min-width:0; }
+  .meta-health-details p { position:static; width:auto; max-width:100%; }
   .meta-qol .meta-lab-tabs { display:none; }
   .meta-qol .meta-mobile-navigation { flex:1 1 100%; min-width:0; gap:.25rem; font-size:.8rem; }
   .meta-qol .meta-lab-health { justify-content:flex-start; }

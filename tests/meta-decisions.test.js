@@ -159,6 +159,27 @@ domTest('compact tier workspace groups existing controls with the board without 
   } finally { window.close(); }
 });
 
+domTest('mobile filters expose active count and retain selections when collapsed', async () => {
+  const { window, manager } = surface('tier');
+  try {
+    await manager.render(); const root = manager.container;
+    const toggle = root.querySelector('.meta-filter-toggle');
+    assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+    toggle.click(); assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+    root.querySelector('[data-tier-filter="SS"]').click();
+    assert.match(toggle.textContent, /1 faol/);
+    toggle.click(); assert.equal(manager.tierFilter, 'SS');
+    assert.equal(root.querySelector('.meta-extra-filters').classList.contains('is-expanded'), false);
+    assert.ok(root.querySelector('.meta-glossary dd').textContent.length);
+    assert.equal(root.querySelector('.meta-extra-filters #metaTierSearch'), null);
+    assert.equal(root.querySelector('.meta-extra-filters .meta-rank-picker'), null);
+    const stale = manager.healthPresentation({ ok: true }, manager.freshnessMeta({ status: 'stale' }));
+    assert.match(stale.label, /kechikkan/);
+    assert.match(manager.healthPresentation({ partial: true }, manager.freshnessMeta({ status: 'fresh' })).label, /Ayrim/);
+    assert.doesNotMatch(root.querySelector('.meta-health-details summary').textContent, /LKG|synced/);
+  } finally { window.close(); }
+});
+
 domTest('compact search, reset, display switch, export and share retain their actions', async () => {
   const { window, manager } = surface('tier');
   try {

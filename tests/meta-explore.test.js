@@ -148,7 +148,7 @@ domTest('watchlist is local-only, survives reload, and handles blocked storage h
   try {
     await first.manager.render(); first.manager.toggleWatch(2); await tick();
     saved = first.values.get('eclipse:public:watchlist:v1'); assert.equal(saved, '[2]');
-    assert.ok(first.storageKeys.every(key => key === 'eclipse:public:watchlist:v1'));
+    assert.ok(first.storageKeys.every(key => ['eclipse:public:watchlist:v1', 'eclipse:public:meta-preferences:v1'].includes(key)));
     assert.doesNotMatch(first.manager.shareUrl(), /watchIds|%5B2%5D/);
     assert.match(first.w.document.querySelector('.meta-watch-card').textContent, /Tigreal/);
   } finally { first.w.close(); }
@@ -157,6 +157,42 @@ domTest('watchlist is local-only, survives reload, and handles blocked storage h
   const blocked = setup('?view=watchlist', { blockStorage: true });
   try { await blocked.manager.render(); blocked.manager.toggleWatch(1); assert.equal(blocked.manager.watchPersistent, false); assert.match(blocked.w.document.body.textContent, /faqat shu sessiyada/); } finally { blocked.w.close(); }
 });
+domTest('rank and display preferences persist but explicit shared links take precedence', async () => {
+  const key = 'eclipse:public:meta-preferences:v1';
+  for (const [query, expectedRank, expectedDisplay] of [['', 'legend', 'table'], ['?rank=epic', 'epic', 'board'], ['?hero=2', 'mythic', 'board']]) {
+    const { w, manager, values } = setup(query, { storage: { [key]: JSON.stringify({ rank: 'legend', display: 'table', token: 'must-not-persist' }) } });
+    try {
+      assert.equal(manager.selectedRank, expectedRank); assert.equal(manager.tierDisplay, expectedDisplay);
+      await manager.render();
+      const saved = JSON.parse(values.get(key));
+      assert.deepEqual(Object.keys(saved).sort(), ['display', 'rank']);
+      assert.equal(saved.rank, expectedRank);
+    } finally { w.close(); }
+  }
+  for (const storage of [{ [key]: '{bad-json' }, { [key]: '{"rank":"invalid","display":"script"}' }]) {
+    const { w, manager } = setup('', { storage });
+    try { await manager.render(); assert.equal(manager.selectedRank, 'mythic'); assert.notEqual(manager.tierDisplay, 'script'); } finally { w.close(); }
+  }
+  const { w, manager } = setup('', { blockStorage: true });
+  try { await manager.render(); await manager.selectRank('legend'); assert.equal(manager.selectedRank, 'legend'); } finally { w.close(); }
+});
+
+domTest('hero dossier closes to the same filtered list, scroll position and focus', async () => {
+  const { w, manager } = setup('?q=Miya');
+  try {
+    await manager.render();
+    const root = manager.container, hero = root.querySelector('[data-hero-id="1"]');
+    root.scrollTop = 420; root.scrollLeft = 20; hero.focus();
+    await manager.openHeroDossier(1);
+    root.scrollTop = 0; root.scrollLeft = 0;
+    manager.closeDossier();
+    assert.equal(root.scrollTop, 420); assert.equal(root.scrollLeft, 20);
+    assert.equal(w.document.activeElement, hero); assert.equal(manager.searchQuery, 'Miya');
+    assert.equal(root.querySelector('#metaTierSearch').value, 'Miya');
+    assert.equal(w.document.querySelector('.meta-dossier-overlay'), null);
+  } finally { w.close(); }
+});
+
 domTest('share links round-trip filters, rank, view, compare and dossier without private parameters', async () => {
   const { w, manager, writes } = setup('?view=tier&rank=legend&tier=A&q=Tigreal&display=table&hero=2&compare=1,2&token=SECRET');
   try {
