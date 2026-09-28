@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as model from '../js/progress-model.js';
+import * as focusModel from '../js/weekly-focus-model.js';
 import { groupBatchFiles } from '../js/batch-model.js';
 let JSDOM;
 try { ({ JSDOM } = await import(process.env.ECLIPSE_JSDOM_PATH || 'jsdom')); } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e; }
 const domTest = JSDOM ? test : (name, fn) => test(name, { skip: 'Set ECLIPSE_JSDOM_PATH.' }, fn);
 function setup(admin = true) {
   const w = new JSDOM('<section class="page-section active"><div id="progressContainer"></div><div id="batchContainer"></div></section>', { url: 'https://fixture.invalid', runScripts: 'outside-only' }).window;
-  w.confirm = () => true; w.showToast = () => {}; Object.assign(w, model, { groupBatchFiles });
+  w.confirm = () => true; w.showToast = () => {}; Object.assign(w, model, focusModel, { groupBatchFiles });
   w.Image = class { constructor() { this.width = 1280; this.height = 576; } async decode() {} };
   w.HTMLCanvasElement.prototype.getContext = () => ({ drawImage() {} });
   w.HTMLCanvasElement.prototype.toDataURL = () => 'data:image/jpeg;base64,crop';
@@ -63,6 +64,27 @@ domTest('Weekly and Moment PNG exports create bounded downloadable canvases with
     assert.equal(exports.length, 2); assert.ok(exports[0].startsWith('eclipse-weekly-squad')); assert.ok(exports[1].startsWith('eclipse-moment'));
   } finally { w.close(); }
 });
+domTest('Weekly focus keeps unsaved edits across filters and conflicts; viewer can read but never edit', async () => {
+  const { w, app, data } = setup();
+  try {
+    const hub = new w.ProgressHub(app); hub.container = w.document.getElementById('progressContainer'); hub.data = data; hub.scope = 'squad'; hub.draw();
+    const task = hub.container.querySelector('#weekly-focus-task'); assert.ok(task);
+    task.value = 'Review <script>one death</script>'; task.dispatchEvent(new w.Event('input'));
+    hub.tab = 'compare'; hub.draw(); hub.tab = 'weekly'; hub.draw();
+    assert.equal(hub.container.querySelector('#weekly-focus-task').value, task.value);
+    hub.request = async () => { throw new Error('conflict'); };
+    await assert.rejects(hub.action('save-focus'), /conflict/);
+    assert.equal(hub.focusDrafts.size, 1); assert.match(hub.container.querySelector('.weekly-focus-status').textContent, /Saqlanmadi/);
+    const start = focusModel.adjacentWeek(hub.date, 0);
+    hub.focuses = [{ id: `${start}_squad`, start, scope: 'squad', task: task.value, metric: 'deathsPerMinute' }];
+    app.authManager.isAdmin = () => false; hub.draw();
+    assert.equal(hub.container.querySelector('#weekly-focus-task'), null);
+    assert.equal(hub.container.querySelector('[data-progress-action="save-focus"]'), null);
+    assert.equal(hub.container.querySelector('script'), null);
+    assert.match(hub.container.textContent, /Review <script>/);
+    assert.equal(hub.container.querySelector('.scan-quality'), null);
+  } finally { w.close(); }
+});
 domTest('Batch uses the full existing form, keeps drafts out of localStorage, and submits only once', async () => {
   const { w, app, row } = setup();
   try {
@@ -92,6 +114,7 @@ domTest('Batch scan autofills heroes/medals through current scanner and retains 
     assert.equal(batch.items[0].state, 'ready', batch.items[0].root.textContent);
     const result = worker.collectDraft(); assert.equal(result.draft.playerStats[0].heroUsed, 'Miya'); assert.equal(result.draft.playerStats[0].medal, 'gold');
     assert.equal(result.draft.date, '2026-09-16'); assert.equal(w.localStorage.length, 0);
+    assert.ok(result.scanQuality.id); assert.equal(result.scanQuality.changedFields.length, 0);
   } finally { w.close(); }
 });
 domTest('Batch preserves ready queue on navigation and never resends accepted matches after partial errors', async () => {

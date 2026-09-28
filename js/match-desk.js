@@ -554,6 +554,8 @@
       const result = super.collectDraft(); const raw = this.rawDraft();
       result.draft = { ...result.draft, ...raw.team, entryMode: 'full', guestStats: raw.guestStats, substitutes: raw.substitutes,
         playerStats: result.draft.playerStats.map((row, i) => ({ ...row, ...Object.fromEntries([...Object.keys(metrics), 'savage', 'maniac', 'afk', 'highlightNotes', 'highlightOverflow'].map(field => [field, raw.playerStats[i][field] ?? null])) })) };
+      const scanQuality = this.scanQualityPayload(raw);
+      if (scanQuality) result.scanQuality = scanQuality;
       return result;
     }
 

@@ -33,8 +33,12 @@ test('full submission API supports viewer review, guarded captain correction and
     const admin = await login('admin'); const viewer = await login('viewer');
     const forbidden = await call('POST', { action: 'save', claimedPlayerId: 'p1', draft }, viewer);
     assert.equal(forbidden.statusCode, 401);
-    const created = await call('POST', { claimedPlayerId: 'p1', draft }, viewer);
+    const scanQuality = { id: 'fixture_quality_match_001', outcome: 'ready', elapsedMs: 1250, baseline: true, changedFields: ['Damage'] };
+    const created = await call('POST', { claimedPlayerId: 'p1', draft, source: 'ocr', scanQuality }, viewer);
     assert.equal(created.statusCode, 201); assert.equal(created.body.submission.status, 'pending');
+    const ledger = JSON.parse((await repository.files())['eclipse_scan_quality.json'].content);
+    assert.equal(ledger.entries.length, 1); assert.ok(ledger.entries[0].submittedAt); assert.deepEqual(ledger.entries[0].changedFields, ['Damage']);
+    assert.equal(JSON.stringify(created.body.submission).includes('scanQuality'), false);
     assert.equal(JSON.parse((await repository.files())['eclipse_data.json'].content).matches.length, 0);
     const record = created.body.submission;
     const corrected = { ...draft, playerStats: [{ ...draft.playerStats[0], damageDealt: 71234 }] };
@@ -51,8 +55,9 @@ test('full submission API supports viewer review, guarded captain correction and
     assert.equal(direct.statusCode, 201); assert.equal(direct.body.submission.status, 'approved');
     const final = JSON.parse((await repository.files())['eclipse_data.json'].content);
     assert.equal(final.matches.length, 2); assert.equal(final.matches[0].playerStats[0].damageDealt, 71234);
-    const duplicate = await call('POST', { claimedPlayerId: 'p1', draft: { ...draft, entryMode: 'practice_lite' } }, viewer);
+    const duplicate = await call('POST', { claimedPlayerId: 'p1', source: 'ocr', scanQuality: { ...scanQuality, id: 'fixture_duplicate_scan_001' }, draft: { ...draft, entryMode: 'practice_lite' } }, viewer);
     assert.equal(duplicate.statusCode, 409, 'same match is not duplicated across full/Lite modes');
+    assert.equal(JSON.parse((await repository.files())['eclipse_scan_quality.json'].content).entries.length, 1, 'rejected duplicate cannot be an accepted upload');
     const editBody = { action: 'edit_match', id: direct.body.match.id, expectedUpdatedAt: direct.body.match.updatedAt, draft: { ...draft, claimedPlayerId: 'admin', date: '2026-09-06', notes: 'Corrected without inventing score' } };
     assert.equal((await call('PATCH', editBody, viewer)).statusCode, 401);
     assert.equal((await call('PATCH', { ...editBody, expectedUpdatedAt: 'stale' }, admin)).statusCode, 409);

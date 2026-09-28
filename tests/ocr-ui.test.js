@@ -25,6 +25,7 @@ function setup() {
   const heroDb = { getAll: () => heroes, resolve: name => heroes.find(hero => hero.name === name) };
   for (const name of ['image-upload', 'submissions', 'match-desk']) w.eval(readFileSync(new URL(`../js/${name}.js`, import.meta.url), 'utf8'));
   const desk = new w.SubmissionManager(auth, db, heroDb, {});
+  desk.reportScanQuality = () => {}; // OCR-only fixtures; telemetry has its own network assertions below.
   desk.container = w.document.getElementById('submissionContainer'); desk.renderState();
   desk.images = ['data:image/jpeg;base64,scoreboard', 'data:image/jpeg;base64,damage'];
   desk.portraitMatcher = { references: [{ id: 1 }], async prepare() {}, async match() { return { automatic: true, loaded: 133, total: 133, candidates: [{ name: 'Miya', score: .99 }] }; } };
@@ -51,6 +52,49 @@ domTest('Supreme and highlight evidence survive screenshot autofill and form col
  } finally {w.close();}
 });
 const screenshot = name => ({ name, type: 'image/png', size: 1024 });
+domTest('Scan telemetry measures complete autofill, compares only categories, and never sends screenshots or values', async () => {
+  const { w, desk, form } = setup();
+  try {
+    delete desk.reportScanQuality;
+    const events = [];
+    w.fetch = async (url, options) => {
+      const body = JSON.parse(options.body);
+      if (url === '/api/submissions') { events.push(body); return { ok: true }; }
+      assert.equal(url, '/api/ocr');
+      return { ok: true, json: async () => ({ data: { result: 'win', durationFormatted: '10:00', players: [player(1)] } }) };
+    };
+    await desk.scanImages(); await Promise.resolve();
+    let payload = desk.collectDraft().scanQuality;
+    assert.ok(payload.id); assert.equal(payload.outcome, 'ready'); assert.equal(payload.baseline, true); assert.equal(payload.changedFields.length, 0);
+    assert.ok(Number.isInteger(payload.elapsedMs));
+    form.querySelector('#practiceDate').value = '2026-09-27'; form.querySelector('#practiceNotes').value = 'Private note';
+    assert.equal(desk.collectDraft().scanQuality.changedFields.length, 0);
+    form.querySelector('[data-field="medal"]').value = 'silver';
+    form.querySelector('[data-field="kills"]').value = '9';
+    payload = desk.collectDraft().scanQuality;
+    assert.deepEqual(Array.from(payload.changedFields).sort(), ['K/D/A', 'Medal']);
+    assert.equal(events.length, 1);
+    assert.deepEqual(Object.keys(events[0].event).sort(), ['elapsedMs', 'id', 'outcome']);
+    assert.equal(/Private|Miya|image|baseline/.test(JSON.stringify(events)), false);
+    desk.invalidateOcrWork(); assert.equal(desk.collectDraft().scanQuality, undefined);
+  } finally { w.close(); }
+});
+domTest('Telemetry failure is nonblocking; mid-scan edits are not claimed as untouched output', async () => {
+  const { w, desk, form } = setup();
+  try {
+    delete desk.reportScanQuality;
+    w.fetch = async url => {
+      if (url === '/api/submissions') throw new Error('offline metrics');
+      return { ok: true, json: async () => ({ data: { result: 'win', players: [player(1)] } }) };
+    };
+    const apply = desk.applyOcrData.bind(desk);
+    desk.applyOcrData = async (...args) => { await apply(...args); const input = form.querySelector('[data-field="kills"]'); input.value = '9'; input.dispatchEvent(new w.Event('input', { bubbles: true })); };
+    await desk.scanImages(); await Promise.resolve();
+    assert.equal(Number(desk.collectDraft().draft.playerStats[0].kills), 9);
+    assert.equal(desk.collectDraft().scanQuality, undefined);
+    assert.equal(desk.container.querySelector('[data-scan-retry]'), null);
+  } finally { w.close(); }
+});
 const finishRead = (reader, name) => reader.onload({ target: { result: `data:image/png;base64,${name}` } });
 
 domTest('HEIC pair converts before a single auto-scan; stale conversion cannot replace a new image', async () => {

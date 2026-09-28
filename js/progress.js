@@ -1,4 +1,5 @@
 import { METRICS, eligibleMatches, observations, compareResults, heroJourney, weeklyReport, moments } from './progress-model.js?v=2.27.0';
+import { FOCUS_METRICS, adjacentWeek, focusBaseline, focusSignals, compareFocus } from './weekly-focus-model.js?v=2.35.0';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = value => value === null || value === undefined ? '—' : Number(value).toLocaleString('en-US', { maximumFractionDigits: 1 });
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tashkent' });
@@ -7,7 +8,7 @@ const button = (action, label, disabled = false) => `<button type="button" class
 export class ProgressHub {
   constructor(app) {
     this.app = app; this.tab = 'weekly'; this.scope = 'team5'; this.date = today(); this.playerId = ''; this.hero = ''; this.role = ''; this.matchType = 'ranked';
-    this.data = null; this.reports = []; this.history = null; this.generation = 0;
+    this.data = null; this.reports = []; this.focuses = []; this.focusRevision = 0; this.focusDrafts = new Map(); this.history = null; this.generation = 0;
   }
   async request(feature, body) {
     const response = await fetch(`/api/submissions${feature ? `?feature=${feature}` : ''}`, { method: body ? 'PATCH' : 'GET', cache: 'no-store',
@@ -29,6 +30,12 @@ export class ProgressHub {
       const history = this.app.authManager.isAdmin() ? await this.request('history') : null;
       if (generation !== this.generation) return;
       this.data = data.data || data; this.reports = weekly.reports; this.history = history;
+      this.focuses = weekly.focuses || []; this.focusRevision = weekly.focusRevision || 0;
+      this.scanQuality = null;
+      if (this.app.authManager.isAdmin()) {
+        try { this.scanQuality = await this.request('scan_quality'); } catch (_) { this.scanQuality = { unavailable: true }; }
+        if (generation !== this.generation) return;
+      }
       if (!this.data.players?.some(p => p.id === this.playerId)) this.playerId = this.data.players?.[0]?.id || '';
       this.draw();
     } catch (error) {
@@ -66,6 +73,7 @@ export class ProgressHub {
     const report = admin ? draft : saved;
     this.shownReport = report;
     return `${admin ? `<p class="progress-note">Captain preview · bazadan avtomatik hisoblangan. Publish qilgach jamoa saqlangan hisobotni ko‘radi.${saved ? ` Oldingi nashr: ${esc(saved.publishedAt.slice(0, 10))}.` : ''}</p>` : ''}
+      ${this.focusMarkup(draft)}
       ${report ? `<article class="progress-report"><p class="section-eyebrow">ECLIPSE WEEKLY / ${esc(scopeName(report.scope))}</p><h3>${report.start} — ${report.end}</h3>
       <p>${report.publishedAt ? `Nashr paytidagi snapshot · ${esc(report.publishedAt.slice(0, 16).replace('T', ' '))} UTC. Keyingi matchlar bu nashrni avtomatik o‘zgartirmaydi.` : 'Joriy bazadan preview.'}${report.end >= today() ? ' Hafta hali davom etmoqda.' : ''}</p>
       <div class="progress-numbers"><div><strong>${report.count}</strong><span>MATCH</span></div><div><strong>${fmt(report.winRate)}%</strong><span>${report.wins} W / ${report.losses} L</span></div></div>
@@ -74,7 +82,35 @@ export class ProgressHub {
       <p>Ko‘p tanlangan hero: ${report.heroes.map(([name, n]) => `${esc(name)} ×${n}`).join(' · ') || '—'}</p>
       ${button('weekly-png', 'PNG yuklab olish', !report.count)} ${admin ? button('publish', saved ? 'Hisobotni qayta publish qilish' : 'Jamoaga publish qilish', !report.count) : ''} ${admin && saved ? button('unpublish', 'Unpublish') : ''}</article>`
         : '<div class="progress-empty"><h3>Bu hafta hali publish qilinmagan.</h3><p>Captain hisobotni ko‘rib chiqqach shu yerda paydo bo‘ladi.</p></div>'}
-      <details class="progress-archive"><summary>Nashrlar arxivi · ${this.reports.length}</summary>${[...this.reports].sort((a, b) => b.start.localeCompare(a.start)).map(r => `<button type="button" data-report="${esc(r.id)}">${r.start} · ${esc(scopeName(r.scope))} · ${r.count} match</button>`).join('') || '<p>Hali hisobot yo‘q.</p>'}</details>`;
+      <details class="progress-archive"><summary>Nashrlar arxivi · ${this.reports.length}</summary>${[...this.reports].sort((a, b) => b.start.localeCompare(a.start)).map(r => `<button type="button" data-report="${esc(r.id)}">${r.start} · ${esc(scopeName(r.scope))} · ${r.count} match</button>`).join('') || '<p>Hali hisobot yo‘q.</p>'}</details>${this.qualityMarkup()}`;
+  }
+  focusSignal(signal) {
+    return signal ? `${esc(FOCUS_METRICS[signal.metric])}: ${fmt(signal.previous)} → ${fmt(signal.current)}. ${signal.cohorts} mos guruh · ${signal.beforeN} → ${signal.afterN} ishtirok.` : 'Yetarli mos ma’lumot yoki bu yo‘nalishda o‘zgarish yo‘q.';
+  }
+  focusMarkup(week) {
+    const id = `${week.start}_${week.scope}`, saved = this.focuses.find(f => f.id === id);
+    const previous = this.focuses.find(f => f.scope === week.scope && f.start === adjacentWeek(week.start, -1));
+    const admin = this.app.authManager.isAdmin(), editable = admin && week.start <= today() && week.end >= today();
+    const draft = this.focusDrafts.get(id) || { task: saved?.task || '', metric: saved?.metric || 'deathsPerMinute' };
+    const signals = saved?.signals || (admin ? focusSignals(this.data, adjacentWeek(week.start, -1), week.scope) : null);
+    const followup = previous ? compareFocus(previous.baseline, focusBaseline(this.data, previous.start, week.scope, previous.metric)) : null;
+    this.focusId = id;
+    return `<section class="weekly-focus" aria-labelledby="weekly-focus-title"><header><p class="section-eyebrow">BIR HAFTA / BIR VAZIFA</p><h3 id="weekly-focus-title">Bu haftaning fokusi</h3><p>${week.start} — ${week.end} · ${esc(scopeName(week.scope))} · faqat Ranked</p></header>
+      ${signals ? `<dl class="weekly-focus-signals"><div><dt>Ijobiy signal</dt><dd>${this.focusSignal(signals.positive)}</dd></div><div><dt>Ko‘rib chiqish nuqtasi</dt><dd>${this.focusSignal(signals.review)}</dd></div></dl><p class="progress-note">Oldingi ikki hafta kuzatuvi. Bir xil o‘yinchi, hero, layn va tarkib hajmi; har haftada kamida 5 matchli guruhlar. Guruhlar teng vaznda. Raqib va sharoit tenglashtirilmagan — bu sabab yoki isbotlangan o‘sish emas.</p>` : ''}
+      ${editable ? `<label for="weekly-focus-task">Captain vazifasi</label><textarea id="weekly-focus-task" class="form-input" maxlength="280" rows="3" placeholder="Masalan: har matchdan keyin bitta o‘lim vaziyatini VOD orqali birga ko‘rib chiqish.">${esc(draft.task)}</textarea>
+      <div class="weekly-focus-actions"><label>Keyingi tekshiruv metrikasi<select id="weekly-focus-metric" class="form-select">${this.options(Object.entries(FOCUS_METRICS), draft.metric)}</select></label>${button('save-focus', saved ? 'Fokusni yangilash' : 'Fokusni jamoaga saqlash')}</div><p class="progress-note">Saqlangach jamoa darhol ko‘radi; Weekly publish’dan alohida. Asos — vazifadan oldingi hafta. Keyingi haftada vazifa haftasi bilan solishtiriladi. Yetarli sample bo‘lmasa baho qo‘yilmaydi.</p>` : saved ? `<h4>Captain vazifasi</h4><p class="weekly-focus-task">${esc(saved.task)}</p><p>Kuzatiladi: ${esc(FOCUS_METRICS[saved.metric])}</p>` : '<p>Captain bu hafta uchun hali vazifa belgilamagan.</p>'}
+      ${previous ? `<aside class="weekly-focus-followup"><h4>Oldingi fokusga qaytish · ${previous.start}</h4><p>${esc(previous.task)}</p><p>${followup ? this.focusSignal(followup) : 'Taqqoslash uchun har ikki haftada kamida 5 ta mos matchli guruh topilmadi. Bu vazifa bajarilmadi degani emas.'}</p><small>Oldingi asos saqlangan snapshot; vazifa haftasi joriy bazadan. Natija vazifaning ta’sirini isbotlamaydi.</small></aside>` : ''}
+      <p class="weekly-focus-status" role="status" aria-live="polite">${this.focusDrafts.has(id) ? 'Saqlanmagan qoralama · shu sessiyada saqlanadi.' : saved ? 'Jamoaga saqlangan.' : ''}</p></section>`;
+  }
+  qualityMarkup() {
+    if (!this.app.authManager.isAdmin()) return '';
+    const q = this.scanQuality;
+    if (!q || q.unavailable) return '<details class="progress-archive"><summary>AI foydalanish kuzatuvi</summary><p>O‘lchov yuklanmadi. Yangilash orqali qayta urinishingiz mumkin; matchlar ishlashiga ta’sir qilmaydi.</p></details>';
+    return `<details class="progress-archive scan-quality"><summary>AI foydalanish kuzatuvi · ${q.pilot.count}/30 yuborish</summary>
+      <p>Bu aniqlik testi emas. Tuzatishsiz yuborilgan natija ham xato bo‘lishi mumkin. Faqat yangi, ushbu sessiyada skan qilingan yuborishlar o‘lchanadi; eski matchlar qo‘shilmaydi.</p>
+      <dl><div><dt>Oxirgi 30 kuzatilgan yuborish</dt><dd>${q.pilot.unchanged} tuzatishsiz / ${q.pilot.count} jami</dd></div><div><dt>Skan vaqti medianasi</dt><dd>${fmt(q.medianMs === null ? null : q.medianMs / 1000)} soniya</dd></div><div><dt>Saqlangan urinishlar</dt><dd>${q.attempts} jami · ${q.failed} xato · ${q.cancelled} bekor qilingan</dd></div></dl>
+      <p>Ko‘p to‘ldirilgan yoki o‘zgartirilgan maydonlar: ${q.pilot.fields.map(([field, n]) => `${esc(field)} (${n})`).join(' · ') || 'Hali yo‘q'}.</p>
+      <p class="progress-note">Skan vaqti rasm tayyorlash, AI va hero tekshiruvini qamraydi; fayl tanlash vaqtini emas. Sana, match turi, izoh va yuboruvchi kirmaydi. Faqat maydon nomlari va vaqt saqlanadi, rasmlar va qiymatlar saqlanmaydi. Oxirgi 300 urinish; ${q.pruned} eskisi chiqarilgan. Oflayn yoki sahifa yopilgan urinishlar yetib kelmasligi mumkin.</p></details>`;
   }
   metricTable(left, right, labels) {
     return `<div class="progress-table-wrap"><table><caption>Ma’lum qiymatlar bo‘yicha o‘rtacha · n = metrika mavjud matchlar</caption><thead><tr><th>Metrika</th><th>${labels[0]}</th><th>${labels[1]}</th><th>Farq</th></tr></thead><tbody>${Object.entries(METRICS).map(([key, label]) => {
@@ -116,6 +152,12 @@ export class ProgressHub {
       }).join('') || '<div class="progress-empty"><h3>Hozircha correction yo‘q.</h3><p>Yangi tahrir va o‘chirishlar shu yerdan tiklanadi.</p></div>'}`;
   }
   bind() {
+    const rememberFocus = () => {
+      this.focusDrafts.set(this.focusId, { task: this.container.querySelector('#weekly-focus-task').value, metric: this.container.querySelector('#weekly-focus-metric').value });
+      this.container.querySelector('.weekly-focus-status').textContent = 'Saqlanmagan qoralama · shu sessiyada saqlanadi.';
+    };
+    this.container.querySelector('#weekly-focus-task')?.addEventListener('input', rememberFocus);
+    this.container.querySelector('#weekly-focus-metric')?.addEventListener('change', rememberFocus);
     this.container.querySelectorAll('[data-progress-tab]').forEach(b => b.onclick = () => { this.tab = b.dataset.progressTab; this.draw(); });
     this.container.querySelectorAll('[data-progress-filter]').forEach(el => el.onchange = () => { if (el.value || el.dataset.progressFilter !== 'date') this[el.dataset.progressFilter] = el.value; this.draw(); });
     this.container.querySelectorAll('[data-report]').forEach(el => el.onclick = () => { const report = this.reports.find(r => r.id === el.dataset.report); this.date = report.start; this.scope = report.scope; this.draw(); });
@@ -135,7 +177,16 @@ export class ProgressHub {
     }
     if (!this.app.authManager.isAdmin()) throw new Error('Faqat Captain uchun.');
     if (this.app.cloudSync.getStatus().pending || this.app.cloudSync.getStatus().syncing) throw new Error('Avval mahalliy o‘zgarishlarni cloudga saqlang.');
-    if (action.startsWith('undo-')) {
+    if (action === 'save-focus') {
+      const id = this.focusId, task = this.container.querySelector('#weekly-focus-task').value.trim(), metric = this.container.querySelector('#weekly-focus-metric').value;
+      if (!task) throw new Error('Avval bitta aniq vazifa yozing.');
+      this.container.querySelector('.weekly-focus-status').textContent = 'Saqlanmoqda…';
+      try { await this.request('', { action: 'save_weekly_focus', date: this.date, scope: this.scope, task, metric, expectedRevision: this.data.revision, expectedFocusRevision: this.focusRevision }); }
+      catch (error) { const status = this.container.querySelector('.weekly-focus-status'); if (status) status.textContent = 'Saqlanmadi. Qoralamangiz saqlanib turibdi.'; throw error; }
+      const currentDraft = this.focusDrafts.get(id);
+      // The user may keep typing or change tabs while the request is in flight.
+      if (!currentDraft || currentDraft.task.trim() === task && currentDraft.metric === metric) this.focusDrafts.delete(id);
+    } else if (action.startsWith('undo-')) {
       if (!confirm('Oldingi match holati tiklansinmi? Ushbu amal ham tarixga yoziladi.')) return;
       await this.request('', { action: 'undo_match', id: action.slice(5), expectedRevision: this.history.revision });
       await this.app.cloudSync.syncDown();

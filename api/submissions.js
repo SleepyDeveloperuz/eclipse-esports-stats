@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { isProgressRequest, progressRequest } from '../lib/progress-api.js';
+import { QUALITY_FILE, qualityEvent, readQuality, recordQuality } from '../lib/scan-quality.js';
 import { cleanBattleId } from '../js/batch-model.js';
 import { createSessionSecurity } from '../lib/session-security.js';
 import { readTeamFiles, writeTeamFiles, withTeamTransaction } from '../lib/team-store.js';
@@ -597,7 +598,15 @@ async function createSubmission(req, identity) {
     createdAt: existingSubmission?.createdAt || now,
     updatedAt: now
   }, filename);
-  await writeFiles({ [filename]: { content: JSON.stringify(record, null, 2) } });
+  const additions = { [filename]: { content: JSON.stringify(record, null, 2) } };
+  if (rawBody.source === 'ocr' && rawBody.scanQuality) {
+    try {
+      const files = await readTeamFiles(), ledger = readQuality(files);
+      const next = recordQuality(ledger, rawBody.scanQuality, submitterHash, { submitted: true });
+      if (next !== ledger) additions[QUALITY_FILE] = { content: JSON.stringify(next) };
+    } catch (_) { /* Optional telemetry must not block a valid match. */ }
+  }
+  await writeFiles(additions);
   return record;
 }
 
@@ -711,6 +720,19 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const identity = await requireAccess(req, res);
       if (!identity) return;
+      if (req.body?.action === 'scan_quality') {
+        if (Buffer.byteLength(JSON.stringify(req.body)) > 4096) return res.status(413).json({ error: 'So‘rov juda katta.' });
+        const event = qualityEvent(req.body.event);
+        if (!event) return res.status(400).json({ error: 'Skan o‘lchovi noto‘g‘ri.' });
+        const rate = await security.checkAction(req, identity, 'scan_quality', 60, 3600000);
+        if (rate.limited) { res.setHeader('Retry-After', String(rate.retryAfter)); return res.status(429).json({ error: 'Kuzatuv chegarasi.' }); }
+        await queueMutation(async () => {
+          const files = await readTeamFiles(), ledger = readQuality(files);
+          const next = recordQuality(ledger, event, identityHash(identity));
+          if (next !== ledger) await writeFiles({ [QUALITY_FILE]: { content: JSON.stringify(next) } });
+        });
+        return res.status(200).json({ success: true });
+      }
       const rate = await security.checkAction(req, identity, 'submission', SUBMISSION_RATE_LIMIT, SUBMISSION_RATE_WINDOW_MS);
       if (rate.limited) { res.setHeader('Retry-After', String(rate.retryAfter)); return res.status(429).json({ code: 'RATE_LIMITED', error: 'Juda ko‘p submission yuborildi. Keyinroq urinib ko‘ring.' }); }
       if (req.body?.action === 'save') {

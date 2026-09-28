@@ -26,8 +26,15 @@ test('Real submission router rejects anonymous history and viewer publish/Undo b
     const call = async (method, query, body, token) => { const res = response(); await repo.transaction(() => handler({ method, query, body, headers: token ? { authorization: `Bearer ${token}` } : {}, socket: {} }, res)); return res; };
     assert.equal((await call('GET', { feature: 'history' }, null, '')).statusCode, 401);
     assert.equal((await call('GET', { feature: 'history' }, null, login.body.token)).statusCode, 403);
+    assert.equal((await call('GET', { feature: 'scan_quality' }, null, login.body.token)).statusCode, 403);
+    assert.equal((await call('POST', {}, { action: 'scan_quality' }, '')).statusCode, 401);
     assert.equal((await call('GET', { feature: 'weekly' }, null, login.body.token)).statusCode, 200);
-    for (const action of ['publish_weekly', 'unpublish_weekly', 'undo_match']) assert.equal((await call('PATCH', {}, { action }, login.body.token)).statusCode, 403);
+    for (const action of ['publish_weekly', 'unpublish_weekly', 'undo_match', 'save_weekly_focus']) assert.equal((await call('PATCH', {}, { action }, login.body.token)).statusCode, 403);
     assert.deepEqual(Object.keys(await repo.files()), ['eclipse_data.json']);
+    const event = { id: 'fixture_quality_auth_001', outcome: 'ready', elapsedMs: 1000, submittedAt: 'forged', player: 'Secret' };
+    assert.equal((await call('POST', {}, { action: 'scan_quality', event }, login.body.token)).statusCode, 200);
+    assert.equal((await call('POST', {}, { action: 'scan_quality', event }, login.body.token)).statusCode, 200);
+    const ledger = JSON.parse((await repo.files())['eclipse_scan_quality.json'].content);
+    assert.equal(ledger.entries.length, 1); assert.equal(ledger.entries[0].submittedAt, undefined); assert.equal(ledger.entries[0].player, undefined);
   } finally { globalThis.fetch = oldFetch; }
 });

@@ -41,6 +41,37 @@ window.SubmissionManager = class SubmissionManager {
       .replaceAll("'", '&#039;');
   }
 
+  static scanSnapshot(raw) {
+    // Private, in-memory comparison only. These values never leave the device.
+    const normalize = value => value === '' || value === undefined || value === null ? null
+      : Array.isArray(value) ? value.map(normalize) : typeof value === 'string' && /^\d+(\.\d+)?$/.test(value.trim()) ? Number(value) : value;
+    const result = { Natija: normalize(raw.result), Davomiylik: normalize(raw.fields?.practiceDuration), Qatnashchilar: [raw.playerStats?.length || 0, raw.guestStats?.length || 0] };
+    const categories = { 'O‘yinchi': ['playerId'], Hero: ['heroUsed'], Layn: ['rolePlayed'], 'K/D/A': ['kills', 'deaths', 'assists'], Medal: ['medal'], Rating: ['inGameScore'], Damage: ['damageDealt', 'damageTaken', 'turretDamage'], Gold: ['goldEarned'], Teamfight: ['teamfightParticipation'], Highlights: ['savage', 'maniac', 'afk', 'highlightNotes', 'highlightOverflow'] };
+    for (const [category, fields] of Object.entries(categories)) result[category] = [raw.playerStats || [], raw.guestStats || []].map(rows => rows.map(row => fields.map(field => normalize(row[field]))));
+    result['Team metrics'] = Object.fromEntries(Object.entries(raw.team || {}).filter(([key]) => key !== 'sessionLabel').sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => [key, normalize(value)]));
+    return result;
+  }
+
+  scanQualityPayload(raw) {
+    const attempt = this._scanQuality;
+    if (!attempt?.baseline || attempt.generation !== this._ocrGeneration || this.editingMatch || this.editingSubmission) return null;
+    const snapshot = window.SubmissionManager.scanSnapshot(raw);
+    return { id: attempt.id, outcome: attempt.outcome, elapsedMs: attempt.elapsedMs, baseline: true,
+      changedFields: Object.keys(snapshot).filter(key => JSON.stringify(snapshot[key]) !== JSON.stringify(attempt.baseline[key])) };
+  }
+
+  reportScanQuality(attempt) {
+    // Best effort and bounded. Metrics may never interrupt a scan, open a login
+    // dialog, replay a match, or send the private comparison snapshot.
+    const token = this.auth.getAccessToken();
+    if (!token || !attempt?.id) return;
+    const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 5000);
+    Promise.resolve().then(() => fetch(this.endpoint, { method: 'POST', cache: 'no-store', signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action: 'scan_quality', event: { id: attempt.id, outcome: attempt.outcome, elapsedMs: attempt.elapsedMs } })
+    })).catch(() => {}).finally(() => clearTimeout(timeout));
+  }
+
   async request(method = 'GET', body = null) {
     const headers = {};
     if (body) headers['Content-Type'] = 'application/json';
@@ -123,6 +154,7 @@ window.SubmissionManager = class SubmissionManager {
 
   renderState() {
     if (!this.container) return;
+    this._scanQuality = null;
     const counts = this.data.counts || {};
     const isAdmin = this.auth.isAdmin();
     this.container.innerHTML = `
@@ -179,7 +211,7 @@ window.SubmissionManager = class SubmissionManager {
           ${this.dropzoneMarkup(0, 'Scoreboard', '1–2 rasm yuklang · avtomatik o‘qiladi', true)}
           ${this.dropzoneMarkup(1, 'Damage', 'Batafsil statistika · ixtiyoriy', false)}
         </div>
-        <p class="submission-privacy"><i class="fa-solid fa-shield-halved"></i> Skrinshotlar saytda saqlanmaydi. Natija, raqamlar va qahramonlar avtomatik to‘ldiriladi; faqat kerak bo‘lsa tuzating.</p>
+        <p class="submission-privacy"><i class="fa-solid fa-shield-halved"></i> Skrinshotlar saytda saqlanmaydi. Natija, raqamlar va qahramonlar avtomatik to‘ldiriladi; faqat kerak bo‘lsa tuzating. Skan vaqti va tuzatilgan maydon nomlari Captain uchun kuzatiladi — bu kuzatuvga rasm va qiymatlar kirmaydi.</p>
         <button type="button" class="btn btn-secondary submission-scan-btn" id="practiceScanBtn" disabled>
           <i class="fa-solid fa-wand-magic-sparkles"></i> Qayta o‘qish
         </button>
@@ -505,6 +537,7 @@ window.SubmissionManager = class SubmissionManager {
   }
 
   invalidateOcrWork() {
+    this._scanQuality = null;
     this.cancelScheduledImageScan();
     this.setScanStage('');
     this.setScanDetailsOpen?.(true);
@@ -567,6 +600,8 @@ window.SubmissionManager = class SubmissionManager {
     const controller = this._ocrController = new AbortController();
     const form = this.container?.querySelector('#practiceSubmissionForm');
     if (!form) return;
+    const quality = typeof this.rawDraft === 'function' && globalThis.crypto?.randomUUID
+      ? { id: crypto.randomUUID(), generation: this._ocrGeneration, started: performance.now(), outcome: 'cancelled' } : null;
     const page = form.closest('.page-section');
     const context = { generation: this._ocrGeneration, form, container: this.container, slots: [...this.images], images, signal: controller.signal, page: page?.classList.contains('active') ? page : null };
     const current = () => this.isOcrContextCurrent(context);
@@ -577,6 +612,7 @@ window.SubmissionManager = class SubmissionManager {
     } catch (_) { /* A missing catalog must not stop numeric extraction. */ }
     let awaitingProvider = true;
     const preserveEdit = () => {
+      if (quality && !awaitingProvider && current()) quality.hadMidScanEdit = true;
       if (!awaitingProvider || !current()) return;
       controller.abort();
       this.setScanStage('read', 'error');
@@ -628,6 +664,11 @@ window.SubmissionManager = class SubmissionManager {
       await this.applyOcrData(payload.data, context);
       if (!current()) return;
       const ready = this.refreshScanSummary?.({ collapse: true });
+      if (quality) {
+        quality.outcome = ready ? 'ready' : 'review';
+        quality.baseline = quality.hadMidScanEdit ? null : window.SubmissionManager.scanSnapshot(this.rawDraft());
+        this._scanQuality = quality;
+      }
       this.setScanStage('ready', ready ? 'done' : 'review');
       if (status) status.innerHTML = ready
         ? `<span class="is-success"><i class="fa-solid fa-circle-check"></i> Yuborishga tayyor. Faqat kerak bo‘lsa tahrirlang.${this.ocrExcludedRows ? ` ${this.ocrExcludedRows} ta guest yoki aniqlanmagan qator olinmadi.` : ''}</span>`
@@ -635,6 +676,7 @@ window.SubmissionManager = class SubmissionManager {
       this.renderOcrMeta(status, this.ocrMeta);
     } catch (error) {
       if (!current()) return;
+      if (quality) quality.outcome = 'error';
       this.setScanStage(this._scanStage || 'read', 'error');
       if (status) {
         status.innerHTML = `<span class="is-error"><i class="fa-solid fa-triangle-exclamation"></i> ${this.escape(error.message)}</span><p>Rasmlar va kiritgan ma’lumotlaringiz shu sahifada saqlandi. Aloqani tekshiring va qayta urining; sahifani yangilash shart emas.</p><button type="button" class="btn btn-secondary" data-scan-retry>Qayta urinish</button>`;
@@ -643,6 +685,7 @@ window.SubmissionManager = class SubmissionManager {
       this.renderOcrMeta(status, this.ocrMeta);
       window.showToast?.(error.message, 'error');
     } finally {
+      if (quality) { quality.elapsedMs = Math.min(600000, Math.max(0, Math.round(performance.now() - quality.started))); this.reportScanQuality(quality); }
       awaitingProvider = false;
       form.removeEventListener('input', preserveEdit);
       form.removeEventListener('change', preserveEdit);

@@ -4,11 +4,21 @@ import { createHash } from 'node:crypto';
 import { createMemoryStore } from '../lib/mlbb/store.js';
 import { restoreTeamBackup, validateBackup } from '../lib/team-restore.js';
 import { readExistingTeamSnapshot } from '../lib/team-store.js';
+import { recordQuality, readQuality } from '../lib/scan-quality.js';
 
 const gistId = 'restore-fixture';
 const key = `eclipse:team:v1:${createHash('sha256').update(gistId).digest('hex').slice(0, 24)}`;
 const state = (revision, matches = []) => ({ _storageRevision: revision, files: { 'eclipse_data.json': { content: JSON.stringify({ revision, players: [{ id: 'p1' }], matches }) }, 'eclipse_briefing.json': { content: '{"polls":[]}' } } });
 const backup = { format: 'eclipse-team-backup-v1', key, state: state(3, [{ id: 'old-match' }]) };
+test('Backup accepts bounded scan telemetry and weekly focuses without dropping them', () => {
+  const candidate = structuredClone(backup);
+  const ledger = recordQuality(readQuality({}), { id: 'fixture_restore_scan_001', outcome: 'ready', elapsedMs: 1200 }, 'a'.repeat(64));
+  candidate.state.files['eclipse_scan_quality.json'] = { content: JSON.stringify(ledger) };
+  candidate.state.files['eclipse_weekly.json'] = { content: JSON.stringify({ reports: [], focuses: [{ id: '2026-09-28_squad', task: 'Review a death', baseline: { cohorts: [] } }], focusRevision: 1 }) };
+  assert.deepEqual(validateBackup(candidate, gistId).state.files, candidate.state.files);
+  candidate.state.files['eclipse_scan_quality.json'].content = JSON.stringify({ ...ledger, entries: [{ ...ledger.entries[0], owner: 'bad' }] });
+  assert.throws(() => validateBackup(candidate, gistId), /kuzatuvi/);
+});
 
 test('restore defaults to read-only and rejects wrong namespace, revisions and malformed files', async () => {
   const store = createMemoryStore({ [key]: state(10) });
