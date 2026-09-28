@@ -67,7 +67,7 @@ export function weeklyReport(data, date, scope) {
   matches.forEach(m => m.playerStats.forEach(r => { if (r.heroUsed) heroes.set(r.heroUsed, (heroes.get(r.heroUsed) || 0) + 1); }));
   const players = (data.players || []).map(p => {
     const rows = observations(matches, { playerId: p.id });
-    return { id: p.id, name: p.name, ...summarize(rows), mvps: rows.filter(o => o.row.medal === 'mvp').length };
+    return { id: p.id, name: p.name, ...summarize(rows), mvps: rows.filter(o => ['mvp', 'supreme_mvp'].includes(o.row.medal)).length };
   }).filter(p => p.count).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   return { ...range, scope, count: matches.length, wins, losses: matches.length - wins,
     winRate: matches.length ? wins * 100 / matches.length : null, players,
@@ -88,7 +88,7 @@ export function moments(rows) {
       selected.set(o.match.id, entry);
     }
   }
-  for (const o of rows.filter(o => o.row.medal === 'mvp').slice(-5)) {
+  for (const o of rows.filter(o => ['mvp', 'supreme_mvp'].includes(o.row.medal)).slice(-5)) {
     const entry = selected.get(o.match.id) || { ...o, reasons: [] };
     if (!entry.reasons.includes('MVP')) entry.reasons.push('MVP');
     selected.set(o.match.id, entry);

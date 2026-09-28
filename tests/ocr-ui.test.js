@@ -39,6 +39,17 @@ function uploads(w) {
   w.clearTimeout = id => timers.delete(id);
   return { readers, flush() { const pending = [...timers.values()]; timers.clear(); pending.forEach(fn => fn()); } };
 }
+
+domTest('Supreme and highlight evidence survive screenshot autofill and form collection', async () => {
+ const {w,desk}=setup();
+ try {
+  await desk.applyOcrData({result:'win',players:[player(1,'p1',{medal:'supreme_mvp',afk:false,highlightNotes:['purple shield','4'],highlightOverflow:5})]});
+  const row=desk.collectDraft().draft.playerStats[0];
+  assert.equal(row.medal,'supreme_mvp');assert.equal(row.afk,false);
+  assert.deepEqual(Array.from(row.highlightNotes),['purple shield','4']);assert.equal(row.highlightOverflow,5);
+  assert.notEqual(row.savage,true);assert.notEqual(row.maniac,true);
+ } finally {w.close();}
+});
 const screenshot = name => ({ name, type: 'image/png', size: 1024 });
 const finishRead = (reader, name) => reader.onload({ target: { result: `data:image/png;base64,${name}` } });
 

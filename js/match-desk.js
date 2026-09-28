@@ -42,6 +42,9 @@
       return `<details class="match-extra"><summary>Batafsil statistika <small>Ixtiyoriy tahrir</small></summary><div class="match-metrics">
         ${Object.entries(metrics).map(([field, [label, max]]) => `<label><span>${label}</span><input class="form-input" data-field="${field}" type="number" min="0" max="${max}" step="1" value="${this.escape(values[field] ?? '')}"></label>`).join('')}
         ${['savage', 'maniac'].map(field => `<label><span>${field === 'savage' ? 'Savage' : 'Maniac'}</span><select class="form-select" data-field="${field}"><option value="">Noma’lum</option><option value="true" ${values[field] === true ? 'selected' : ''}>Ha</option><option value="false" ${values[field] === false ? 'selected' : ''}>Yo‘q</option></select></label>`).join('')}
+        <label><span>AFK belgisi</span><select class="form-select" data-field="afk"><option value="">Noma’lum</option><option value="true" ${values.afk === true ? 'selected' : ''}>Ko‘rinadi</option><option value="false" ${values.afk === false ? 'selected' : ''}>Yo‘q</option></select></label>
+        <label><span>Highlight belgilari — kuzatuv, rasmiy nom emas</span><textarea class="form-input" data-field="highlightNotes" maxlength="640" placeholder="Har bir kuzatuv yangi qatorda">${this.escape((Array.isArray(values.highlightNotes) ? values.highlightNotes : []).join('\n'))}</textarea></label>
+        <label><span>Yashirilgan belgilar (+N)</span><input class="form-input" data-field="highlightOverflow" type="number" min="0" max="20" step="1" value="${this.escape(values.highlightOverflow ?? '')}"></label>
       </div></details>`;
     }
 
@@ -305,7 +308,7 @@
       row.dataset.guestId = values.guestId || `guest_${window.crypto?.randomUUID?.() || Date.now()}`;
       row.innerHTML = `<div class="match-metrics">${[['name', 'Guest ismi'], ['heroUsed', 'Qahramon'], ['rolePlayed', 'Rol']].map(([field, label]) => `<label><span>${label}</span>${field === 'rolePlayed' ? `<select class="form-select" data-field="rolePlayed">${['', 'EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'].map(role => `<option ${values.rolePlayed === role ? 'selected' : ''}>${role}</option>`).join('')}</select>` : `<input class="form-input" data-field="${field}" value="${this.escape(values[field] || '')}" ${field === 'heroUsed' ? 'list="guestHeroOptions"' : ''}>`}</label>`).join('')}
         ${['kills', 'deaths', 'assists', 'inGameScore'].map(field => `<label><span>${({ kills: 'K', deaths: 'D', assists: 'A', inGameScore: 'Baho' })[field]}</span><input class="form-input" data-field="${field}" type="number" min="0" step="${field === 'inGameScore' ? '0.1' : '1'}" value="${this.escape(values[field] ?? '')}"></label>`).join('')}
-        <label><span>Medal</span><select class="form-select" data-field="medal">${['', 'mvp', 'gold', 'silver', 'bronze'].map(m => `<option ${values.medal === m ? 'selected' : ''}>${m}</option>`).join('')}</select></label></div>${this.metricMarkup(values)}<button type="button" class="btn btn-sm btn-secondary" data-remove-guest>Guestni olib tashlash</button>`;
+        <label><span>Medal</span><select class="form-select" data-field="medal">${['', 'supreme_mvp', 'mvp', 'supreme', 'gold', 'silver', 'bronze'].map(m => `<option value="${m}" ${values.medal === m ? 'selected' : ''}>${m.replace('_', ' ').toUpperCase()}</option>`).join('')}</select></label></div>${this.metricMarkup(values)}<button type="button" class="btn btn-sm btn-secondary" data-remove-guest>Guestni olib tashlash</button>`;
       row.querySelector('[data-remove-guest]').onclick = () => { row.remove(); this.saveDraft(); };
       form.querySelector('#practiceGuestRows').append(row);
     }
@@ -380,7 +383,10 @@
     }
     rawDraft() {
       const form = this.container.querySelector('#practiceSubmissionForm');
-      const read = row => Object.fromEntries([...row.querySelectorAll('[data-field]')].map(el => [el.dataset.field, ['savage', 'maniac'].includes(el.dataset.field) ? (el.value === '' ? null : el.value === 'true') : el.value]));
+      const read = row => Object.fromEntries([...row.querySelectorAll('[data-field]')].map(el => [el.dataset.field,
+        ['savage', 'maniac', 'afk'].includes(el.dataset.field) ? (el.value === '' ? null : el.value === 'true')
+        : el.dataset.field === 'highlightNotes' ? el.value.split('\n').map(value => value.trim().slice(0,80)).filter(Boolean).slice(0,8)
+        : el.dataset.field === 'highlightOverflow' ? (el.value === '' ? null : Number(el.value)) : el.value]));
       return { version: 1, savedAt: new Date().toISOString(), fields: Object.fromEntries([...form.querySelectorAll('[id].form-input, [id].form-select')].filter(el => !el.multiple).map(el => [el.id, el.value])),
         team: Object.fromEntries([...form.querySelectorAll('[data-team-field]')].map(el => [el.dataset.teamField, el.value])), result: form.querySelector('[name="practice-result"]:checked')?.value || '',
         playerStats: [...form.querySelectorAll('.submission-player-row')].map(row => ({ ...read(row), heroSource: row.dataset.heroSource, medalSource: row.dataset.medalSource, roleSource: row.dataset.roleSource })),
@@ -419,7 +425,7 @@
       try { draft = super.collectDraft().draft; } catch (_) {}
       const ready = !!draft && !!draft.date && !!draft.matchType && draft.playerStats.every(player => player.heroResolution === 'canonical')
         && [...form.querySelectorAll('input, select, textarea')].every(input => input.validity.valid)
-        && [...form.querySelectorAll('[data-field="medal"]')].filter(input => input.value === 'mvp').length <= 1;
+        && [...form.querySelectorAll('[data-field="medal"]')].filter(input => ['mvp', 'supreme_mvp'].includes(input.value)).length <= 1;
       let summary = form.querySelector('[data-scan-summary]');
       if (!ready) {
         if (summary) { this.setScanDetailsOpen(true); summary.remove(); }
@@ -544,10 +550,10 @@
         form.querySelectorAll('input, select, textarea').forEach(input => { if (!input.validity.valid) input.closest('details')?.setAttribute('open', ''); });
         form.reportValidity(); throw new Error('Belgilangan maydonlarni tekshiring.');
       }
-      if ([...form.querySelectorAll('[data-field="medal"]')].filter(input => input.value === 'mvp').length > 1) { this.setScanDetailsOpen(true); throw new Error('Bitta jamoada faqat bitta MVP bo‘lishi mumkin. Medallarni tekshiring.'); }
+      if ([...form.querySelectorAll('[data-field="medal"]')].filter(input => ['mvp', 'supreme_mvp'].includes(input.value)).length > 1) { this.setScanDetailsOpen(true); throw new Error('Bitta jamoada faqat bitta MVP bo‘lishi mumkin. Medallarni tekshiring.'); }
       const result = super.collectDraft(); const raw = this.rawDraft();
       result.draft = { ...result.draft, ...raw.team, entryMode: 'full', guestStats: raw.guestStats, substitutes: raw.substitutes,
-        playerStats: result.draft.playerStats.map((row, i) => ({ ...row, ...Object.fromEntries([...Object.keys(metrics), 'savage', 'maniac'].map(field => [field, raw.playerStats[i][field] ?? null])) })) };
+        playerStats: result.draft.playerStats.map((row, i) => ({ ...row, ...Object.fromEntries([...Object.keys(metrics), 'savage', 'maniac', 'afk', 'highlightNotes', 'highlightOverflow'].map(field => [field, raw.playerStats[i][field] ?? null])) })) };
       return result;
     }
 

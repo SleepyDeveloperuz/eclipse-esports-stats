@@ -12,6 +12,7 @@ import {
   verifySession
 } from './auth.js';
 import { normalisePayload } from './sync.js';
+import { normaliseAwardEvidence } from '../lib/match-awards.js';
 
 const GIST_ID = process.env.GIST_ID;
 const SESSION_SECRET = process.env.SESSION_SECRET;
@@ -22,7 +23,7 @@ const SUBMISSION_SOURCES = new Set(['manual', 'ocr']);
 const MATCH_TYPES = new Set(['ranked', 'scrim', 'tournament', 'casual']);
 const MATCH_RESULTS = new Set(['win', 'loss']);
 const ROLES = new Set(['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer']);
-const MEDALS = new Set(['mvp', 'gold', 'silver', 'bronze']);
+const MEDALS = new Set(['mvp', 'supreme_mvp', 'supreme', 'gold', 'silver', 'bronze']);
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_PENDING_PER_IDENTITY = 10;
 const MAX_PENDING_TOTAL = 100;
@@ -96,7 +97,7 @@ function extendedStats(row = {}, strict = false) {
   }
   output.savage = typeof row.savage === 'boolean' ? row.savage : null;
   output.maniac = typeof row.maniac === 'boolean' ? row.maniac : null;
-  return output;
+  return { ...output, ...normaliseAwardEvidence(row) };
 }
 
 function fullDraftFields(source, strict = false) {
@@ -106,6 +107,7 @@ function fullDraftFields(source, strict = false) {
     guestStats: (Array.isArray(source.guestStats) ? source.guestStats : []).map((row, index) => ({
       guestId: cleanId(row.guestId) || `guest_${index + 1}`, name: cleanText(row.name, 80),
       heroUsed: cleanText(row.heroUsed, 80), rolePlayed: ROLES.has(row.rolePlayed) ? row.rolePlayed : '',
+      roleSource: ROLES.has(row.rolePlayed) ? (['manual', 'ocr', 'inferred', 'legacy', 'roster'].includes(row.roleSource) ? row.roleSource : 'legacy') : 'unknown',
       kills: nullableNumber(row.kills, { max: 200, integer: true }), deaths: nullableNumber(row.deaths, { max: 200, integer: true }),
       assists: nullableNumber(row.assists, { max: 500, integer: true }), inGameScore: nullableNumber(row.inGameScore, { max: 20 }),
       medal: MEDALS.has(row.medal) ? row.medal : null, ...extendedStats(row, strict)
@@ -249,7 +251,7 @@ export function normalisePracticeDraft(raw, officialData = {}, options = {}) {
     if (fullFields.guestStats.length + rows.length > 5) fail('Guestlar bilan birga ko‘pi bilan 5 qatnashchi bo‘lishi mumkin');
     if (new Set(fullFields.guestStats.map(guest => guest.guestId)).size !== fullFields.guestStats.length) fail('Guest ID takrorlangan');
     for (const guest of fullFields.guestStats) {
-      if (!guest.name || !heroByKey.has(guest.heroUsed.toLocaleLowerCase('en-US')) || !guest.rolePlayed || [guest.kills, guest.deaths, guest.assists].includes(null)) fail('Guest uchun ism, qahramon, rol va K/D/A kerak');
+      if (!guest.name || !heroByKey.has(guest.heroUsed.toLocaleLowerCase('en-US')) || [guest.kills, guest.deaths, guest.assists].includes(null)) fail('Guest uchun ism, qahramon va K/D/A kerak');
     }
     if (fullFields.substitutes.some(id => !rosterById.has(id) || seenPlayers.has(id))) fail('Zaxira o‘yinchisi rosterda bo‘lishi va matchda qatnashmagan bo‘lishi kerak');
   }

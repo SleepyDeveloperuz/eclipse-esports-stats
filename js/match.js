@@ -176,7 +176,7 @@ window.MatchManager = class MatchManager {
     const disabled = active ? '' : 'disabled';
     const value = (key, fallback = '') => this.escape(guest?.[key] ?? fallback);
     return `
-      <div class="guest-stat-row ${active ? '' : 'benched'}" data-guest-index="${index}" style="background:rgba(var(--secondary-rgb),0.035); border:1px dashed rgba(var(--secondary-rgb),0.28); border-radius:10px; padding:1.1rem;">
+      <div class="guest-stat-row ${active ? '' : 'benched'}" data-award-evidence="${this.escape(JSON.stringify(this.db.normalizeAwardEvidence(guest || {})))}" data-guest-index="${index}" style="background:rgba(var(--secondary-rgb),0.035); border:1px dashed rgba(var(--secondary-rgb),0.28); border-radius:10px; padding:1.1rem;">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
           <div><strong style="color:var(--secondary);"><i class="fa-solid fa-user-tag"></i> Guest slot ${index + 1}</strong><small style="display:block; color:var(--text-muted);">Rosterga qo‘shilmagan o‘yinchi</small></div>
           <label style="display:flex; align-items:center; gap:0.45rem; cursor:pointer; color:var(--text-secondary);"><input type="checkbox" class="guest-active form-checkbox" ${active ? 'checked' : ''}> Ishlatish</label>
@@ -196,7 +196,7 @@ window.MatchManager = class MatchManager {
             <div class="form-group" style="margin:0;"><label for="guest-teamfight-${index}" class="form-label" style="font-size:0.75rem;">Jamoaviy jang (%)</label><input id="guest-teamfight-${index}" type="number" min="0" max="100" class="stat-tf form-input" value="${value('teamfightParticipation')}" ${disabled}></div>
             <div class="form-group" style="margin:0;"><label for="guest-gold-${index}" class="form-label" style="font-size:0.75rem;">Olingan gold</label><input id="guest-gold-${index}" type="number" min="0" class="stat-gold form-input" value="${value('goldEarned')}" ${disabled}></div>
           </div>
-          <div class="form-group" style="margin:0;"><label for="guest-medal-${index}" class="form-label" style="font-size:0.75rem;">Medal</label><select id="guest-medal-${index}" class="stat-medal form-select" ${disabled}><option value="none">Yo‘q</option>${['mvp','gold','silver','bronze'].map(medal => `<option value="${medal}" ${guest?.medal === medal ? 'selected' : ''}>${medal.toUpperCase()}</option>`).join('')}</select></div>
+          <div class="form-group" style="margin:0;"><label for="guest-medal-${index}" class="form-label" style="font-size:0.75rem;">Medal</label><select id="guest-medal-${index}" class="stat-medal form-select" ${disabled}><option value="none">Yo‘q</option>${['supreme_mvp','mvp','supreme','gold','silver','bronze'].map(medal => `<option value="${medal}" ${guest?.medal === medal ? 'selected' : ''}>${medal.replace('_', ' ').toUpperCase()}</option>`).join('')}</select></div>
           <div class="form-group" style="margin:0; display:flex; align-items:center; gap:1rem; padding-top:1.25rem;"><label><input type="checkbox" class="stat-savage form-checkbox" ${guest?.savage ? 'checked' : ''} ${disabled}> Savage</label><label><input type="checkbox" class="stat-maniac form-checkbox" ${guest?.maniac ? 'checked' : ''} ${disabled}> Maniac</label></div>
         </div>
       </div>`;
@@ -476,7 +476,7 @@ window.MatchManager = class MatchManager {
       const safePlayerName = this.escape(p.name);
 
       html += `
-        <div class="player-stat-row ${benchedClass}" data-player-id="${safePlayerId}" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: 10px; padding: 1.25rem; transition: all 0.25s ease;">
+        <div class="player-stat-row ${benchedClass}" data-award-evidence="${this.escape(JSON.stringify(this.db.normalizeAwardEvidence(pStats || {})))}" data-player-id="${safePlayerId}" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: 10px; padding: 1.25rem; transition: all 0.25s ease;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.75rem; flex-wrap:wrap; gap:0.5rem;">
             <div style="display:flex; align-items:center; gap:0.5rem;">
               <h4 style="color: var(--primary); margin:0;"><i class="fa-solid fa-user"></i> ${safePlayerName}</h4>
@@ -557,6 +557,8 @@ window.MatchManager = class MatchManager {
               <select id="player-${safePlayerId}-medal" class="stat-medal form-select" ${isBenched ? 'disabled' : ''}>
                 <option value="none" ${medalVal === 'none' ? 'selected' : ''}>Yo‘q</option>
                 <option value="mvp" ${medalVal === 'mvp' ? 'selected' : ''}>👑 MVP</option>
+                <option value="supreme_mvp" ${medalVal === 'supreme_mvp' ? 'selected' : ''}>Supreme MVP</option>
+                <option value="supreme" ${medalVal === 'supreme' ? 'selected' : ''}>Supreme</option>
                 <option value="gold" ${medalVal === 'gold' ? 'selected' : ''}>🥇 Gold</option>
                 <option value="silver" ${medalVal === 'silver' ? 'selected' : ''}>🥈 Silver</option>
                 <option value="bronze" ${medalVal === 'bronze' ? 'selected' : ''}>🍫 Bronze (shokolad)</option>
@@ -840,6 +842,7 @@ window.MatchManager = class MatchManager {
         }
 
         return {
+          ...this.db.normalizeAwardEvidence(JSON.parse(row.dataset.awardEvidence || '{}')),
           rolePlayed: row.querySelector('.stat-role')?.value || null,
           heroId: canonicalHero?.id || null,
           heroNameSnapshot: canonicalHero?.name || heroName || null,
@@ -1100,6 +1103,8 @@ window.MatchManager = class MatchManager {
     const fmt = value => value === null || value === undefined ? '—' : Number(value).toLocaleString('uz-UZ');
     const medalMarkup = stat => ({
       mvp: '<span class="medal medal-mvp">MVP</span>',
+      supreme_mvp: '<span class="medal medal-supreme">SUPREME MVP</span>',
+      supreme: '<span class="medal medal-supreme">SUPREME</span>',
       gold: '<span class="medal medal-gold">GOLD</span>',
       silver: '<span class="medal medal-silver">SILVER</span>',
       bronze: '<span class="medal medal-choco">BRONZE</span>'
@@ -1113,6 +1118,8 @@ window.MatchManager = class MatchManager {
       return `<article class="match-participant ${guest ? 'is-guest' : ''}">
         <header><div><small>${guest ? 'GUEST' : this.escape(role)}</small><h4>${this.escape(name)}${player?.captain ? '<i class="fa-solid fa-crown" aria-label="Captain"></i>' : ''}</h4></div><span class="role-dot" style="--role-color:${window.StatsEngine.ROLE_COLORS[role] || 'var(--primary)'}"></span></header>
         <div class="match-participant__hero"><strong>${this.escape(stat.heroUsed || 'Hero ko‘rsatilmagan')}</strong>${medalMarkup(stat)}</div>
+        ${stat.afk === true ? '<p class="text-muted">AFK belgisi qayd etilgan</p>' : ''}
+        ${(stat.highlightNotes?.length || stat.highlightOverflow) ? `<details class="match-extra"><summary>Highlight kuzatuvlari</summary><p>Belgilar tavsifi; rasmiy yutuq nomlari tasdiqlanmagan.</p><ul>${(Array.isArray(stat.highlightNotes) ? stat.highlightNotes : []).slice(0,8).map(note => `<li>${this.escape(note)}</li>`).join('')}</ul>${Number.isInteger(stat.highlightOverflow) && stat.highlightOverflow > 0 ? `<p>+${stat.highlightOverflow} yashirilgan belgi — turlari noma’lum.</p>` : ''}</details>` : ''}
         <dl><div><dt>KDA</dt><dd>${kda}</dd></div><div><dt>Baho</dt><dd>${fmt(stat.inGameScore)}</dd></div><div><dt>Damage</dt><dd>${fmt(stat.damageDealt)}</dd></div><div><dt>Damage received</dt><dd>${fmt(stat.damageReceived)}</dd></div><div><dt>Turret Damage</dt><dd>${fmt(stat.turretDamage)}</dd></div><div><dt>TF</dt><dd>${stat.teamfightParticipation === null || stat.teamfightParticipation === undefined ? '—' : `${stat.teamfightParticipation}%`}</dd></div><div><dt>Gold</dt><dd>${fmt(stat.goldEarned)}</dd></div></dl>
         ${(stat.savage || stat.maniac) ? `<footer>${stat.savage ? '<span>SAVAGE</span>' : ''}${stat.maniac ? '<span>MANIAC</span>' : ''}</footer>` : ''}
       </article>`;
@@ -1711,6 +1718,7 @@ window.MatchManager = class MatchManager {
 
   fillPlayerRow(row, pExt) {
     if (!row || !pExt) return;
+    row.dataset.awardEvidence = JSON.stringify(this.db.normalizeAwardEvidence(pExt));
 
     // Hero Used
     if (pExt.heroUsed) {
@@ -1756,7 +1764,7 @@ window.MatchManager = class MatchManager {
       const el = row.querySelector('.stat-medal');
       if (el) {
         const medalVal = pExt.medal.toLowerCase();
-        const validMedals = ['mvp', 'gold', 'silver', 'bronze', 'none'];
+        const validMedals = ['mvp', 'supreme_mvp', 'supreme', 'gold', 'silver', 'bronze', 'none'];
         if (validMedals.includes(medalVal)) {
           el.value = medalVal;
         } else if (medalVal === 'choco' || medalVal === 'chocolate') {

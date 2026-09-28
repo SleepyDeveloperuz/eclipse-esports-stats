@@ -875,6 +875,7 @@ window.PlayerManager = class PlayerManager {
           <div class="stat-card-title"><i class="fa-solid fa-award"></i> Barcha vaqt medallar</div>
           <div class="stat-card-value" style="font-size:1.5rem; display:flex; gap:0.5rem; align-items:center; margin-top:0.5rem;">
             <span class="medal medal-mvp" title="${stats.mvpCount} MVPs">${stats.mvpCount}</span>
+            <span class="medal medal-supreme" title="${stats.supremeCount || 0} Supreme (Supreme MVP ham kiradi)">${stats.supremeCount || 0}</span>
             <span class="medal medal-gold" title="${stats.goldCount} Gold">${stats.goldCount}</span>
             <span class="medal medal-silver" title="${stats.silverCount} Silver">${stats.silverCount}</span>
             <span class="medal medal-choco" title="${stats.bronzeCount} Bronze">${stats.bronzeCount}</span>

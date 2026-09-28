@@ -446,15 +446,19 @@ window.ChartHelper = class ChartHelper {
         : (players.find(p => p.id === ps.playerId) || { name: ps.playerName || `Player ${idx + 1}` });
       const role = ps.rolePlayed || 'Rol noma’lum';
       const roleColor = roleColors[role] || '#e7c36b';
-      const isMvp = ps.medal === 'mvp';
+      const isMvp = ['mvp', 'supreme_mvp'].includes(ps.medal);
+      const isSupreme = ['supreme', 'supreme_mvp'].includes(ps.medal);
       const isGold = ps.medal === 'gold';
       const isSilver = ps.medal === 'silver';
       const isBronze = ps.medal === 'bronze';
-      const hasMedal = isMvp || isGold || isSilver || isBronze;
+      const hasMedal = isMvp || isSupreme || isGold || isSilver || isBronze;
 
       // Card Background Glass — tinted by medal
       const cardGrad = ctx.createLinearGradient(x, startY, x, startY + cardHeight);
-      if (isMvp) {
+      if (isSupreme) {
+        cardGrad.addColorStop(0, 'rgba(184, 145, 255, 0.2)');
+        cardGrad.addColorStop(1, 'rgba(10, 10, 7, 0.97)');
+      } else if (isMvp) {
         cardGrad.addColorStop(0, 'rgba(231, 195, 107, 0.13)');
         cardGrad.addColorStop(1, 'rgba(10, 10, 7, 0.97)');
       } else if (isGold) {
@@ -476,7 +480,10 @@ window.ChartHelper = class ChartHelper {
       ctx.fill();
 
       // Card Border — colored by medal
-      if (isMvp) {
+      if (isSupreme) {
+        ctx.strokeStyle = 'rgba(184, 145, 255, 0.7)';
+        ctx.lineWidth = 2;
+      } else if (isMvp) {
         ctx.strokeStyle = 'rgba(231, 195, 107, 0.68)';
         ctx.lineWidth = 2;
       } else if (isGold) {
@@ -528,7 +535,12 @@ window.ChartHelper = class ChartHelper {
       const medalPillX = x + 14;
       const medalPillW = cardWidth - 28;
 
-      if (isMvp) {
+      if (isSupreme) {
+        ctx.fillStyle = 'rgba(184, 145, 255, 0.2)';
+        ctx.beginPath(); ctx.roundRect(medalPillX, medalBannerY, medalPillW, medalBannerH, 6); ctx.fill();
+        ctx.fillStyle = '#d2baff'; ctx.font = '800 12px Plus Jakarta Sans, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(isMvp ? 'SUPREME MVP' : 'SUPREME', x + cardWidth / 2, medalBannerY + medalBannerH / 2 + 1);
+      } else if (isMvp) {
         // MVP — golden glow banner
         ctx.fillStyle = 'rgba(231, 195, 107, 0.2)';
         ctx.beginPath();

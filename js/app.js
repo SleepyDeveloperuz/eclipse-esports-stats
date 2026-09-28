@@ -1636,6 +1636,7 @@ window.EclipseApp = {
             <td><span title="${full(item.stats.totalGoldEarned)} jami">${fmt(item.stats.avgGoldEarned)}</span></td>
             <td>
               <span class="medal medal-mvp" title="${item.stats.mvpCount} MVPs">${item.stats.mvpCount}</span>
+              <span class="medal medal-supreme" title="${item.stats.supremeCount || 0} Supreme (Supreme MVP ham kiradi)">${item.stats.supremeCount || 0}</span>
               <span class="medal medal-gold" title="${item.stats.goldCount} Gold">${item.stats.goldCount}</span>
               <span class="medal medal-silver" title="${item.stats.silverCount} Silver">${item.stats.silverCount}</span>
               <span class="medal medal-choco" title="${item.stats.bronzeCount} Bronze">${item.stats.bronzeCount}</span>

@@ -1367,6 +1367,12 @@ html:not(.access-locked) .access-bootstrap {
   font-weight: 900;
 }
 
+.medal-supreme {
+  background: rgba(184, 145, 255, 0.16);
+  border: 1px solid rgba(184, 145, 255, 0.55);
+  color: #ddc9ff;
+}
+
 .medal-gold {
   background: rgba(var(--secondary-rgb), 0.16);
   border: 1px solid var(--secondary);

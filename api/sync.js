@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { readTeamFiles, writeTeamFiles, withTeamTransaction } from '../lib/team-store.js';
+import { normaliseAwardEvidence } from '../lib/match-awards.js';
 import {
   isAuthConfigured,
   isViewerAuthConfigured,
@@ -12,7 +13,7 @@ const SCHEMA_VERSION = 4;
 const MATCH_TYPES = new Set(['ranked', 'scrim', 'tournament', 'casual']);
 const MATCH_RESULTS = new Set(['win', 'loss']);
 const ROLES = new Set(['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer']);
-const MEDALS = new Set(['mvp', 'gold', 'silver', 'bronze']);
+const MEDALS = new Set(['mvp', 'supreme_mvp', 'supreme', 'gold', 'silver', 'bronze']);
 const MATCH_SCOPES = new Set(['team5', 'squad', 'individual', 'unclassified']);
 const DATA_SOURCES = new Set(['manual', 'ocr', 'submission', 'import', 'legacy']);
 const ENTRY_MODES = new Set(['full', 'practice_lite']);
@@ -166,6 +167,7 @@ function normalisePlayerStat(stat) {
     teamfightParticipation: cleanOptionalNumber(stat?.teamfightParticipation, 100),
     goldEarned: cleanOptionalNumber(stat?.goldEarned, 1_000_000),
     medal,
+    ...normaliseAwardEvidence(stat),
     savage: typeof stat?.savage === 'boolean' ? stat.savage : null,
     maniac: typeof stat?.maniac === 'boolean' ? stat.maniac : null
   };

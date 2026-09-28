@@ -3,6 +3,7 @@ import { createSessionSecurity } from '../lib/session-security.js';
 import { configuredOcrModels, requestOcrProvider } from '../lib/ocr-provider.js';
 import { extractWithRecheck } from '../lib/ocr-recheck.js';
 import { batchIndexRequest, normalizeBatchIndex } from '../lib/batch-index.js';
+import { normaliseAwardEvidence } from '../lib/match-awards.js';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const MAX_IMAGES = 2;
@@ -21,7 +22,7 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp
 const MATCH_RESULTS = new Set(['win', 'loss']);
 const MATCH_TYPES = new Set(['ranked', 'scrim', 'tournament', 'casual']);
 const ROLES = new Set(['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer']);
-const MEDALS = new Set(['mvp', 'gold', 'silver', 'bronze', 'none']);
+const MEDALS = new Set(['mvp', 'supreme_mvp', 'supreme', 'gold', 'silver', 'bronze', 'none']);
 
 async function checkOcrRate(req, identity) {
   const limit = identity?.role === 'admin' ? OCR_ADMIN_RATE_LIMIT : OCR_VIEWER_RATE_LIMIT;
@@ -177,6 +178,7 @@ export function normaliseOcrPayload(parsedData, rosterPlayers = [], heroList = [
       inGameScore: nullableNumber(player?.inGameScore, { min: 0, max: 20 }),
       medal: MEDALS.has(medalValue) ? medalValue : null,
       medalReviewRequired: !MEDALS.has(medalValue),
+      ...normaliseAwardEvidence(player),
       savage: typeof player?.savage === 'boolean' ? player.savage : null,
       maniac: typeof player?.maniac === 'boolean' ? player.maniac : null,
       damageDealt: nullableNumber(player?.damageDealt, { min: 0, max: 10_000_000, integer: true }),
@@ -187,9 +189,9 @@ export function normaliseOcrPayload(parsedData, rosterPlayers = [], heroList = [
     });
   });
   if (!normalizedPlayers.length) issues.push('missing_participants');
-  if (normalizedPlayers.filter(player => player.medal === 'mvp').length > 1) {
+  if (normalizedPlayers.filter(player => ['mvp', 'supreme_mvp'].includes(player.medal)).length > 1) {
     issues.push('multiple_mvp_medals');
-    normalizedPlayers.filter(player => player.medal === 'mvp').forEach(player => { player.medalReviewRequired = true; });
+    normalizedPlayers.filter(player => ['mvp', 'supreme_mvp'].includes(player.medal)).forEach(player => { player.medalReviewRequired = true; });
   }
 
   const reviewIssues = [...new Set(issues)];
@@ -234,7 +236,10 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     sourceRow: { type: 'integer', minimum: 1, maximum: 5 },
     kills: nullableMetric(200), deaths: nullableMetric(200), assists: nullableMetric(500),
     inGameScore: nullableMetric(20, 'number'),
-    medal: nullableChoice(['mvp', 'gold', 'silver', 'bronze', 'none']),
+    medal: nullableChoice(['mvp', 'supreme_mvp', 'supreme', 'gold', 'silver', 'bronze', 'none']),
+    afk: { type: ['boolean', 'null'] },
+    highlightNotes: { type: 'array', maxItems: 8, items: { type: 'string', maxLength: 80 } },
+    highlightOverflow: nullableMetric(20),
     savage: { type: ['boolean', 'null'] }, maniac: { type: ['boolean', 'null'] },
     damageDealt: nullableMetric(10_000_000), damageReceived: nullableMetric(10_000_000),
     turretDamage: nullableMetric(10_000_000), teamfightParticipation: nullableMetric(100),
@@ -277,9 +282,10 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     'result is win for visible Victory and loss for visible Defeat. Never infer it from kills. duration is the visible MM:SS match duration, not the clock or date.',
     'matchType and teamTurtles/teamLords/teamTurrets must be null unless explicitly visible. Never infer destroyed turrets from turret damage.',
     'Read K/D/A, goldEarned and inGameScore from the scoreboard; damageDealt, damageReceived, turretDamage and teamfightParticipation from their named Data columns.',
-    'medal is mvp only when the medal itself explicitly says MVP (including defeat MVP). Do not promote the highest score to MVP. Gold crossed swords are gold, not MVP. Use silver or bronze only when visible; uncertainty=null. At most one friendly-team MVP is possible.',
+    'Read the actual large medal, never infer it from score. Purple/lavender crystalline Supreme badge without MVP text is supreme. The same Supreme badge with an explicit MVP ribbon is supreme_mvp (including defeat MVP). A normal gold badge with explicit MVP text is mvp. Gold crossed swords without MVP are gold. Round silver/copper single-sword badges are silver/bronze. At most one friendly-team MVP total across mvp and supreme_mvp. An AFK badge obscures the medal: set medal=null, afk=true; do not invent bronze from the score. Uncertainty=null.',
     detailPart ? 'A final supplementary image contains enlarged medal-column strips labelled Image 1/2 detail, taken from the full originals above. They are the same rows, not additional players. Read each medal from the scoreboard strip and match its vertical position to the original screenshot; a Data/Damage strip has no medal evidence. A round silver medallion with a single sword is silver; the brown/copper version is bronze. none means an explicitly absent badge, never a silver or bronze badge. If the strip is not the medal column for this layout, use the full original image.' : '',
     'savage/maniac require explicit evidence; missing badges do not establish false. Never infer multikills from KDA.',
+    'Small highlights beside the medal are separate from the medal. highlightNotes contains brief literal visual descriptions (shape/color or readable text), not guessed official names or achievements. Use [] when unreadable. highlightOverflow is the visible +N extra-icons counter, otherwise null; +5 is NOT Savage and +4 is NOT Maniac. Do not infer hidden highlights. afk=true only for an explicit AFK badge; otherwise null.',
     purpose === 'practice_submission' ? 'Eclipse may have 1–5 roster players here; visible row count does not determine team scope.' : ''
   ];
   const prompt = [

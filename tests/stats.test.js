@@ -15,6 +15,15 @@ const players = [
 ];
 const roles = StatsEngine.ROLES;
 
+test('Supreme MVP contributes once to MVP and Supreme counts without changing numeric rating', () => {
+  const input = match('supreme'); input.playerStats[0].medal = 'supreme_mvp';
+  const result = engine.getPlayerStats([input], 'p1', { scope: 'all' });
+  assert.equal(result.mvpCount, 1); assert.equal(result.supremeCount, 1);
+  input.playerStats[0].medal = 'supreme';
+  const regular = engine.getPlayerStats([input], 'p1', { scope: 'all' });
+  assert.equal(regular.mvpCount, 0); assert.equal(regular.supremeCount, 1);
+});
+
 test('unknown match role counts in general statistics but not role-specific ratings', () => {
   const input = match('unknown-role'); input.playerStats[0].rolePlayed = null;
   const all = engine.getPlayerStats([input], 'p1', { scope: 'all' });

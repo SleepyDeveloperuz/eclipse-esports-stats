@@ -4,7 +4,7 @@ class DataStore {
   static MATCH_TYPES = new Set(['ranked', 'scrim', 'tournament', 'casual']);
   static MATCH_RESULTS = new Set(['win', 'loss']);
   static ROLES = new Set(['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer']);
-  static MEDALS = new Set(['mvp', 'gold', 'silver', 'bronze']);
+  static MEDALS = new Set(['mvp', 'supreme_mvp', 'supreme', 'gold', 'silver', 'bronze']);
   static DATA_SOURCES = new Set(['manual', 'ocr', 'submission', 'import', 'legacy']);
   static ENTRY_MODES = new Set(['full', 'practice_lite']);
   static VERIFICATION_STATUSES = new Set(['verified', 'unverified', 'needs_review']);
@@ -200,9 +200,21 @@ class DataStore {
       teamfightParticipation: this.nullableNumber(source.teamfightParticipation, { min: 0, max: 100, integer: true }),
       goldEarned: this.nullableNumber(source.goldEarned, { min: 0, max: 1_000_000, integer: true }),
       medal,
+      ...this.normalizeAwardEvidence(source),
       savage: typeof source.savage === 'boolean' ? source.savage : null,
       maniac: typeof source.maniac === 'boolean' ? source.maniac : null
     };
+  }
+
+  normalizeAwardEvidence(source = {}) {
+    const result = {};
+    if (typeof source.afk === 'boolean') result.afk = source.afk;
+    if (Array.isArray(source.highlightNotes)) result.highlightNotes = [...new Set(source.highlightNotes
+      .filter(value => typeof value === 'string')
+      .map(value => value.replace(/[\u0000-\u001f\u007f<>"\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80))
+      .filter(Boolean))].slice(0, 8);
+    if (Number.isInteger(source.highlightOverflow) && source.highlightOverflow >= 0 && source.highlightOverflow <= 20) result.highlightOverflow = source.highlightOverflow;
+    return result;
   }
 
   normalizeHeroKey(value) {

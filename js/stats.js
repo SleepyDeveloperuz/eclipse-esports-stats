@@ -920,6 +920,7 @@ window.StatsEngine = class StatsEngine {
     let wins = 0;
     let losses = 0;
     let mvpCount = 0;
+    let supremeCount = 0;
     let goldCount = 0;
     let silverCount = 0;
     let bronzeCount = 0;
@@ -930,7 +931,8 @@ window.StatsEngine = class StatsEngine {
       Object.keys(metrics).forEach(key => metrics[key].push(stat[key]));
       if (match.result === 'win') wins++;
       if (match.result === 'loss') losses++;
-      if (stat.medal === 'mvp') mvpCount++;
+      if (['mvp', 'supreme_mvp'].includes(stat.medal)) mvpCount++;
+      if (['supreme', 'supreme_mvp'].includes(stat.medal)) supremeCount++;
       if (stat.medal === 'gold') goldCount++;
       if (stat.medal === 'silver') silverCount++;
       if (stat.medal === 'bronze') bronzeCount++;
@@ -1034,6 +1036,7 @@ window.StatsEngine = class StatsEngine {
         turretDamageShare: turretDamageShares.length
       },
       mvpCount,
+      supremeCount,
       goldCount,
       silverCount,
       bronzeCount,
@@ -1109,6 +1112,7 @@ window.StatsEngine = class StatsEngine {
         avgGoldPerMinute: stats.avgGoldPerMinute,
         avgDamageShare: stats.avgDamageShare,
         mvpCount: stats.mvpCount,
+        supremeCount: stats.supremeCount,
         goldCount: stats.goldCount,
         silverCount: stats.silverCount,
         bronzeCount: stats.bronzeCount,
