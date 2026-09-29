@@ -807,6 +807,7 @@ window.PlayerManager = class PlayerManager {
       </section>
 
       <!-- SHINY HERO POOL & WIN RATE / USE RATE SHOWCASE -->
+      <div data-player-coach></div>
       <div class="shiny-container mb-4">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.5rem;">
           <div>
@@ -912,6 +913,7 @@ window.PlayerManager = class PlayerManager {
     container.querySelector('.back-to-players')?.addEventListener('click', () => {
       window.EclipseApp.navigate('players');
     });
+    window.EclipseCoach?.render(container.querySelector('[data-player-coach]'), window.EclipseApp, { playerId });
   }
 
   showEditModal(playerId) {

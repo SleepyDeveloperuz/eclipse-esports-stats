@@ -873,12 +873,13 @@ window.EclipseApp = {
         ${pulseMarkup}
         <article class="command-module command-approved is-loading"><p class="command-kicker">CAPTAIN TASDIQLAGAN INSIGHT</p><div class="command-inline-loader"><i></i><span>Qarorlar tekshirilmoqda</span></div></article>
         <article class="command-module command-next is-loading"><p class="command-kicker">NAVBATDAGI HARAKAT</p><div class="command-inline-loader"><i></i><span>VOD va so‘rovnoma olinmoqda</span></div></article>
-      </section>`;
+      </section><div data-dashboard-coach></div>`;
 
     container.querySelector('[data-command="open-match"]')?.addEventListener('click', event => {
       this.matchManager.renderMatchDetailModal(event.currentTarget.dataset.matchId, this.dataStore.getAllPlayers?.() || this.dataStore.getPlayers());
     });
     this.renderDashboardBriefing(container);
+    window.EclipseCoach?.render(container.querySelector('[data-dashboard-coach]'), this, { compact: true });
   },
 
   async renderDashboardBriefing(container) {
