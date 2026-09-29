@@ -51,9 +51,9 @@
 .meta-compare-chips { display:flex; flex-wrap:wrap; gap:.5rem; padding:1rem 0; }
 .meta-compare-grid { display:grid; grid-template-columns:repeat(var(--compare-count,3),minmax(0,1fr)); gap:1.25rem; }
 .meta-compare-card { min-width:0; padding:1.25rem; background:rgba(255,255,255,.025); border-radius:.75rem; }
-.meta-compare-card header { display:flex; align-items:center; gap:.75rem; min-height:4rem; }
+.meta-compare-card header { display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; min-width:0; min-height:4rem; }
 .meta-compare-card header img, .meta-watch-identity img { width:3.25rem; height:3.25rem; border-radius:.6rem; object-fit:cover; }
-.meta-compare-card h4 { margin:0; font-size:1.4rem; overflow-wrap:anywhere; }
+.meta-compare-card h4 { min-width:0; max-width:100%; margin:0; font-size:1.4rem; overflow-wrap:anywhere; }
 .meta-compare-card header > span { margin-left:auto; color:var(--accent-gold,#e4c46e); }
 .meta-compare-card h5 { font-size:1rem; margin:1.5rem 0 .5rem; }
 .meta-compare-skill { padding:1rem 0; border-top:1px solid var(--border-light); }

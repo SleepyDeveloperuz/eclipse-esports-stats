@@ -4218,7 +4218,7 @@ kbd {
 .meta-tier-legend button { width:2.6rem; height:2.35rem; border:1px solid rgba(255,255,255,.08); color:var(--text-muted); background:#090906; font:800 .67rem/1 var(--font-mono); cursor:pointer; }
 .meta-tier-legend button:first-child { width:3.3rem; }
 .meta-tier-legend button:hover,.meta-tier-legend button.active { color:#080806; border-color:var(--primary); background:var(--primary); }
-.meta-tier-tools { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:.75rem 1rem; border-bottom:1px solid rgba(255,255,255,.05); }
+.meta-tier-tools { display:flex; flex-direction:row; flex-wrap:wrap; min-width:0; justify-content:space-between; align-items:center; gap:1rem; padding:.75rem 1rem; border-bottom:1px solid rgba(255,255,255,.05); }
 .meta-tier-tools label,.meta-library-search { display:flex; align-items:center; gap:.55rem; min-width:min(25rem,45vw); padding:0 .8rem; border:1px solid rgba(255,255,255,.08); background:#070705; }
 .meta-tier-tools label i,.meta-library-search i { color:var(--primary); font-size:.72rem; }
 .meta-tier-tools input,.meta-library-search input { width:100%; min-height:2.55rem; border:0; outline:0; color:var(--text-primary); background:transparent; font:600 .72rem/1 var(--font-sans); }
@@ -4341,7 +4341,7 @@ kbd {
   .meta-lab-hero__orb { right:-2%; opacity:.65; }
   .meta-lab-commandbar,.meta-section-header { align-items:stretch; flex-direction:column; }
   .meta-lab-health { flex-wrap:wrap; }
-  .meta-tier-tools { align-items:stretch; flex-direction:column; }
+  .meta-tier-tools { align-items:center; }
   .meta-tier-tools label,.meta-library-search { min-width:0; width:100%; }
   .meta-patch-feature { grid-template-columns:1fr; }
   .meta-patch-feature__visual { min-height:15rem; max-height:18rem; }

@@ -85,18 +85,27 @@ domTest('desktop, tablet and phone CSS constrain controls and keep table scrolli
 test('both entry pages reference the corrected, cache-busted layout styles', () => {
   for (const file of ['index.html', 'meta-lab.html']) {
     assert.match(read(file), /public-meta\.css\?v=2\.30\.1/);
-    assert.match(read(file), /meta-explore\.css\?v=2\.30\.1/);
+    assert.match(read(file), /meta-explore\.css\?v=2\.36\.1/);
+    assert.match(read(file), /meta-qol\.css\?v=2\.36\.1/);
+    assert.match(read(file), /style\.css\?v=2\.36\.1/);
   }
 });
 
 domTest('compact controls wrap on mobile and preserve usable targets on both entry pages', () => {
-  for (const privatePage of [false, true]) for (const width of [320, 390, 768, 1440]) {
+  for (const privatePage of [false, true]) for (const width of [320, 390, 700, 701, 768, 820, 900, 901, 1024, 1440]) {
     const w = surface({ privatePage, width });
     try {
       const root = w.document.querySelector('#metaLabContainer'); root.classList.add('meta-qol');
       root.innerHTML = '<div class="meta-workspace"><div class="meta-workspace-heading"><header>Tierlist</header></div><div class="meta-workspace-controls"><div class="meta-rank-picker"><span>Rank</span><button class="btn">Mythical Glory+</button></div></div><div class="meta-tier-tools"><label><input></label><button class="meta-filter-toggle btn">Filtrlar</button><div class="meta-extra-filters"><div class="meta-tier-legend"><button>SS</button></div></div></div><button hidden>Hidden</button></div>';
       const style = selector => w.getComputedStyle(root.querySelector(selector));
       assert.equal(style('.meta-workspace').minWidth, '0');
+      assert.equal(style('.meta-tier-tools').display, 'grid', `${width}px: filters must not inherit a column flex axis`);
+      assert.equal(style('.meta-tier-tools').gridTemplateColumns, 'minmax(0,1fr) auto');
+      assert.equal(style('.meta-tier-tools > label').flexBasis, 'auto', `${width}px: search width must not become its height`);
+      assert.equal(style('.meta-tier-tools > label').minWidth, '0');
+      assert.equal(style('input').height, '44px');
+      assert.equal(style('input').minWidth, '0');
+      assert.equal(style('.meta-extra-filters').gridColumn, '1 / -1');
       assert.equal(style('.btn').minHeight, '44px');
       assert.equal(style('.meta-tier-legend button').minHeight, '44px');
       assert.equal(style('input').fontSize, '1rem');
@@ -112,4 +121,33 @@ domTest('compact controls wrap on mobile and preserve usable targets on both ent
       assert.equal(style('.meta-workspace-heading').gridTemplateColumns, width <= 1000 ? 'minmax(0,1fr)' : 'minmax(0,1fr) auto');
     } finally { w.close(); }
   }
+});
+
+domTest('base search, command bar and comparison identities resist tablet column and intrinsic-width leaks', () => {
+  for (const width of [390, 768, 820, 900, 1024]) {
+    const w = surface({ width });
+    try {
+      const root = w.document.querySelector('#metaLabContainer'); root.classList.add('meta-qol');
+      root.insertAdjacentHTML('beforeend', '<div class="meta-tier-tools"><label><input type="search"></label><span>Count</span></div><div class="meta-compare-card"><header><img alt=""><h4>LongHeroNameWithoutSpaces</h4><span>SS</span></header></div>');
+      const style = selector => w.getComputedStyle(root.querySelector(selector));
+      assert.equal(style('.meta-tier-tools').flexDirection, 'row');
+      assert.equal(style('.meta-lab-commandbar').flexDirection, 'row');
+      assert.equal(style('.meta-compare-card header').flexWrap, 'wrap');
+      assert.equal(style('.meta-compare-card h4').minWidth, '0');
+    } finally { w.close(); }
+  }
+});
+
+domTest('Weekly and multi-match controls shrink and wrap instead of clipping long labels and totals', () => {
+  const w = surface({ privatePage: true, width: 390 });
+  try {
+    const root = w.document.querySelector('#metaLabContainer');
+    root.innerHTML = '<div class="progress-filters"><label>Hero<select><option>VeryLongHeroNameWithoutSpaces</option></select></label></div><div class="progress-numbers"><div>12345</div></div><div class="batch-item"><header><strong>LongFileNameWithoutSpaces.HEIC</strong><button>Remove</button></header></div>';
+    const style = selector => w.getComputedStyle(root.querySelector(selector));
+    assert.equal(style('.progress-filters label').minWidth, '0');
+    assert.equal(style('.progress-filters select').maxWidth, '100%');
+    assert.equal(style('.progress-numbers').flexWrap, 'wrap');
+    assert.equal(style('.batch-item header').flexWrap, 'wrap');
+    assert.equal(style('.batch-item header strong').overflowWrap, 'anywhere');
+  } finally { w.close(); }
 });
