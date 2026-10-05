@@ -199,19 +199,28 @@ test('fresh dossiers do no writes; stale dossiers share a cooldown and retain sk
   assert.equal(publicMlbbState(retry, MLBB_FRESHNESS.heroMs).status, 'partial');
 });
 
-test('global dossier budget stops new upstream work and does not invent an empty fresh dossier', async () => {
+test('global dossier budget stops new upstream work and returns a clearly partial canonical dossier', async () => {
   const values = seed(); delete values[MLBB_KEYS.hero(1)];
   values['eclipse:mlbb:public:budget:dossier'] = PUBLIC_REFRESH_LIMITS.dossiersPerHour;
   const store = createMemoryStore(values);
-  await assert.rejects(() => readPublicHero(1, { store, rank: 'mythic', days: '7', intelligence: () => assert.fail('Budget must block provider') }), error => error.code === 'MLBB_REFRESH_BUSY');
+  const result = await readPublicHero(1, { store, rank: 'mythic', days: '7', intelligence: () => assert.fail('Budget must block provider') });
+  assert.equal(result.data.id, 1);
+  assert.equal(result.data.name, hero.name);
+  assert.equal(result.data.dossierDetailsStatus, 'pending');
+  assert.equal(result.refreshError.code, 'DETAIL_PENDING');
   assert.equal(await store.getJSON(MLBB_KEYS.hero(1)), null);
 });
 
-test('cold canonical dossier refresh is allowed within budget and repeated failures are throttled', async () => {
+test('cold canonical dossier remains readable when detail refresh fails and repeated failures are throttled', async () => {
   const store = createMemoryStore({ [MLBB_KEYS.catalog]: { data: [hero] } }); let calls = 0;
   const options = { store, rank: 'glory', days: '7', intelligence: async () => { calls++; throw new Error('fixture-provider-failure'); } };
-  await assert.rejects(() => readPublicHero(1, options), /fixture-provider-failure/);
-  await assert.rejects(() => readPublicHero(1, options), error => error.code === 'MLBB_REFRESH_BUSY');
+  const first = await readPublicHero(1, options);
+  assert.equal(first.data.name, hero.name);
+  assert.equal(first.data.dossierDetailsStatus, 'pending');
+  assert.equal(first.refreshError.code, 'DETAIL_PENDING');
+  const second = await readPublicHero(1, options);
+  assert.equal(second.data.name, hero.name);
+  assert.equal(second.data.dossierDetailsStatus, 'pending');
   assert.equal(calls, 1);
   const before = store.snapshot();
   await assert.rejects(() => readPublicHero(999, options), error => error.code === 'HERO_NOT_FOUND');

@@ -561,6 +561,7 @@ window.MlbbDataManager = class MlbbDataManager {
         <div class="meta-dossier-hero__image">${this.imageMarkup(detail)}</div>
         <div><p class="section-eyebrow">HERO DOSSIER / ID ${Number(detail.id)}</p><h2 id="metaDossierTitle">${this.escape(detail.name)}</h2><p>${this.escape(detail.story || 'Canonical MLBB hero intelligence')}</p><div class="meta-dossier-tags">${roles.length ? roles.map(item => `<span>${this.escape(item)}</span>`).join('') : '<span>Role pending</span>'}<span class="is-cache">${this.escape(cacheStatus || 'cache')}</span></div></div>
       </header>
+      ${detail.dossierDetailsStatus === 'pending' ? '<div class="meta-dossier-provider-notice"><i class="fa-solid fa-circle-info"></i><span>Qahramon profili ochildi. Skill va matchup ma’lumotlari manbadan hozircha olinmadi; birozdan keyin qayta ochib ko‘ring.</span></div>' : ''}
       <div class="meta-dossier-body">
         <section class="meta-skill-matrix">
           <header><p class="section-eyebrow">ABILITY MATRIX</p><h3>Skills</h3></header>
