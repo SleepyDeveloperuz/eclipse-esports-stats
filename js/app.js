@@ -2027,7 +2027,7 @@ window.EclipseApp = {
 // =====================================================================
 //  TOAST NOTIFICATIONS
 // =====================================================================
-window.showToast = function(message, type = 'info') {
+window.showToast = function(message, type = 'info', durationMs = 3000) {
   const container = document.getElementById('toastContainer') || document.body;
   const toast = document.createElement('div');
   const safeType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
@@ -2044,7 +2044,7 @@ window.showToast = function(message, type = 'info') {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(100%)';
     setTimeout(() => toast.remove(), 300);
-  }, 3000);
+  }, Math.max(3000, Number(durationMs) || 3000));
 };
 
 document.addEventListener('DOMContentLoaded', () => {

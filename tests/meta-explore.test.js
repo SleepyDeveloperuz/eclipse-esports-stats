@@ -93,6 +93,29 @@ test('per-cohort compact history is bounded, deduplicated and merges legacy with
   assert.ok(Buffer.byteLength(JSON.stringify({ result: JSON.stringify(large) })) < 2_000_000, 'Ample margin below the 6MB REST read cap');
 });
 
+domTest('partial manual sync reports failed sources and the retained rank snapshot', async () => {
+  const { w, manager, notices } = setup();
+  manager.auth = { isAdmin: () => true, getToken: () => 'admin-token' };
+  manager.request = async () => ({ data: {
+    partial: true,
+    errors: {
+      catalog: { code: 'UPSTREAM_HTTP_ERROR', message: 'Upstream 503 javobini qaytardi' },
+      'rank:mythic': { code: 'UPSTREAM_TIMEOUT', message: 'Upstream so‘rovi vaqtidan oshdi' }
+    },
+    ranks: { mythic: { updatedAt: '2026-09-29T03:22:26.227Z' } },
+    counts: { heroes: 133, rankRows: 133 }
+  } });
+  manager.render = async () => {};
+  try {
+    await manager.manualSync({ innerHTML: 'Sync now', disabled: false });
+    assert.match(notices[0], /Sync qisman bajarildi/);
+    assert.match(notices[0], /catalog \[UPSTREAM_HTTP_ERROR\]: Upstream 503/);
+    assert.match(notices[0], /rank mythic \[UPSTREAM_TIMEOUT\]/);
+    assert.match(notices[0], /Rank snapshot: 2026-09-29/);
+    assert.doesNotMatch(notices[0], /Meta sync tayyor/);
+  } finally { w.close(); }
+});
+
 domTest('late lens response cannot overwrite a newer hero selection', async () => {
   let release;
   const waiting = new Promise(resolve => { release = resolve; });

@@ -472,7 +472,23 @@ window.MlbbDataManager = class MlbbDataManager {
       const result = await this.request('/api/mlbb-sync', { method: 'POST', admin: true, body: {} });
       this.clearCache();
       const counts = result?.data?.counts || {};
-      window.showToast?.(`Meta sync tayyor: ${counts.heroes || 0} hero, ${counts.rankRows || 0} rank row.`, result?.data?.partial ? 'warning' : 'success');
+      const errors = Object.entries(result?.data?.errors || {});
+      const partial = Boolean(result?.data?.partial || errors.length);
+      if (partial) {
+        const details = errors.slice(0, 3).map(([source, issue]) => {
+          const label = source.startsWith('rank:') ? `rank ${source.slice(5)}` : source;
+          const code = String(issue?.code || 'SYNC_FAILED').slice(0, 40);
+          const message = String(issue?.message || '').replace(/\s+/g, ' ').slice(0, 90);
+          return `${label} [${code}]${message ? `: ${message}` : ''}`;
+        });
+        if (errors.length > 3) details.push(`yana ${errors.length - 3} ta xato`);
+        const rankUpdatedAt = result?.data?.ranks?.[this.selectedRank]?.updatedAt;
+        const retained = rankUpdatedAt ? ` Rank snapshot: ${rankUpdatedAt.slice(0, 10)}.` : '';
+        const reasons = details.length ? details.join(' · ') : 'Ayrim ma’lumotlar yangilanmadi.';
+        window.showToast?.(`Sync qisman bajarildi. Eski ma’lumot saqlandi.${retained} ${reasons}`, 'warning', 9000);
+      } else {
+        window.showToast?.(`Meta sync yangilandi: ${counts.heroes || 0} hero, ${counts.rankRows || 0} rank row.`, 'success');
+      }
       await this.render('metaLabContainer', true);
     } catch (error) {
       if (button) {
