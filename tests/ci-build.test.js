@@ -43,6 +43,7 @@ test('public assets cannot smuggle hidden files or symlinks into deployment', t 
 });
 test('production config runs the same gate and deploys main only', () => {
   const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url)));
+  assert.deepEqual(config.crons, [{ path: '/api/mlbb-sync', schedule: '0 19 * * *' }]);
   assert.equal(config.buildCommand, 'npm run build'); assert.equal(config.outputDirectory, 'public');
   assert.equal(config.installCommand, 'npm ci --include=dev --ignore-scripts');
   assert.deepEqual(config.git.deploymentEnabled, { main: true, '*': false });

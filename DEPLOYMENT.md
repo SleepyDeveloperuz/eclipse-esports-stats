@@ -63,7 +63,7 @@ The live team document is capped at 4.5 MB and additionally bounded by Redis RES
 
 ## MLBB Meta Lab sync
 
-The daily Vercel Cron calls `/api/mlbb-sync` at `03:00 UTC` (`08:00` in Tashkent). Vercel supplies `CRON_SECRET` as the Bearer token automatically. The same endpoint accepts an Admin-authenticated `POST` for a manual refresh from Meta Lab.
+The daily Vercel Cron calls `/api/mlbb-sync` at `19:00 UTC`, targeting `00:00` the next day in Tashkent (UTC+5). Vercel Cron schedules use UTC; on Hobby plans the invocation may occur anytime during the scheduled hour, so the practical window can be `00:00–00:59` in Tashkent rather than exactly at midnight. Vercel supplies `CRON_SECRET` as the Bearer token automatically. The same endpoint accepts an Admin-authenticated `POST` for a manual refresh from Meta Lab.
 
 Hero catalog, Mythic 7-day rank data, patch summaries, sync health, hero detail and 90 days of rank history are stored in Upstash. The browser never calls Rone or Moonton directly and never receives the Redis token. A failed or malformed upstream refresh keeps the last-known-good dataset; the UI labels stale data instead of replacing it with an empty response.
 

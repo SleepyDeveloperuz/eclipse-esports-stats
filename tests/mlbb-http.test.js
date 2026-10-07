@@ -20,6 +20,24 @@ test('fetchJson retries an upstream timeout once and returns the recovered respo
   assert.equal(calls, 2);
 });
 
+test('fetchJson retries transient upstream gateway/server errors once', async () => {
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls += 1;
+    return calls === 1
+      ? new Response('gateway timeout', { status: 504 })
+      : new Response(JSON.stringify({ code: 0, data: [] }), { status: 200 });
+  };
+
+  const result = await fetchJson('https://example.test/data', {
+    fetchImpl,
+    retryBaseDelayMs: 0
+  });
+
+  assert.deepEqual(result, { code: 0, data: [] });
+  assert.equal(calls, 2);
+});
+
 test('fetchJson does not retry non-transient upstream HTTP errors', async () => {
   let calls = 0;
   await assert.rejects(() => fetchJson('https://example.test/data', {
