@@ -238,12 +238,29 @@ window.MlbbDataManager = class MlbbDataManager {
       ? `<div class="meta-lab-partial"><i class="fa-solid fa-triangle-exclamation"></i><span>${errors.length} ta ma’lumot manbasi yuklanmadi. Mavjud bo‘lsa, oxirgi saqlangan nusxa ko‘rsatiladi.</span></div>`
       : '';
 
+    const isDirectProvider = this.state.meta?.source?.provider === 'Mobile Legends public data';
+    const provenanceNote = isDirectProvider
+      ? 'Rank signali Mobile Legends ochiq ma’lumotlari orqali olinadi. Avtomatik yangilanish har kuni 08:00 (Toshkent); manba kechikishi mumkin.'
+      : 'Rank signali norasmiy Rone Arena API orqali olinadi. Avtomatik yangilanish har kuni 08:00 (Toshkent); manba kechikishi mumkin.';
+    const attributionFooter = isDirectProvider
+      ? `<footer class="meta-lab-attribution">
+        <div><span>DATA PROVENANCE</span><strong>Mobile Legends public data</strong><small>Game data © Moonton · Norasmiy loyiha, Moonton bilan bog‘liq emas</small></div>
+        <a href="https://www.mobilelegends.com" target="_blank" rel="noopener noreferrer">Official site <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+        <a href="https://www.mobilelegends.com/news" target="_blank" rel="noopener noreferrer">Official patch news <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+      </footer>`
+      : `<footer class="meta-lab-attribution">
+        <div><span>DATA PROVENANCE</span><strong>Rone Arena API</strong><small>Unofficial · BSD-3-Clause · source rates preserved exactly</small></div>
+        <a href="https://arena.rone.dev" target="_blank" rel="noopener noreferrer">Rone Arena <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+        <a href="https://github.com/ridwaanhall/rone-arena-api" target="_blank" rel="noopener noreferrer">Repository <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+        <a href="https://www.mobilelegends.com/news" target="_blank" rel="noopener noreferrer">Official patch news <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+      </footer>`;
+
     this.container.innerHTML = `
       <section class="meta-lab-hero" aria-labelledby="metaLabTitle">
         <div class="meta-lab-hero__copy">
           <p class="section-eyebrow">ECLIPSE / LIVE MLBB INTELLIGENCE</p>
           <h2 id="metaLabTitle">Meta Lab</h2>
-          <p>Rank signali norasmiy Rone Arena API orqali olinadi. Avtomatik yangilanish har kuni 08:00 (Toshkent); manba kechikishi mumkin.</p>
+          <p>${provenanceNote}</p>
         </div>
         <div class="meta-lab-hero__orb" aria-hidden="true"><span></span><i></i></div>
         <div class="meta-lab-telemetry">
@@ -270,11 +287,7 @@ window.MlbbDataManager = class MlbbDataManager {
       </section>
       ${errorNote}
       <div class="meta-lab-view">${this.viewMarkup()}</div>
-      <footer class="meta-lab-attribution">
-        <div><span>DATA PROVENANCE</span><strong>Rone Arena API</strong><small>Unofficial · BSD-3-Clause · source rates preserved exactly</small></div>
-        <a href="https://github.com/ridwaanhall/rone-arena-api" target="_blank" rel="noopener noreferrer">Repository <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
-        <a href="https://www.mobilelegends.com/news" target="_blank" rel="noopener noreferrer">Official patch news <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
-      </footer>`;
+      ${attributionFooter}`;
     this.bindEvents();
     window.EclipseApp?.refreshMotion?.(this.container);
   }
@@ -596,7 +609,7 @@ window.MlbbDataManager = class MlbbDataManager {
           ${matchups.error ? `<div class="meta-matchup-error"><i class="fa-solid fa-triangle-exclamation"></i> Matchup provider vaqtincha ishlamadi.</div>` : ''}
         </aside>
       </div>
-      <footer class="meta-dossier-footer"><span>Rone Arena API · ${this.escape(detail.source?.license || 'BSD-3-Clause')}</span>${detail.officialUrl ? `<a href="${this.escape(detail.officialUrl)}" target="_blank" rel="noopener noreferrer">Official hero page <i class="fa-solid fa-arrow-up-right-from-square"></i></a>` : ''}</footer>`;
+      <footer class="meta-dossier-footer"><span>${detail.source?.provider === 'Mobile Legends public data' ? 'Game data © Moonton · Norasmiy loyiha, Moonton bilan bog‘liq emas' : `Rone Arena API · ${this.escape(detail.source?.license || 'BSD-3-Clause')}`}</span>${detail.officialUrl ? `<a href="${this.escape(detail.officialUrl)}" target="_blank" rel="noopener noreferrer">Official hero page <i class="fa-solid fa-arrow-up-right-from-square"></i></a>` : ''}</footer>`;
   }
 
   closeDossier(options = {}) {

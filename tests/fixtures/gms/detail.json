@@ -1,0 +1,281 @@
+{
+  "code": 0,
+  "message": "OK",
+  "data": {
+    "records": [
+      {
+        "_id": "65b1f90d26ca28031f8b6b85",
+        "caption": "001弥亚",
+        "configId": 144237,
+        "createdAt": 1706162445836,
+        "createdUser": "nickjin",
+        "data": {
+          "_object": 2667538,
+          "head": "https://akmweb.youngjoygame.com/web/gms/image/299d8aab8de508fff88c1f1e935017cb.jpg",
+          "head_big": "https://akmweb.youngjoygame.com/web/gms/image/6667b3e9109ca180e63c524471f29278.jpg",
+          "hero": {
+            "_createdAt": 1724837697935,
+            "_id": "66ceef41af5771f18c50098a",
+            "_updatedAt": 1789542899945,
+            "data": {
+              "abilityshow": [
+                "10",
+                "70",
+                "40",
+                "10"
+              ],
+              "difficulty": "10",
+              "head": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_da894b37bfb5cadb32307f371f31918a.png",
+              "heroid": 1,
+              "heroskilllist": [
+                {
+                  "skilllist": [
+                    {
+                      "skillcd&cost": "",
+                      "skilldesc": "Each time Miya's Basic Attack hits a target, she gains 5% Attack Speed for 4s (up to 5 stacks).\n\nAt maximum stacks, each Basic Attack also summons a <font color=\"a6aafb\">Moonlight Shadow</font> to attack the target, dealing 25<font color=\"fba51f\"> (+20% Total Physical Attack)</font> <font color=\"fb1f1f\">Physical Damage</font>, inheriting 20% Attack Effects.",
+                      "skillicon": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_fbe01740efd779f6059fd2313b427457.png",
+                      "skillid": 140,
+                      "skillname": "Moon Blessing",
+                      "skilltag": [
+                        {
+                          "tagid": 62,
+                          "tagname": "Buff",
+                          "tagrgb": "79,156,184"
+                        }
+                      ],
+                      "skillvideo": ""
+                    },
+                    {
+                      "skillcd&cost": "CD: 11   Mana Cost: 60",
+                      "skilldesc": "Miya's Basic Attacks shoot 2 extra <font color=\"a6aafb\">Split Arrows</font>, each inheriting 30% of Attack Effects. They deal 10<font color=\"fba51f\"> (+100% Total Physical Attack)</font> <font color=\"fb1f1f\">Physical Damage</font> to the primary target and 30% damage to other targets.\n\nThis effect lasts 4s.",
+                      "skillicon": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_de41566ded345f89064e32da9dfd8893.png",
+                      "skillid": 110,
+                      "skillname": "Moon Arrow",
+                      "skilltag": [
+                        {
+                          "tagid": 62,
+                          "tagname": "Buff",
+                          "tagrgb": "79,156,184"
+                        },
+                        {
+                          "tagid": 32,
+                          "tagname": "AOE",
+                          "tagrgb": "199,121,85"
+                        }
+                      ],
+                      "skillvideo": ""
+                    },
+                    {
+                      "skillcd&cost": "CD: 8   Mana Cost: 90",
+                      "skilldesc": "Miya calls upon the power of <font color=\"a6aafb\">Moon Eclipse</font> in the target area, dealing 270<font color=\"fba51f\"> (+45% Total Physical Attack)</font> <font color=\"fb1f1f\">Physical Damage</font> to enemies within and immobilizing them for 1.2s.\n\nThe attack then splits into 6 arrows that scatter in different directions. Each arrow deals 40<font color=\"fba51f\"> (+20% Total Physical Attack)</font> <font color=\"fb1f1f\">Physical Damage</font> and slows enemies hit by 30% for 2s.",
+                      "skillicon": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_c5771dd5686278640dabfaa26839545c.png",
+                      "skillid": 120,
+                      "skillname": "Arrow of Eclipse",
+                      "skilltag": [
+                        {
+                          "tagid": 21,
+                          "tagname": "CC",
+                          "tagrgb": "205,93,109"
+                        },
+                        {
+                          "tagid": 32,
+                          "tagname": "AOE",
+                          "tagrgb": "199,121,85"
+                        }
+                      ],
+                      "skillvideo": ""
+                    },
+                    {
+                      "skillcd&cost": "CD: 30   Mana Cost: 120",
+                      "skilldesc": "Miya removes all debuffs and enters the <font color=\"a6aafb\">Conceal</font> state, gaining 65% Movement Speed for up to 2s (attacking ends the state early).\n\nUpon exiting the <font color=\"a6aafb\">Conceal</font> state, Miya gains maximum stacks of <font color=\"a6aafb\">Moon Blessing</font>.",
+                      "skillicon": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_361546d795e6df7029a1cf1252e57ac8.png",
+                      "skillid": 130,
+                      "skillname": "Hidden Moonlight",
+                      "skilltag": [
+                        {
+                          "tagid": 74,
+                          "tagname": "Conceal",
+                          "tagrgb": "97,127,198"
+                        },
+                        {
+                          "tagid": 64,
+                          "tagname": "Remove CC",
+                          "tagrgb": "79,156,184"
+                        }
+                      ],
+                      "skillvideo": ""
+                    }
+                  ],
+                  "skilllistid": "11"
+                }
+              ],
+              "heroskin": null,
+              "name": "Miya",
+              "painting": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_f6d3f7f102e1f0fb9dc92b971d1128ec.png",
+              "recommendlevel": [
+                "3",
+                "1",
+                "2",
+                "0",
+                "1/2"
+              ],
+              "recommendlevellabel": "3-1-2-0-1/2",
+              "recommendmasterplan": [],
+              "roadsort": [
+                {
+                  "_id": "668541a2aa8e7f6ec4703d86",
+                  "caption": "金币路",
+                  "configId": 144237,
+                  "createdAt": 1720009122589,
+                  "createdUser": "nickjin",
+                  "data": {
+                    "_object": 2732073,
+                    "road_sort_icon": "https://akmweb.youngjoygame.com/web/gms/image/91f817c656908a83c2e24eecb3b70986.svg",
+                    "road_sort_id": "5",
+                    "road_sort_title": "Gold Lane"
+                  },
+                  "dynamic": null,
+                  "id": 2732079,
+                  "linkId": [
+                    2732073
+                  ],
+                  "sort": 0,
+                  "updatedAt": 1723022953428,
+                  "updatedUser": "nickjin"
+                },
+                ""
+              ],
+              "roadsorticon1": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_b4302450af5d1f55adf07399b4d3ed95.png",
+              "roadsorticon2": "",
+              "roadsortlabel": [
+                "Gold Lane",
+                ""
+              ],
+              "smallmap": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_32c0d9d3a727a9052754296af6251435.png",
+              "sorticon1": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_094c17e22ff5e8086641e9a2c67dd81e.png",
+              "sorticon2": "",
+              "sortid": [
+                {
+                  "_id": "6698c04f613093b976b4a978",
+                  "caption": "5射手",
+                  "configId": 144237,
+                  "createdAt": 1721286735503,
+                  "createdUser": "nickjin",
+                  "data": {
+                    "_object": 2740651,
+                    "sort_icon": "https://akmweb.youngjoygame.com/web/gms/image/025c69a764924f4bac526a2662f1a0b9.png",
+                    "sort_id": "5",
+                    "sort_title": "Marksman"
+                  },
+                  "dynamic": null,
+                  "id": 2740665,
+                  "linkId": [
+                    2740651
+                  ],
+                  "sort": 0,
+                  "updatedAt": 1723023126452,
+                  "updatedUser": "nickjin"
+                },
+                ""
+              ],
+              "sortlabel": [
+                "Marksman",
+                ""
+              ],
+              "speciality": [
+                "Finisher",
+                "Damage"
+              ],
+              "squarehead": "https://akmweb.youngjoygame.com/web/svnres/file/test/homepage_2_2_16_1232_1/100_7c5b221cf1f95a1f06da1b7b644adfec.jpg",
+              "squareheadbig": "https://akmweb.youngjoygame.com/web/svnres/file/test/homepage_2_2_16_1232_1/100_5264c2a7b30fee59a25fc2133ff001ac.jpg",
+              "story": "The Priestess of the Moon and protector of the Moonlit Forest.",
+              "tale": ""
+            },
+            "id": 100378,
+            "sourceId": 2756563
+          },
+          "hero_id": 1,
+          "relation": {
+            "assist": {
+              "desc": "Miya works well with Tanks who have powerful CC abilities like Belerick and Tigreal since their CCs give her more opportunities to dish out damage.",
+              "target_hero": [
+                {
+                  "data": {
+                    "head": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_8b30576754be1a4f8bebd09df8d6bec7.png"
+                  }
+                },
+                {
+                  "data": {
+                    "head": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_5f2a9eca0bafd4ed8dc39a93c771b3af.png"
+                  }
+                },
+                0
+              ],
+              "target_hero_id": [
+                6,
+                70,
+                0
+              ]
+            },
+            "strong": {
+              "desc": "Miya counters heroes who rely on targeted CC effects, such as Saber and Eudora, because she can easily escape their CC and respond with a strong counterattack. The split arrows from her 1st Skill are also very effective against heroes that summon units, such as Sun.",
+              "target_hero": [
+                {
+                  "data": {
+                    "head": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_6bbfac806f29d29f17fea9e98d2d2fee.png"
+                  }
+                },
+                {
+                  "data": {
+                    "head": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_87b2a655b254c136dce8976e21935a80.png"
+                  }
+                },
+                {
+                  "data": {
+                    "head": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_117b5cdcc13232157075ce7b7f6177e9.png"
+                  }
+                }
+              ],
+              "target_hero_id": [
+                3,
+                15,
+                27
+              ]
+            },
+            "weak": {
+              "desc": "Miya is countered by heroes with a lot of AOE damage, such as Pharsa and Yve, because they can still hit her while she is concealed.",
+              "target_hero": [
+                {
+                  "data": {
+                    "head": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_10151d43910e62f7aa9ce08df481a20f.png"
+                  }
+                },
+                {
+                  "data": {
+                    "head": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_d9b0a1d92b1c4b3643d6332fd66aa8e6.png"
+                  }
+                },
+                0
+              ],
+              "target_hero_id": [
+                52,
+                101,
+                0
+              ]
+            }
+          },
+          "url": "https://play.mobilelegends.com/lore/hero/Miya"
+        },
+        "dynamic": null,
+        "id": 2667597,
+        "linkId": [
+          2667538
+        ],
+        "sort": 0,
+        "updatedAt": 1763037894023,
+        "updatedUser": "v_zhu"
+      }
+    ],
+    "total": 1
+  }
+}

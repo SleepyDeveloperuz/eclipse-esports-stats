@@ -13,6 +13,9 @@ Before deploying this version, set these production variables in **Vercel → Pr
 | `MLBB_META_ENABLED` | `true` enables Meta Lab. Set `false` for an immediate feature rollback without deleting cache. |
 | `MLBB_META_RANK` | Default upstream rank cohort. Recommended: `mythic`. |
 | `MLBB_META_DAYS` | Default source window. Recommended: `7`. |
+| `MLBB_PROVIDER` | MLBB data provider: `rone` (default), `auto` (direct with Rone fallback), or `direct` (direct only). |
+| `MLBB_GMS_BASE_URL` | Optional custom base URL for direct Moonton GMS endpoints (https only). |
+| `RONE_BASE_URL` | Optional custom base URL for Rone Arena API (https only, default `https://arena.rone.dev`). |
 | `CRON_SECRET` | Random server-only value used by Vercel Cron to authorize `/api/mlbb-sync`. |
 | `KV_REST_API_URL` or `UPSTASH_REDIS_REST_URL` | HTTPS REST URL of Upstash Redis. It now holds durable team data as well as MLBB caches. Marketplace normally injects the `KV_*` form. |
 | `KV_REST_API_TOKEN` or `UPSTASH_REDIS_REST_TOKEN` | Server-only REST token for that database. Marketplace normally injects the `KV_*` form. |
@@ -69,4 +72,16 @@ Hero catalog, Mythic 7-day rank data, patch summaries, sync health, hero detail 
 
 After the first deployment, open Meta Lab as Admin and run one manual sync. Confirm that the response reports hero, rank-row and patch counts before relying on the daily schedule. Once that canonical catalog is available it replaces the old hand-maintained hero rows for match and Practice Lite forms; an upstream failure never performs that replacement. Hero IDs and name snapshots are then preserved in schema v4 match data, so historical matches remain readable when a display name changes.
 
-Rone Arena API is an unofficial BSD-3-Clause source and must remain visibly attributed in Meta Lab; patch links point to the official Mobile Legends news source. Redis operations fail closed after a bounded timeout, while upstream sync failures continue serving the last-known-good cache.
+Rone Arena API is an unofficial BSD-3-Clause source and must remain visibly attributed in Meta Lab when serving data; patch links point to the official Mobile Legends news source. Redis operations fail closed after a bounded timeout, while upstream sync failures continue serving the last-known-good cache.
+
+### Upstream data providers and fallback
+
+The MLBB data layer supports multiple provider modes configured via `MLBB_PROVIDER`:
+- `rone` (default): Uses the hosted Rone Arena API. Unset or unknown values always fall back to this mode, preserving complete backward compatibility.
+- `auto`: Tries the direct Moonton CMS (GMS) gateway first (4000 ms timeout, 0 retries). If direct succeeds, data is tagged as official Moonton data. If any error occurs on a call, it automatically falls back to Rone Arena API for that call. A 5-minute circuit breaker opens on direct timeout, `UPSTREAM_BLOCKED` (HTTP 403/405 HTML), or network failure, so subsequent queued calls in the same sync skip direct immediately without wasting execution time.
+- `direct`: Talks strictly to the direct Moonton CMS endpoints without falling back to Rone (useful for manual testing and diagnostics).
+
+**Rollback:** To instantly revert to the original provider behavior without code changes, set `MLBB_PROVIDER=rone` in Vercel project settings and redeploy.
+
+**Caution on direct endpoints:** Direct Moonton CMS endpoints are public but undocumented and unversioned. Moonton may alter schemas, adjust source IDs, or block requests at any time. If upstream blocks a request or returns unexpected formats, the system automatically falls back to Rone or preserves last-known-good cache.
+
