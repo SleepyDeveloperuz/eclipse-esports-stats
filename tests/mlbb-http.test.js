@@ -62,3 +62,57 @@ test('fetchJson preserves timeout failure after its bounded retry', async () => 
   }), error => error.code === 'UPSTREAM_TIMEOUT');
   assert.equal(calls, 2);
 });
+
+test('fetchJson attaches sanitized snippet and parsed details on non-2xx response', async () => {
+  const jsonBody = JSON.stringify({ error: 'rate_limited', details: { retry_after: 30 } });
+  await assert.rejects(() => fetchJson('https://example.test/data', {
+    fetchImpl: async () => new Response(jsonBody, { status: 429, headers: { 'Content-Type': 'application/json' } }),
+    retries: 0
+  }), error => {
+    assert.equal(error.code, 'UPSTREAM_HTTP_ERROR');
+    assert.equal(error.upstreamStatus, 429);
+    assert.equal(error.snippet, jsonBody);
+    assert.deepEqual(error.details, { error: 'rate_limited', details: { retry_after: 30 } });
+    return true;
+  });
+});
+
+test('fetchJson throws UPSTREAM_BLOCKED without retry on 403 or 405 HTML response', async () => {
+  let calls403 = 0;
+  await assert.rejects(() => fetchJson('https://example.test/data', {
+    fetchImpl: async () => {
+      calls403 += 1;
+      return new Response('<html><head><title>403 Forbidden</title></head><body>WAF Block</body></html>', {
+        status: 403,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+      });
+    },
+    retries: 2,
+    retryBaseDelayMs: 0
+  }), error => {
+    assert.equal(error.code, 'UPSTREAM_BLOCKED');
+    assert.equal(error.upstreamStatus, 403);
+    assert.ok(error.snippet.includes('WAF Block'));
+    return true;
+  });
+  assert.equal(calls403, 1, '403 HTML must not be retried');
+
+  let calls405 = 0;
+  await assert.rejects(() => fetchJson('https://example.test/data', {
+    fetchImpl: async () => {
+      calls405 += 1;
+      return new Response('<!DOCTYPE html><html><body>Method Not Allowed</body></html>', {
+        status: 405,
+        headers: { 'Content-Type': 'text/html' }
+      });
+    },
+    retries: 2,
+    retryBaseDelayMs: 0
+  }), error => {
+    assert.equal(error.code, 'UPSTREAM_BLOCKED');
+    assert.equal(error.upstreamStatus, 405);
+    return true;
+  });
+  assert.equal(calls405, 1, '405 HTML must not be retried');
+});
+

@@ -1,0 +1,114 @@
+{
+  "code": 0,
+  "message": "OK",
+  "data": {
+    "records": [
+      {
+        "data": {
+          "hero": {
+            "data": {
+              "head": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_da894b37bfb5cadb32307f371f31918a.png",
+              "name": "Miya",
+              "smallmap": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_32c0d9d3a727a9052754296af6251435.png"
+            }
+          },
+          "hero_id": 1,
+          "relation": {
+            "assist": {
+              "target_hero_id": [
+                6,
+                70,
+                0
+              ]
+            },
+            "strong": {
+              "target_hero_id": [
+                3,
+                15,
+                27
+              ]
+            },
+            "weak": {
+              "target_hero_id": [
+                52,
+                101,
+                0
+              ]
+            }
+          }
+        }
+      },
+      {
+        "data": {
+          "hero": {
+            "data": {
+              "head": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_df9a6990b1946d045e4d3a46c90725cf.png",
+              "name": "Balmond",
+              "smallmap": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_6c018674ea709972b4837ec90518e79e.png"
+            }
+          },
+          "hero_id": 2,
+          "relation": {
+            "assist": {
+              "target_hero_id": [
+                55,
+                14,
+                0
+              ]
+            },
+            "strong": {
+              "target_hero_id": [
+                18,
+                15,
+                0
+              ]
+            },
+            "weak": {
+              "target_hero_id": [
+                53,
+                43,
+                0
+              ]
+            }
+          }
+        }
+      },
+      {
+        "data": {
+          "hero": {
+            "data": {
+              "head": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_6bbfac806f29d29f17fea9e98d2d2fee.png",
+              "name": "Saber",
+              "smallmap": "https://akmweb.youngjoygame.com/web/svnres/img/test/homepage_2_2_16_1232_1/100_b5980d535886303ad116fba3463c76ce.png"
+            }
+          },
+          "hero_id": 3,
+          "relation": {
+            "assist": {
+              "target_hero_id": [
+                75,
+                33,
+                0
+              ]
+            },
+            "strong": {
+              "target_hero_id": [
+                18,
+                15,
+                0
+              ]
+            },
+            "weak": {
+              "target_hero_id": [
+                34,
+                76,
+                0
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "total": 3
+  }
+}
