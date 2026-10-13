@@ -2,7 +2,16 @@
   const Base = window.MlbbDataManager;
   const tiers = ['SS', 'S', 'A', 'B', 'C', 'D', 'U'];
   const ranks = { epic: 'Epic', legend: 'Legend', mythic: 'Mythic', glory: 'Mythical Glory+' };
-  const colors = { SS: '#ffe9aa', S: '#efd17b', A: '#ce9456', B: '#9fab9e', C: '#9294a0', D: '#6c747b', U: '#848484' };
+  const colors = { SS: '#f5a623', S: '#b84040', A: '#cf9537', B: '#2f857e', C: '#4a5c75', D: '#43494e', U: '#848484' };
+  const tierDescriptions = Object.freeze({
+    SS: { en: 'Must ban or 1st pick heroes', uz: 'Majburiy ban yoki 1-pick qahramonlar' },
+    S:  { en: 'Strong heroes. 1st pick or 2nd pick', uz: 'Kuchli qahramonlar. 1- yoki 2-pick' },
+    A:  { en: 'Good heroes. Safe picks, work well in teams', uz: 'Yaxshi qahramonlar. Xavfsiz tanlov, jamoada yaxshi ishlaydi' },
+    B:  { en: 'Okay heroes. Useful if played well or for special plans', uz: 'O‘rtacha qahramonlar. Yaxshi o‘ynalsa yoki maxsus rejalar uchun' },
+    C:  { en: 'Weaker heroes. Only good in very specific situations', uz: 'Kuchsizroq qahramonlar. Faqat juda maxsus vaziyatlarda yaxshi' },
+    D:  { en: 'Weakest heroes. Better to pick others', uz: 'Eng kuchsiz qahramonlar. Boshqalarni tanlagan ma’qul' },
+    U:  { en: 'Unrated heroes. Insufficient match data', uz: 'Baholanmagan. Ma’lumot yetarli emas' }
+  });
   const EXPORT_LIMIT_MS = 60000, PORTRAIT_LIMIT_MS = 45000;
   const cancellationMessage = 'Eksport bekor qilindi. Yuklangan portretlar keyingi urinish uchun saqlandi.';
   function abortable(promise, signal) {
@@ -18,6 +27,57 @@
     rankLabel(rank) { return ranks[rank] || rank; }
     rankMarkup() {
       return `<nav class="meta-rank-picker" aria-label="MLBB rank"><span>Rank</span>${Object.entries(ranks).map(([rank, label]) => `<button type="button" class="btn btn-sm ${rank === this.selectedRank ? 'btn-primary' : 'btn-secondary'}" data-meta-rank="${rank}" aria-pressed="${rank === this.selectedRank}" ${this.exporting ? 'disabled' : ''}>${label}</button>`).join('')}</nav>`;
+    }
+    tierDescription(tier) {
+      return tierDescriptions[tier] || { en: tier, uz: tier };
+    }
+    heroMovement(id, hero = null, meta = this.state.meta) {
+      const change = meta?.data?.comparison?.changes?.find(row => Number(row.heroId) === Number(id));
+      if (change) {
+        if (typeof change.rankDelta === 'number' && change.rankDelta !== 0) {
+          return {
+            direction: change.rankDelta > 0 ? 'up' : 'down',
+            delta: Math.abs(change.rankDelta),
+            label: change.rankDelta > 0 ? `+${change.rankDelta} o‘rin ko‘tarildi` : `${change.rankDelta} o‘rin pasaydi`
+          };
+        }
+        if (change.previousTier && change.tier && change.previousTier !== change.tier) {
+          const tierOrder = { SS: 6, S: 5, A: 4, B: 3, C: 2, D: 1, U: 0 };
+          const diff = (tierOrder[change.tier] || 0) - (tierOrder[change.previousTier] || 0);
+          if (diff !== 0) {
+            return {
+              direction: diff > 0 ? 'up' : 'down',
+              delta: Math.abs(diff),
+              label: diff > 0 ? `${change.previousTier} dan ${change.tier} ga ko‘tarildi` : `${change.previousTier} dan ${change.tier} ga tushdi`
+            };
+          }
+        }
+        if (change.isNew) {
+          return { direction: 'up', delta: 0, label: 'Yangi kiritildi' };
+        }
+      }
+      if (hero) {
+        if (typeof hero.rankDelta === 'number' && hero.rankDelta !== 0) {
+          return {
+            direction: hero.rankDelta > 0 ? 'up' : 'down',
+            delta: Math.abs(hero.rankDelta),
+            label: hero.rankDelta > 0 ? `+${hero.rankDelta} o‘rin ko‘tarildi` : `${hero.rankDelta} o‘rin pasaydi`
+          };
+        }
+        if (hero.trend === 'up' || hero.trend === 'rising') {
+          return { direction: 'up', delta: hero.delta || 1, label: 'Ko‘tarilmoqda' };
+        }
+        if (hero.trend === 'down' || hero.trend === 'falling') {
+          return { direction: 'down', delta: hero.delta || 1, label: 'Tushmoqda' };
+        }
+      }
+      return null;
+    }
+    movementIconSvg(direction) {
+      if (direction === 'up') {
+        return `<svg class="solar-tier-hero__movement-icon" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7l4-4 4 4"/><path d="M4 12l4-4 4 4"/></svg>`;
+      }
+      return `<svg class="solar-tier-hero__movement-icon" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4l4 4 4-4"/><path d="M4 9l4 4 4-4"/></svg>`;
     }
     async selectRank(rank) {
       if (!ranks[rank] || this.exporting) return;
@@ -48,18 +108,32 @@
       if (!rows.length) return picker + (this.rankLoading ? `<p role="status">${this.escape(this.rankLabel(this.selectedRank))} statistikasi yuklanmoqda…</p>` : this.rankError ? `<p role="alert">${this.escape(this.rankError)}</p>` : super.tierMarkup());
       const mode = this.tierDisplay || 'board';
       const comparison = this.state.meta?.data?.comparison;
-      const toolbar = `<div class="tier-view-toolbar"><div role="group" aria-label="Tier ko‘rinishi"><button type="button" class="btn btn-sm ${mode === 'board' ? 'btn-primary' : 'btn-secondary'}" data-tier-view="board" aria-pressed="${mode === 'board'}">Tier board</button><button type="button" class="btn btn-sm ${mode === 'table' ? 'btn-primary' : 'btn-secondary'}" data-tier-view="table" aria-pressed="${mode === 'table'}">Raqamli jadval</button></div><button type="button" class="btn btn-secondary" data-tier-export>PNG yuklash · barcha hero</button><button type="button" class="btn btn-secondary" data-tier-export-cancel ${this.exporting ? '' : 'hidden'}>Eksportni bekor qilish</button></div>`;
+      const toolbar = `<div class="tier-view-toolbar"><div role="group" aria-label="Tier ko‘rinishi"><button type="button" class="btn btn-sm ${mode === 'board' ? 'btn-primary' : 'btn-secondary'}" data-tier-view="board" aria-pressed="${mode === 'board'}">Tier board</button><button type="button" class="btn btn-sm ${mode === 'table' ? 'btn-primary' : 'btn-secondary'}" data-tier-view="table" aria-pressed="${mode === 'table'}">Raqamli jadval</button></div><div class="tier-toolbar-actions"><button type="button" class="btn btn-sm ${this.highlightMovements ? 'btn-primary' : 'btn-secondary'}" data-tier-highlight-movements aria-pressed="${Boolean(this.highlightMovements)}">${this.movementIconSvg('up')} O‘sishlarni ajratish</button><button type="button" class="btn btn-secondary" data-tier-export>PNG yuklash · barcha hero</button><button type="button" class="btn btn-secondary" data-tier-export-cancel ${this.exporting ? '' : 'hidden'}>Eksportni bekor qilish</button></div></div>`;
       const exportStatus = `<div class="tier-export-status" role="status" aria-live="polite">${this.exporting ? this.escape(this.exportProgress || 'PNG tayyorlanmoqda…') : this.exportedPoster?.rank === this.selectedRank ? `<a class="btn btn-secondary" href="${this.escape(this.exportedPoster.url)}" download="${this.escape(this.exportedPoster.filename)}">${this.escape(this.rankLabel(this.selectedRank))} · Tayyor PNG faylni yuklash</a>` : ''}</div>`;
       const table = super.tierMarkup();
       if (mode === 'table') return picker + toolbar + exportStatus + table;
-      return `${picker}${toolbar}${exportStatus}<section class="solar-tier-board"><header><p class="section-eyebrow">ECLIPSE / META ATLAS</p><h3>${this.escape(this.rankLabel(this.selectedRank))} meta tier list</h3><p>${this.escape(this.rankLabel(this.state.meta?.data?.rank || ''))} · ${Number(this.state.meta?.data?.days) || 1} kun · ${this.escape(this.state.meta?.updatedAt ? new Date(this.state.meta.updatedAt).toLocaleString('uz-UZ') : 'Sana noma’lum')}</p><p>Eclipse tajribaviy tierlari — Moonton rasmiy bahosi emas. ${this.escape(this.tierSummary(this.state.meta))}</p><small>${comparison ? `O‘zgarishlar ${this.escape(new Date(comparison.previousUpdatedAt).toLocaleString('uz-UZ'))} dagi snapshotga nisbatan.` : 'Taqqoslash uchun oldingi mos snapshot hali yo‘q.'}</small></header>
-        ${tiers.map(tier => `<section class="solar-tier-row" aria-label="${tier} tier" title="${this.escape(this.state.meta?.data?.methodology?.labels?.[tier] || tier)}"><div class="solar-tier-label is-${tier.toLowerCase()}"><strong>${tier}</strong><small>${rows.filter(h => h.tier === tier).length} HERO</small></div><div class="solar-tier-heroes">${rows.filter(h => h.tier === tier).map(h => `<button type="button" class="solar-tier-hero" data-hero-id="${Number(h.heroId)}" title="${this.escape(h.name)} · ${h.eclipseScore == null ? 'Baholanmagan' : Number(h.eclipseScore).toFixed(2)}"><span>${this.imageMarkup(h.image ? h : { ...h, image: this.heroById(h.heroId)?.images?.portrait })}</span><strong>${this.escape(h.name)}</strong><small>${this.escape(this.qualityText(h) || this.changeText(h.heroId))}</small></button>`).join('')}</div></section>`).join('')}
+      return `${picker}${toolbar}${exportStatus}<section class="solar-tier-board${this.highlightMovements ? ' is-highlighting-movements' : ''}"><header><p class="section-eyebrow">ECLIPSE / META ATLAS</p><h3>${this.escape(this.rankLabel(this.selectedRank))} meta tier list</h3><p>${this.escape(this.rankLabel(this.state.meta?.data?.rank || ''))} · ${Number(this.state.meta?.data?.days) || 1} kun · ${this.escape(this.state.meta?.updatedAt ? new Date(this.state.meta.updatedAt).toLocaleString('uz-UZ') : 'Sana noma’lum')}</p><p>Eclipse tajribaviy tierlari — Moonton rasmiy bahosi emas. ${this.escape(this.tierSummary(this.state.meta))}</p><small>${comparison ? `O‘zgarishlar ${this.escape(new Date(comparison.previousUpdatedAt).toLocaleString('uz-UZ'))} dagi snapshotga nisbatan.` : 'Taqqoslash uchun oldingi mos snapshot hali yo‘q.'}</small></header>
+        ${tiers.map(tier => {
+          const desc = this.tierDescription(tier);
+          const tierHeroes = rows.filter(h => h.tier === tier);
+          return `<section class="solar-tier-row" aria-label="${tier} tier" title="${this.escape(desc.en)} · ${this.escape(desc.uz)}"><div class="solar-tier-label is-${tier.toLowerCase()}"><span class="solar-tier-info" tabindex="0" role="button" aria-label="${tier} tier tavsifi" title="${this.escape(desc.en)} · ${this.escape(desc.uz)}"><i class="solar-tier-info-icon" aria-hidden="true">i</i><span class="solar-tier-tooltip" role="tooltip"><strong class="solar-tier-tooltip__title">${tier} Tier</strong><span class="solar-tier-tooltip__en">${this.escape(desc.en)}</span><small class="solar-tier-tooltip__uz">${this.escape(desc.uz)}</small></span></span><strong>${tier}</strong><small>${tierHeroes.length} HERO</small></div><div class="solar-tier-heroes">${tierHeroes.map(h => {
+            const lanes = this.heroLanes(h.heroId);
+            const lanesLabels = this.heroLanesLabels(h.heroId);
+            const lanesTitle = lanesLabels.length ? lanesLabels.join(' / ') : '';
+            const movement = this.heroMovement(h.heroId, h);
+            const isRising = movement?.direction === 'up';
+            const isFalling = movement?.direction === 'down';
+            const movementBadge = movement ? `<span class="solar-tier-hero__movement is-${movement.direction}" title="${this.escape(movement.label)}" aria-label="${this.escape(movement.label)}">${this.movementIconSvg(movement.direction)}</span>` : '';
+            return `<button type="button" class="solar-tier-hero ${isRising ? 'is-rising' : ''} ${isFalling ? 'is-falling' : ''}" data-hero-id="${Number(h.heroId)}" data-lane="${this.escape(lanes.join(' '))}" data-movement="${movement ? movement.direction : 'none'}" title="${this.escape(h.name)}${lanesTitle ? ' · ' + this.escape(lanesTitle) : ''}${movement ? ' · ' + this.escape(movement.label) : ''} · ${h.eclipseScore == null ? 'Baholanmagan' : Number(h.eclipseScore).toFixed(2)}"><span class="solar-tier-hero__portrait">${this.imageMarkup(h.image ? h : { ...h, image: this.heroById(h.heroId)?.images?.portrait })}${movementBadge}${this.laneBadgeMarkup(h.heroId)}</span><strong>${this.escape(h.name)}</strong><small>${this.escape(this.qualityText(h) || this.changeText(h.heroId))}</small></button>`;
+          }).join('')}</div></section>`;
+        }).join('')}
         <footer>${rows.length} hero · SS / S / A / B / C / D; U = baholanmagan. Majburiy kvota yo‘q; SS bo‘sh bo‘lishi mumkin.<br>Hero ustiga bosing: skills va counters. Yuqori rank yoki SS tier statistik ishonchlilik va g‘alaba kafolati emas.</footer></section>`;
     }
     bindEvents() {
       super.bindEvents();
       this.container?.querySelectorAll('[data-meta-rank]').forEach(button => { button.onclick = event => { event.stopPropagation(); this.selectRank(button.dataset.metaRank); }; });
       this.container?.querySelectorAll('[data-tier-view]').forEach(button => { button.onclick = event => { event.stopPropagation(); this.tierDisplay = button.dataset.tierView; this.renderState(); }; });
+      const highlightBtn = this.container?.querySelector('[data-tier-highlight-movements]'); if (highlightBtn) highlightBtn.onclick = event => { event.stopPropagation(); this.highlightMovements = !this.highlightMovements; this.renderState(); };
       const button = this.container?.querySelector('[data-tier-export]'); if (button) button.onclick = event => { event.stopPropagation(); this.exportTierPng(button); };
       const cancel = this.container?.querySelector('[data-tier-export-cancel]'); if (cancel) cancel.onclick = event => { event.stopPropagation(); this.cancelTierExport(); };
       this.updateExportControls();

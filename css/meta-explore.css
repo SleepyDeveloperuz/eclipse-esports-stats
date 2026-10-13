@@ -70,6 +70,63 @@
 .meta-explore button, .meta-share-bar button { transition:background-color .18s ease,border-color .18s ease; }
 .meta-explore button:focus-visible, .meta-explore summary:focus-visible, .meta-share-bar button:focus-visible { outline:2px solid var(--accent-gold,#e4c46e); outline-offset:4px; }
 .meta-explore [hidden], .solar-tier-board [hidden] { display:none !important; }
+
+/* Lane filter bar */
+.meta-lane-filter { display:inline-flex; align-items:center; border:1px solid #1a2b42; border-radius:.65rem; background:#060b13; overflow:hidden; max-width:100%; }
+.meta-lane-btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; min-height:44px; padding:.5rem .95rem; background:transparent; border:0; border-right:1px solid #1a2b42; color:#cdd9e5; font-family:inherit; font-size:.875rem; font-weight:600; cursor:pointer; white-space:nowrap; transition:background .18s ease,color .18s ease,box-shadow .18s ease; line-height:1; }
+.meta-lane-btn:last-child { border-right:0; }
+.meta-lane-btn:hover { background:rgba(255,255,255,.06); color:#fff; }
+.meta-lane-btn:focus-visible { outline:2px solid var(--accent-gold,#e4c46e); outline-offset:-2px; z-index:2; }
+.meta-lane-icon { width:20px; height:20px; flex:none; display:block; }
+.meta-lane-btn.active.is-all { background:rgba(228,196,110,.16); color:#e4c46e; }
+.meta-lane-btn.active.is-roam { background:rgba(78,226,219,.18); color:#4ee2db; box-shadow:inset 0 0 12px rgba(78,226,219,.15); }
+.meta-lane-btn.active.is-exp { background:rgba(176,157,245,.18); color:#b09df5; box-shadow:inset 0 0 12px rgba(176,157,245,.15); }
+.meta-lane-btn.active.is-jungle { background:rgba(78,214,184,.18); color:#4ed6b8; box-shadow:inset 0 0 12px rgba(78,214,184,.15); }
+.meta-lane-btn.active.is-mid { background:rgba(98,214,251,.18); color:#62d6fb; box-shadow:inset 0 0 12px rgba(98,214,251,.15); }
+.meta-lane-btn.active.is-gold { background:rgba(246,207,87,.18); color:#f6cf57; box-shadow:inset 0 0 12px rgba(246,207,87,.15); }
+
+/* Solar tier hero lane badge */
+.solar-tier-hero__portrait { position:relative; display:inline-flex; align-items:center; justify-content:center; }
+.solar-tier-hero__lane-badges { position:absolute; right:-3px; bottom:-3px; display:flex; gap:2px; background:rgba(6,11,19,.94); border:1px solid rgba(255,255,255,.14); border-radius:4px; padding:1px 2px; box-shadow:0 2px 6px rgba(0,0,0,.7); pointer-events:none; z-index:2; }
+.solar-lane-badge { width:13px; height:13px; display:block; flex:none; }
+.solar-lane-badge.is-primary { border:1px solid rgba(255,255,255,.4); border-radius:2px; }
+
+/* Solar tier label colors matching MLBB GG */
+.solar-tier-label.is-ss { background:#f5a623 !important; color:#111 !important; }
+.solar-tier-label.is-s { background:#b84040 !important; color:#111 !important; }
+.solar-tier-label.is-a { background:#cf9537 !important; color:#111 !important; }
+.solar-tier-label.is-b { background:#2f857e !important; color:#fff !important; }
+.solar-tier-label.is-c { background:#4a5c75 !important; color:#fff !important; }
+.solar-tier-label.is-d { background:#43494e !important; color:#fff !important; }
+.solar-tier-label { position:relative; overflow:visible; }
+
+/* Tier description info button and tooltip */
+.solar-tier-info { position:absolute; top:6px; right:6px; width:19px; height:19px; border-radius:50%; border:1.5px solid currentColor; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:.85; transition:opacity .18s ease,transform .18s ease; z-index:6; }
+.solar-tier-info:hover, .solar-tier-info:focus-visible { opacity:1; transform:scale(1.12); outline:none; }
+.solar-tier-info-icon { font-size:11px; font-weight:700; font-family:serif; font-style:italic; line-height:1; }
+.solar-tier-tooltip { visibility:hidden; opacity:0; position:absolute; left:calc(100% + 10px); top:50%; transform:translateY(-50%) translateX(-4px); background:#0c1017; color:#f1f5f9; border:1px solid rgba(222,199,132,.38); border-radius:8px; padding:9px 13px; width:max-content; max-width:270px; box-shadow:0 12px 30px rgba(0,0,0,.85),0 0 16px rgba(222,199,132,.15); pointer-events:none; transition:opacity .2s cubic-bezier(.16,1,.3,1),transform .2s cubic-bezier(.16,1,.3,1),visibility .2s; z-index:1000; display:flex; flex-direction:column; gap:3px; text-align:left; line-height:1.35; }
+.solar-tier-tooltip::before { content:''; position:absolute; top:50%; right:100%; transform:translateY(-50%); border-width:6px; border-style:solid; border-color:transparent #0c1017 transparent transparent; }
+.solar-tier-info:hover .solar-tier-tooltip, .solar-tier-info:focus-visible .solar-tier-tooltip, .solar-tier-label:hover .solar-tier-tooltip { visibility:visible; opacity:1; transform:translateY(-50%) translateX(0); }
+.solar-tier-tooltip__title { font-size:.85rem; font-weight:700; color:#dec784; letter-spacing:.03em; text-transform:uppercase; }
+.solar-tier-tooltip__en { font-size:.82rem; font-weight:600; color:#ffffff; }
+.solar-tier-tooltip__uz { font-size:.74rem; color:#94a3b8; }
+
+/* Hero movement badges (up/down rank change) */
+.solar-tier-hero__movement { position:absolute; top:-3px; left:-3px; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:4; border:1.5px solid rgba(255,255,255,.4); box-shadow:0 2px 6px rgba(0,0,0,.65); }
+.solar-tier-hero__movement.is-up { background:#10b981; color:#ffffff; box-shadow:0 0 10px rgba(16,185,129,.7); }
+.solar-tier-hero__movement.is-down { background:#ef4444; color:#ffffff; box-shadow:0 0 10px rgba(239,68,68,.7); }
+.solar-tier-hero__movement-icon { width:12px; height:12px; stroke-width:2.5; display:block; }
+
+/* Rising hero highlighting */
+.solar-tier-hero.is-rising .solar-tier-hero__portrait img,
+.solar-tier-hero.is-rising .solar-tier-hero__portrait .meta-hero-fallback { border-color:#10b981 !important; box-shadow:0 0 0 2px #10b981, 0 0 14px rgba(16,185,129,.55); }
+.solar-tier-hero.is-rising strong { color:#6ee7b7; text-shadow:0 0 8px rgba(16,185,129,.25); }
+
+/* Highlight movement active toggle mode */
+.solar-tier-board.is-highlighting-movements .solar-tier-hero:not(.is-rising) { opacity:.42; filter:grayscale(.2); transition:opacity .2s ease,filter .2s ease; }
+.solar-tier-board.is-highlighting-movements .solar-tier-hero.is-rising { opacity:1; transform:translateY(-2px) scale(1.04); }
+.tier-toolbar-actions { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
 @media(max-width:1200px) { .meta-lens-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:1100px) { .meta-lab-commandbar { position:relative; top:auto; } }
 @media(max-width:900px) { .meta-lab-hero__copy { width:100%; } .meta-lab-hero__orb { opacity:.18; right:2rem; } }
@@ -82,6 +139,10 @@
   .meta-lab-health { justify-content:flex-start; }
   .meta-lab-telemetry > span { padding:.8rem .55rem; }
   .meta-lab-telemetry strong { font-size:1rem; }
+  .meta-lane-filter { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .meta-lane-filter::-webkit-scrollbar { display:none; }
+  .meta-lane-btn { padding:.45rem .75rem; font-size:.8rem; }
 }
 @media(max-width:520px) { .meta-lens-grid { grid-template-columns:minmax(0,1fr); } }
 @media(prefers-reduced-motion:reduce) { .meta-explore button, .meta-share-bar button { transition:none; } }
+

@@ -256,3 +256,113 @@ domTest('missing rank remains missing and failed history is retryable', async ()
     assert.ok(w.document.querySelector('[data-timeline-content] [data-explore-action="retry"]'));
   } finally { w.close(); }
 });
+domTest('tier board lane filtering filters heroes by lane and supports toggling', async () => {
+  const customCatalog = [
+    { id: 1, name: 'Miya', lanes: ['Gold Lane'] },
+    { id: 2, name: 'Tigreal', lanes: ['Roam'] },
+    { id: 3, name: 'Ling', lanes: ['Jungle'] },
+    { id: 4, name: 'Chou', lanes: ['EXP Lane', 'Roam'] },
+    { id: 5, name: 'Eudora', lanes: ['Mid Lane'] }
+  ];
+  const { w, manager } = setup('?view=tier', {
+    fetch: async url => {
+      if (url.pathname === '/api/mlbb-heroes') return { ok: true, json: async () => ({ status: 'fresh', data: customCatalog }) };
+    }
+  });
+  try {
+    await manager.render(); await tick();
+    assert.equal(manager.heroLanes({ lanes: ['EXP Lane'] })[0], 'exp');
+    assert.equal(manager.heroLanes({ lanes: ['Mid Lane'] })[0], 'mid');
+    assert.equal(manager.heroLanes({ lanes: ['Jungle'] })[0], 'jungle');
+    assert.equal(manager.heroLanes({ lanes: ['Roam'] })[0], 'roam');
+    assert.equal(manager.heroLanes({ lanes: ['Gold Lane'] })[0], 'gold');
+    assert.equal(manager.laneFilter, 'all');
+
+    const expBtn = w.document.querySelector('[data-lane-filter="exp"]');
+    assert.ok(expBtn, 'Exp Lane button exists');
+    expBtn.click();
+    assert.equal(manager.laneFilter, 'exp');
+    assert.equal(new URL(manager.shareUrl()).searchParams.get('lane'), 'exp');
+
+    // Click again toggles back to all
+    expBtn.click();
+    assert.equal(manager.laneFilter, 'all');
+    assert.equal(new URL(manager.shareUrl()).searchParams.has('lane'), false);
+  } finally { w.close(); }
+});
+
+domTest('tier board displays multi-lane flex heroes, tier descriptions, and rising hero highlights', async () => {
+  const customCatalog = [
+    { id: 4, name: 'Chou', lanes: ['EXP Lane'] },
+    { id: 116, name: 'Julian', lanes: ['Jungle'] },
+    { id: 73, name: 'Harith', lanes: ['Gold Lane'] }
+  ];
+  const customRows = [
+    { heroId: 4, name: 'Chou', winRate: .54, pickRate: .02, banRate: .1, tier: 'S', eclipseRank: 10, eclipseScore: 65 },
+    { heroId: 116, name: 'Julian', winRate: .58, pickRate: .03, banRate: .4, tier: 'SS', eclipseRank: 2, eclipseScore: 78 }
+  ];
+  const comparison = {
+    previousUpdatedAt: '2026-09-28T00:00:00Z',
+    changes: [
+      { heroId: 4, previousTier: 'A', tier: 'S', rankDelta: 5, isNew: false },
+      { heroId: 116, previousTier: 'SS', tier: 'SS', rankDelta: -1, isNew: false }
+    ]
+  };
+  const { w, manager } = setup('?view=tier', {
+    fetch: async url => {
+      if (url.pathname === '/api/mlbb-heroes') return { ok: true, json: async () => ({ status: 'fresh', data: customCatalog }) };
+      if (url.pathname === '/api/mlbb-meta') return {
+        ok: true,
+        json: async () => ({
+          status: 'fresh',
+          data: {
+            rank: 'mythic',
+            days: '7',
+            official: customRows,
+            eclipse: customRows,
+            comparison,
+            methodology: { version: 'eclipse-tier-5.0.0' }
+          }
+        })
+      };
+    }
+  });
+  try {
+    await manager.render(); await tick();
+    // Multi-lane flex verification
+    const chouLanes = manager.heroLanes({ id: 4, name: 'Chou', lanes: ['EXP Lane'] });
+    assert.ok(chouLanes.includes('exp') && chouLanes.includes('roam'), 'Chou has both EXP and Roam lanes');
+    assert.equal(chouLanes[0], 'exp', 'Chou primary lane is exp');
+
+    const julianLanes = manager.heroLanes({ id: 116, name: 'Julian', lanes: ['Jungle'] });
+    assert.ok(julianLanes.includes('jungle') && julianLanes.includes('mid') && julianLanes.includes('exp'), 'Julian has 3 lanes');
+
+    // Tier description tooltips verification
+    const ssDesc = manager.tierDescription('SS');
+    assert.equal(ssDesc.en, 'Must ban or 1st pick heroes');
+    assert.match(w.document.body.innerHTML, /Must ban or 1st pick heroes/);
+    assert.match(w.document.body.innerHTML, /Strong heroes\. 1st pick or 2nd pick/);
+
+    // Rising hero highlight and movement badge verification
+    const chouBtn = w.document.querySelector('.solar-tier-hero[data-hero-id="4"]');
+    assert.ok(chouBtn, 'Chou button rendered');
+    assert.ok(chouBtn.classList.contains('is-rising'), 'Chou has is-rising class');
+    const chouMovement = chouBtn.querySelector('.solar-tier-hero__movement.is-up');
+    assert.ok(chouMovement, 'Chou has upward movement badge');
+
+    const julianBtn = w.document.querySelector('.solar-tier-hero[data-hero-id="116"]');
+    assert.ok(julianBtn, 'Julian button rendered');
+    assert.ok(julianBtn.classList.contains('is-falling'), 'Julian has is-falling class');
+    const julianMovement = julianBtn.querySelector('.solar-tier-hero__movement.is-down');
+    assert.ok(julianMovement, 'Julian has downward movement badge');
+
+    // Toggle highlight movements
+    const toggleBtn = w.document.querySelector('[data-tier-highlight-movements]');
+    assert.ok(toggleBtn, 'Highlight movements button exists');
+    toggleBtn.click(); await tick();
+    const board = w.document.querySelector('.solar-tier-board');
+    assert.ok(board.classList.contains('is-highlighting-movements'), 'Board has is-highlighting-movements class');
+  } finally { w.close(); }
+});
+
+

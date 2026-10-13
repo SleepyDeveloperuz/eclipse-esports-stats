@@ -27,10 +27,13 @@
     }
     readSharedState() {
       const query = new URL(location.href).searchParams;
-      const shared = ['rank', 'view', 'tier', 'display', 'q', 'lens', 'compare', 'hero'].some(key => query.has(key));
+      const shared = ['rank', 'view', 'tier', 'display', 'q', 'lens', 'compare', 'hero', 'lane'].some(key => query.has(key));
       this.selectedRank = ranks.includes(query.get('rank')) ? query.get('rank') : 'mythic';
       this.currentView = views.includes(query.get('view')) ? query.get('view') : 'tier';
       this.tierFilter = tiers.includes(query.get('tier')) ? query.get('tier') : 'all';
+      const validLanes = ['all', 'roam', 'exp', 'jungle', 'mid', 'gold'];
+      const laneParam = (query.get('lane') || '').toLowerCase();
+      this.laneFilter = validLanes.includes(laneParam) ? laneParam : 'all';
       this.tierDisplay = query.get('display') === 'table' ? 'table' : 'board';
       this.searchQuery = (query.get('q') || '').slice(0, 80);
       this.lensId = id(query.get('lens'));
@@ -51,6 +54,7 @@
       url.searchParams.set('view', this.currentView);
       if (this.searchQuery) url.searchParams.set('q', this.searchQuery.slice(0, 80));
       if (this.tierFilter !== 'all') url.searchParams.set('tier', this.tierFilter);
+      if (this.laneFilter && this.laneFilter !== 'all') url.searchParams.set('lane', this.laneFilter);
       if (this.tierDisplay === 'table') url.searchParams.set('display', 'table');
       if (this.lensId) url.searchParams.set('lens', this.lensId);
       if (this.sharedHero) url.searchParams.set('hero', this.sharedHero);
@@ -112,8 +116,8 @@
     tierMarkup() {
       const markup = super.tierMarkup();
       if (this.tierDisplay === 'table' || !this.tierRows().length) return markup;
-      const tools = `<div class="meta-tier-tools"><label><input type="search" id="metaTierSearch" aria-label="Tier boarddan qidirish" placeholder="Hero qidirish…" value="${this.escape(this.searchQuery)}" maxlength="80"></label><div class="meta-tier-legend" aria-label="Tier filtri">${tiers.map(tier => `<button type="button" data-tier-filter="${tier}" class="${this.tierFilter === tier ? 'active' : ''}" aria-pressed="${this.tierFilter === tier}">${tier === 'all' ? 'Barchasi' : tier}</button>`).join('')}</div></div><p data-board-empty class="meta-explore-note" hidden>Bu filtrga mos qahramon topilmadi.</p>`;
-      return markup.replace('<section class="solar-tier-board">', tools + '<section class="solar-tier-board">');
+      const tools = `<div class="meta-tier-tools"><label><input type="search" id="metaTierSearch" aria-label="Tier boarddan qidirish" placeholder="Hero qidirish…" value="${this.escape(this.searchQuery)}" maxlength="80"></label>${this.laneFilterMarkup()}<div class="meta-tier-legend" aria-label="Tier filtri">${tiers.map(tier => `<button type="button" data-tier-filter="${tier}" class="${this.tierFilter === tier ? 'active' : ''}" aria-pressed="${this.tierFilter === tier}">${tier === 'all' ? 'Barchasi' : tier}</button>`).join('')}</div></div><p data-board-empty class="meta-explore-note" hidden>Bu filtrga mos qahramon topilmadi.</p>`;
+      return markup.replace(/(<section class="solar-tier-board[^"]*">)/, tools + '$1');
     }
     applyFilters() {
       super.applyFilters();
@@ -124,7 +128,9 @@
         let visible = 0;
         row.querySelectorAll('[data-hero-id]').forEach(button => {
           const name = button.querySelector('strong')?.textContent.toLowerCase() || '';
-          button.hidden = !tierMatch || !name.includes(this.searchQuery.toLowerCase());
+          const heroLanes = (button.dataset.lane || '').split(' ').filter(Boolean);
+          const laneMatch = this.laneFilter === 'all' || heroLanes.includes(this.laneFilter);
+          button.hidden = !tierMatch || !laneMatch || !name.includes(this.searchQuery.toLowerCase());
           if (!button.hidden) visible++;
         });
         row.hidden = visible === 0; count += visible;
@@ -132,6 +138,11 @@
       const empty = this.container?.querySelector('[data-board-empty]');
       if (empty) empty.hidden = count > 0;
       this.container?.querySelectorAll('[data-tier-filter]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.tierFilter === this.tierFilter)));
+      this.container?.querySelectorAll('[data-lane-filter]').forEach(button => {
+        const isActive = button.dataset.laneFilter === this.laneFilter;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
     }
     heroSelect(attribute, chosen = 0, placeholder = 'Qahramonni tanlang') {
       return `<select ${attribute} aria-label="${this.escape(placeholder)}"><option value="">${this.escape(placeholder)}</option>${(this.state.heroes?.data || []).map(hero => `<option value="${Number(hero.id)}" ${Number(hero.id) === Number(chosen) ? 'selected' : ''}>${this.escape(hero.name)}</option>`).join('')}</select>`;
@@ -265,6 +276,13 @@
         if (target?.dataset.watchId) return this.toggleWatch(Number(target.dataset.watchId));
         if (target?.dataset.openLens) { this.lensId = Number(target.dataset.openLens); this.currentView = 'lens'; return this.renderState(); }
         if (target?.dataset.lensRank) return this.selectRank(target.dataset.lensRank);
+        if (target?.dataset.laneFilter) {
+          const lane = target.dataset.laneFilter;
+          this.laneFilter = (this.laneFilter === lane && lane !== 'all') ? 'all' : lane;
+          this.applyFilters();
+          this.syncShareUrl();
+          return;
+        }
         if (target?.dataset.compareRemove) { this.compareIds = this.compareIds.filter(value => value !== Number(target.dataset.compareRemove)); return this.renderState(); }
         const result = original?.(event); this.syncShareUrl(); return result;
       };

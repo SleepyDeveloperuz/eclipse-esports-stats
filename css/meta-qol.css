@@ -54,6 +54,8 @@
 .meta-workspace .meta-extra-filters { grid-column:1 / -1; width:100%; }
 .meta-workspace .meta-extra-filters > [role="group"] { flex-wrap:wrap; min-width:0; max-width:100%; }
 .meta-workspace .meta-extra-filters > [role="group"] > button { white-space:normal; }
+.meta-workspace .meta-extra-filters > .meta-lane-filter { flex-wrap:nowrap; max-width:100%; overflow-x:auto; }
+.meta-workspace .meta-extra-filters > .meta-lane-filter > button { white-space:nowrap; }
 .meta-workspace .meta-tier-legend { min-width:0; max-width:100%; flex-wrap:wrap; justify-content:flex-start; gap:.25rem; }
 .meta-workspace .meta-tier-legend button { min-height:44px; height:auto; min-width:2.5rem; width:auto; padding:.45rem .6rem; font-size:.8rem; border-radius:.4rem; }
 .meta-workspace .meta-tier-legend button:first-child { width:auto; }

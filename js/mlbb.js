@@ -1,3 +1,77 @@
+const MLBB_FLEX_LANES = Object.freeze({
+  // 3-lane flex heroes
+  julian: ['jungle', 'mid', 'exp'],
+  bane: ['exp', 'jungle', 'mid'],
+  popolandkupa: ['gold', 'roam', 'jungle'],
+  joy: ['jungle', 'exp', 'mid'],
+  // 2-lane flex heroes
+  chou: ['exp', 'roam'],
+  paquito: ['exp', 'jungle'],
+  edith: ['exp', 'roam'],
+  fredrinn: ['jungle', 'exp'],
+  alice: ['mid', 'exp'],
+  selena: ['roam', 'mid'],
+  kadita: ['mid', 'roam'],
+  baxia: ['jungle', 'roam'],
+  jawhead: ['roam', 'exp'],
+  ruby: ['exp', 'roam'],
+  akai: ['jungle', 'roam'],
+  valir: ['mid', 'roam'],
+  mathilda: ['roam', 'mid'],
+  johnson: ['roam', 'exp'],
+  harith: ['gold', 'mid'],
+  lunox: ['mid', 'gold'],
+  roger: ['jungle', 'gold'],
+  benedetta: ['exp', 'jungle'],
+  dyrroth: ['exp', 'jungle'],
+  kimmy: ['gold', 'mid'],
+  zhask: ['mid', 'gold'],
+  novaria: ['mid', 'roam'],
+  gloo: ['exp', 'roam'],
+  masha: ['exp', 'roam'],
+  belerick: ['roam', 'exp'],
+  hylos: ['roam', 'exp'],
+  guinevere: ['exp', 'jungle'],
+  yin: ['jungle', 'exp'],
+  martis: ['jungle', 'exp'],
+  sun: ['exp', 'jungle'],
+  faramis: ['mid', 'roam'],
+  carmilla: ['roam', 'jungle'],
+  kaja: ['roam', 'exp'],
+  natalia: ['roam', 'jungle'],
+  helcurt: ['jungle', 'roam'],
+  saber: ['jungle', 'roam'],
+  alpha: ['jungle', 'exp'],
+  barats: ['jungle', 'exp'],
+  gatotkaca: ['exp', 'roam'],
+  arlott: ['exp', 'roam'],
+  suyou: ['jungle', 'exp'],
+  lukas: ['exp', 'jungle'],
+  obsidia: ['mid', 'exp'],
+  aulus: ['jungle', 'exp'],
+  marcel: ['roam', 'exp'],
+  esmeralda: ['exp', 'mid'],
+  uranus: ['exp', 'roam'],
+  silvanna: ['exp', 'roam'],
+  thamuz: ['exp', 'jungle'],
+  alucard: ['jungle', 'exp'],
+  harley: ['jungle', 'mid'],
+  cyclops: ['mid', 'jungle'],
+  gusion: ['jungle', 'mid'],
+  nana: ['mid', 'roam'],
+  zhuxin: ['mid', 'roam'],
+  valentina: ['mid', 'roam'],
+  rafaela: ['roam', 'mid'],
+  angela: ['roam', 'mid'],
+  natan: ['gold', 'mid'],
+  granger: ['jungle', 'gold'],
+  phoveus: ['exp', 'roam'],
+  khaleed: ['exp', 'roam'],
+  freya: ['exp', 'jungle'],
+  aldous: ['exp', 'mid'],
+  balmond: ['exp', 'jungle']
+});
+
 window.MlbbDataManager = class MlbbDataManager {
   constructor(authManager, dataStore, heroDb, cloudSync) {
     this.auth = authManager;
@@ -10,6 +84,7 @@ window.MlbbDataManager = class MlbbDataManager {
     this.state = { heroes: null, meta: null, patches: null };
     this.currentView = 'tier';
     this.tierFilter = 'all';
+    this.laneFilter = 'all';
     this.selectedRank = 'mythic';
     this.searchQuery = '';
     this.dossierEscapeHandler = null;
@@ -199,6 +274,69 @@ window.MlbbDataManager = class MlbbDataManager {
     return (this.state.heroes?.data || []).find(hero => Number(hero.id) === Number(id)) || null;
   }
 
+  heroLanes(heroOrId) {
+    const hero = typeof heroOrId === 'object' && heroOrId !== null
+      ? (heroOrId.lanes || heroOrId.name ? heroOrId : this.heroById(heroOrId.heroId ?? heroOrId.id))
+      : this.heroById(heroOrId);
+    const raw = hero?.lanes || [];
+    const normalized = [];
+    raw.forEach(v => {
+      const t = String(v).toLowerCase();
+      if (/exp/.test(t) && !normalized.includes('exp')) normalized.push('exp');
+      if (/jung/.test(t) && !normalized.includes('jungle')) normalized.push('jungle');
+      if (/mid/.test(t) && !normalized.includes('mid')) normalized.push('mid');
+      if (/gold/.test(t) && !normalized.includes('gold')) normalized.push('gold');
+      if (/roam/.test(t) && !normalized.includes('roam')) normalized.push('roam');
+    });
+    const key = String(hero?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const flex = MLBB_FLEX_LANES[key];
+    if (flex) {
+      if (!normalized.length) return [...flex];
+      flex.forEach(lane => {
+        if (!normalized.includes(lane)) normalized.push(lane);
+      });
+    }
+    return normalized;
+  }
+
+  heroLanesLabels(heroOrId) {
+    const map = { roam: 'Roam', exp: 'Exp Lane', jungle: 'Jungle', mid: 'Mid Lane', gold: 'Gold Lane' };
+    const lanes = this.heroLanes(heroOrId);
+    if (!lanes.length) return [];
+    if (lanes.length === 1) return [map[lanes[0]] || lanes[0]];
+    return lanes.map((key, index) => `${map[key] || key}${index === 0 ? ' (Asosiy)' : ''}`);
+  }
+
+  laneIconSvg(laneKey, className = '') {
+    const icons = {
+      roam: `<svg class="meta-lane-icon is-roam ${className}" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="3" fill="rgba(78,226,219,0.18)" stroke="#4ee2db" stroke-width="1.5"/><path d="M6.5 7.5h11v2.4l-7.2 6.6h7.2v2.4h-11v-2.4l7.2-6.6H6.5V7.5z" fill="#4ee2db"/></svg>`,
+      exp: `<svg class="meta-lane-icon is-exp ${className}" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="3" fill="rgba(176,157,245,0.18)" stroke="#b09df5" stroke-width="1.5"/><path d="M16.5 7.5H7.5v2.2h5.5l-3.5 2.3 3.5 2.3H7.5v2.2h9v-2.2l-4.5-2.3 4.5-2.3V7.5z" fill="#b09df5"/></svg>`,
+      jungle: `<svg class="meta-lane-icon is-jungle ${className}" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="3" fill="rgba(78,214,184,0.18)" stroke="#4ed6b8" stroke-width="1.5"/><path d="M6.5 17.5V11l6.5 6.5H6.5z M17.5 6.5v6.5l-6.5-6.5h6.5z" fill="#4ed6b8"/><line x1="5.5" y1="18.5" x2="18.5" y2="5.5" stroke="#4ed6b8" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+      mid: `<svg class="meta-lane-icon is-mid ${className}" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="3" fill="rgba(98,214,251,0.18)" stroke="#62d6fb" stroke-width="1.5"/><line x1="6" y1="18" x2="18" y2="6" stroke="#62d6fb" stroke-width="3.2" stroke-linecap="round"/><line x1="6" y1="18" x2="18" y2="6" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/></svg>`,
+      gold: `<svg class="meta-lane-icon is-gold ${className}" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="3" fill="rgba(246,207,87,0.18)" stroke="#f6cf57" stroke-width="1.5"/><path d="M11 5.5h2v1.5h-2V5.5zm-2.5 3.5c0-1.7 1.5-2.5 3.5-2.5s3.5.8 3.5 2.5c0 1.8-1.5 2.2-3.5 2.5-1.8.3-2.5.6-2.5 1.5 0 .8.8 1.5 2.5 1.5s2.5-.7 2.5-1.5h2c0 1.7-1.5 2.5-3.5 2.5v1.5h-2v-1.5c-2 0-3.5-.8-3.5-2.5 0-1.8 1.5-2.2 3.5-2.5 1.8-.3 2.5-.6 2.5-1.5 0-.8-.8-1.5-2.5-1.5s-2.5.7-2.5 1.5h-2z" fill="#f6cf57"/></svg>`,
+      all: `<svg class="meta-lane-icon is-all ${className}" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`
+    };
+    return icons[laneKey] || '';
+  }
+
+  laneBadgeMarkup(heroOrId) {
+    const lanes = this.heroLanes(heroOrId);
+    if (!lanes.length) return '';
+    return `<span class="solar-tier-hero__lane-badges" aria-hidden="true">${lanes.map((l, index) => this.laneIconSvg(l, `solar-lane-badge ${index === 0 ? 'is-primary' : 'is-secondary'}`)).join('')}</span>`;
+  }
+
+  laneFilterMarkup() {
+    const items = [
+      { key: 'all', label: 'Barchasi' },
+      { key: 'roam', label: 'Roam' },
+      { key: 'exp', label: 'Exp Lane' },
+      { key: 'jungle', label: 'Jungle' },
+      { key: 'mid', label: 'Mid Lane' },
+      { key: 'gold', label: 'Gold Lane' }
+    ];
+    return `<div class="meta-lane-filter" role="group" aria-label="Layn filtri">${items.map(item => `<button type="button" class="meta-lane-btn is-${item.key} ${this.laneFilter === item.key ? 'active' : ''}" data-lane-filter="${item.key}" aria-pressed="${this.laneFilter === item.key}">${this.laneIconSvg(item.key)}<span>${item.label}</span></button>`).join('')}</div>`;
+  }
+
   mergeDossierDetail(heroId, detail) {
     const canonical = this.heroById(heroId);
     if (!canonical) return detail;
@@ -312,16 +450,20 @@ window.MlbbDataManager = class MlbbDataManager {
         </header>
         <div class="meta-tier-tools">
           <label><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="metaTierSearch" aria-label="Tier jadvalidan hero qidirish" value="${this.escape(this.searchQuery)}" placeholder="Hero qidirish…" autocomplete="off"></label>
+          ${this.laneFilterMarkup()}
           <span><i class="fa-solid fa-circle-info"></i>${this.escape(methodology.note || 'Visibility pick sample ko‘rinishi; confidence emas.')}</span>
         </div>
         <div class="meta-tier-table-wrap">
           <table class="meta-tier-table">
             <thead><tr><th>Manba o‘rni</th><th>Hero</th><th>Win</th><th>Pick</th><th>Ban</th><th>Tier · tajriba</th><th>Eclipse balli</th><th>Eclipse o‘rni</th><th>Pick ko‘rinishi</th></tr></thead>
             <tbody>
-              ${rows.map(row => `
-                <tr data-hero-id="${Number(row.heroId)}" data-tier="${this.escape(row.tier)}" data-hero-name="${this.escape(String(row.name || '').toLowerCase())}" tabindex="0">
+              ${rows.map(row => {
+                const lanes = this.heroLanes(row.heroId);
+                const lanesLabels = this.heroLanesLabels(row.heroId);
+                return `
+                <tr data-hero-id="${Number(row.heroId)}" data-tier="${this.escape(row.tier)}" data-hero-name="${this.escape(String(row.name || '').toLowerCase())}" data-lane="${this.escape(lanes.join(' '))}" tabindex="0">
                   <td><strong class="meta-rank">${Number(row.officialRank) || '—'}</strong></td>
-                  <td><div class="meta-tier-hero">${this.imageMarkup(row)}<span><strong>${this.escape(row.name)}</strong><small>ID ${Number(row.heroId)}</small></span></div></td>
+                  <td><div class="meta-tier-hero">${this.imageMarkup(row)}<span><strong>${this.escape(row.name)}</strong><small>ID ${Number(row.heroId)}${lanesLabels.length ? ' · ' + this.escape(lanesLabels.join(', ')) : ''}</small></span></div></td>
                   <td>${this.formatRate(row.winRate)}</td>
                   <td>${this.formatRate(row.pickRate, 3)}</td>
                   <td>${this.formatRate(row.banRate, 2)}</td>
@@ -329,7 +471,8 @@ window.MlbbDataManager = class MlbbDataManager {
                   <td>${row.eclipseScore == null ? '—' : Number(row.eclipseScore).toFixed(2)}</td>
                   <td>${row.eclipseRank == null ? '—' : '#' + Number(row.eclipseRank)}</td>
                   <td><span class="meta-visibility is-${this.escape(row.visibility)}"><i></i>${this.escape(row.visibility)}</span></td>
-                </tr>`).join('')}
+                </tr>`;
+              }).join('')}
             </tbody>
           </table>
         </div>
@@ -420,10 +563,17 @@ window.MlbbDataManager = class MlbbDataManager {
     this.container.querySelectorAll('.meta-tier-table tbody tr').forEach(row => {
       const tierMatch = this.tierFilter === 'all' || row.dataset.tier === this.tierFilter;
       const searchMatch = !query || row.dataset.heroName.includes(query);
-      row.hidden = !(tierMatch && searchMatch);
+      const rowLanes = (row.dataset.lane || '').split(' ').filter(Boolean);
+      const laneMatch = this.laneFilter === 'all' || rowLanes.includes(this.laneFilter);
+      row.hidden = !(tierMatch && searchMatch && laneMatch);
     });
     this.container.querySelectorAll('.meta-hero-card').forEach(card => {
       card.hidden = Boolean(query && !card.dataset.heroSearch.includes(query));
+    });
+    this.container.querySelectorAll('[data-lane-filter]').forEach(button => {
+      const isActive = button.dataset.laneFilter === this.laneFilter;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-pressed', String(isActive));
     });
   }
 
@@ -435,6 +585,13 @@ window.MlbbDataManager = class MlbbDataManager {
         this.currentView = view.dataset.metaView;
         this.searchQuery = '';
         this.renderState();
+        return;
+      }
+      const lane = event.target.closest('[data-lane-filter]');
+      if (lane) {
+        const selected = lane.dataset.laneFilter;
+        this.laneFilter = (this.laneFilter === selected && selected !== 'all') ? 'all' : selected;
+        this.applyFilters();
         return;
       }
       const tier = event.target.closest('[data-tier-filter]');

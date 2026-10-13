@@ -64,6 +64,7 @@
         }
         const rank = view.querySelector('.meta-rank-picker'), toolbar = view.querySelector('.tier-view-toolbar');
         const filters = view.querySelector('.meta-tier-tools'), legend = view.querySelector('.meta-tier-legend');
+        const laneFilter = view.querySelector('.meta-lane-filter');
         const exportButton = toolbar?.querySelector('[data-tier-export]');
         if (exportButton) { exportButton.textContent = 'PNG yuklash'; exportButton.title = 'Tanlangan rankdagi barcha qahramonlar — qidiruv va tier filtri PNGga ta’sir qilmaydi'; actions.prepend(exportButton); }
         const cancel = toolbar?.querySelector('[data-tier-export-cancel]'); if (cancel) actions.append(cancel);
@@ -78,12 +79,18 @@
           const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'btn btn-secondary meta-filter-toggle'; toggle.setAttribute('aria-controls', extra.id);
           toggle.onclick = () => { this.filtersExpanded = !this.filtersExpanded; this.updateCompactFilters(); };
           if (mode) extra.append(mode);
+          if (laneFilter) extra.append(laneFilter);
           if (legend) extra.append(legend);
           const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'btn btn-sm btn-secondary'; clear.dataset.metaClear = ''; clear.textContent = 'Tozalash';
           clear.onclick = () => {
-            this.searchQuery = ''; this.tierFilter = 'all';
+            this.searchQuery = ''; this.tierFilter = 'all'; this.laneFilter = 'all';
             const input = root.querySelector('#metaTierSearch'); if (input) input.value = '';
             root.querySelectorAll('[data-tier-filter]').forEach(button => button.classList.toggle('active', button.dataset.tierFilter === 'all'));
+            root.querySelectorAll('[data-lane-filter]').forEach(button => {
+              const isActive = button.dataset.laneFilter === 'all';
+              button.classList.toggle('active', isActive);
+              button.setAttribute('aria-pressed', String(isActive));
+            });
             this.applyFilters(); this.syncShareUrl(); input?.focus();
           };
           const count = document.createElement('output'); count.dataset.metaResultCount = ''; count.setAttribute('aria-live', 'polite');
@@ -109,10 +116,10 @@
     applyFilters() { super.applyFilters(); this.updateCompactFilters(); }
     updateCompactFilters() {
       const root = this.container, clear = root?.querySelector('[data-meta-clear]'), count = root?.querySelector('[data-meta-result-count]');
-      if (clear) clear.hidden = !this.searchQuery && this.tierFilter === 'all';
+      if (clear) clear.hidden = !this.searchQuery && this.tierFilter === 'all' && (this.laneFilter === 'all' || !this.laneFilter);
       const toggle = root?.querySelector('.meta-filter-toggle'), extra = root?.querySelector('.meta-extra-filters');
       if (toggle && extra) {
-        const active = Number(Boolean(this.searchQuery)) + Number(this.tierFilter !== 'all');
+        const active = Number(Boolean(this.searchQuery)) + Number(this.tierFilter !== 'all') + Number(this.laneFilter !== 'all' && Boolean(this.laneFilter));
         toggle.textContent = `Filtrlar${active ? ` · ${active} faol` : ''}`;
         toggle.setAttribute('aria-expanded', String(Boolean(this.filtersExpanded)));
         extra.classList.toggle('is-expanded', Boolean(this.filtersExpanded));
