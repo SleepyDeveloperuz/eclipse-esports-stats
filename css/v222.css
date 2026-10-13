@@ -46,7 +46,7 @@
 .solar-tier-board > header { max-width: 850px; padding: 12px 0 28px; }
 .solar-tier-board h3 { font-size: clamp(1.6rem, 2.5vw, 2.6rem); letter-spacing: -.04em; }
 .solar-tier-board p, .solar-tier-board small, .solar-tier-board footer { color: var(--text-secondary); }
-.solar-tier-row { display: grid; grid-template-columns: 90px minmax(0, 1fr); background: #e9d9a706; border: 1px solid #dec78420; margin-bottom: 12px; border-radius: 12px; overflow: hidden; }
+.solar-tier-row { display: grid; grid-template-columns: 90px minmax(0, 1fr); background: #e9d9a706; border: 1px solid #dec78420; margin-bottom: 12px; border-radius: 12px; overflow: visible; }
 .solar-tier-label { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #efd17b; color: #161710; gap: 5px; }
 .solar-tier-label strong { font-size: 2rem; font-weight: 600; }.solar-tier-label small { color: inherit; font-size: .6rem; letter-spacing: .08em; }
 .solar-tier-label.is-a { background: #ce9456; }.solar-tier-label.is-b { background: #9fab9e; }.solar-tier-label.is-c { background: #9294a0; }.solar-tier-label.is-d { background: #6c747b; }
