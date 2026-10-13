@@ -337,6 +337,10 @@ domTest('tier board displays multi-lane flex heroes, tier descriptions, and risi
     const julianLanes = manager.heroLanes({ id: 116, name: 'Julian', lanes: ['Jungle'] });
     assert.ok(julianLanes.includes('jungle') && julianLanes.includes('mid') && julianLanes.includes('exp'), 'Julian has 3 lanes');
 
+    const obsidiaLanes = manager.heroLanes({ id: 130, name: 'Obsidia', lanes: ['Mid Lane', 'EXP Lane'] });
+    assert.equal(obsidiaLanes.length, 1, 'Obsidia has exactly 1 lane');
+    assert.equal(obsidiaLanes[0], 'gold', 'Obsidia is strictly in gold lane only');
+
     // Tier description tooltips verification
     const ssDesc = manager.tierDescription('SS');
     assert.equal(ssDesc.en, 'Must ban or 1st pick heroes');

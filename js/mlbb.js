@@ -47,7 +47,7 @@ const MLBB_FLEX_LANES = Object.freeze({
   arlott: ['exp', 'roam'],
   suyou: ['jungle', 'exp'],
   lukas: ['exp', 'jungle'],
-  obsidia: ['mid', 'exp'],
+  obsidia: ['gold'],
   aulus: ['jungle', 'exp'],
   marcel: ['roam', 'exp'],
   esmeralda: ['exp', 'mid'],
@@ -289,6 +289,9 @@ window.MlbbDataManager = class MlbbDataManager {
       if (/roam/.test(t) && !normalized.includes('roam')) normalized.push('roam');
     });
     const key = String(hero?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (key === 'obsidia') {
+      return ['gold'];
+    }
     const flex = MLBB_FLEX_LANES[key];
     if (flex) {
       if (!normalized.length) return [...flex];
