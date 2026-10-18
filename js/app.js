@@ -726,7 +726,7 @@ window.EclipseApp = {
   initWidgetManager() {
     const WIDGET_CONFIG = [
       { id: 'widget-command', name: 'Jamoa Signali & Match', icon: 'fa-signal', default: true },
-      { id: 'widget-constellation', name: 'Sinergiya Turqumi (Constellation)', icon: 'fa-circle-nodes', default: true },
+      { id: 'widget-constellation', name: 'Sinergiya Turkumi (Constellation)', icon: 'fa-circle-nodes', default: true },
       { id: 'widget-duration', name: 'Power Spike & Davomiylik', icon: 'fa-stopwatch-20', default: true },
       { id: 'widget-coach', name: 'AI Coach & Maslahatlar', icon: 'fa-robot', default: true }
     ];

@@ -1432,7 +1432,7 @@ window.PlayerManager = class PlayerManager {
         <div class="synergy-constellation-header">
           <h3>
             <i class="fa-solid fa-circle-nodes" style="color:var(--primary);"></i>
-            <span>Tarkib Sinergiya Yulduzlar Turqumi (Constellation)</span>
+            <span>Tarkib Sinergiya Yulduzlar Turkumi (Constellation)</span>
           </h3>
           <span class="badge" style="background:rgba(var(--primary-rgb), 0.15); color:var(--primary); font-weight:800; font-size:0.75rem;">
             5-TALIK ROSTER GRAFIKI
@@ -1442,7 +1442,7 @@ window.PlayerManager = class PlayerManager {
           Jamoaning 5 asosiy o‘yinchisi o‘rtasidagi sinergiya nurlari. Har bir nur qalinligi va rangi tandemning g‘alaba ko‘rsatkichini (Win Rate) ifodalaydi. Chiziqlar ustiga bosing yoki hover qiling.
         </p>
         <div class="constellation-svg-wrap">
-          <svg class="constellation-svg" viewBox="0 0 500 420" aria-label="Jamoa tarkibi sinergiya yulduzlar turqumi">
+          <svg class="constellation-svg" viewBox="0 0 500 420" aria-label="Jamoa tarkibi sinergiya yulduzlar turkumi">
             ${linksSvg}
             ${nodesSvg}
           </svg>
