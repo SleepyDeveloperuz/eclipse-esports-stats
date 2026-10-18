@@ -2058,10 +2058,24 @@
 }
 .constellation-node {
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.constellation-node:hover {
-  transform: scale(1.08);
+.constellation-node circle {
+  transition: r 0.2s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease;
+}
+.constellation-node:hover circle,
+.constellation-node.is-active circle {
+  r: 25px;
+  stroke: #ffffff;
+  stroke-width: 2.8px;
+  filter: drop-shadow(0 0 16px var(--primary));
+}
+.constellation-node text {
+  transition: fill 0.2s ease;
+  user-select: none;
+  pointer-events: none;
+}
+.constellation-node:hover text:last-child {
+  fill: #ffffff;
 }
 .constellation-tooltip {
   margin-top: 1rem;
