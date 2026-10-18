@@ -81,7 +81,7 @@ const MLBB_FLEX_LANES = Object.freeze({
   irithel: ['gold'],
   sora: ['exp'],
   zetian: ['mid'],
-  misitthar: ['exp', 'roam'],
+  minsitthar: ['exp', 'roam'],
   lolita: ['roam'], 
   xavier: ['mid'],
   aurora: ['mid'],
