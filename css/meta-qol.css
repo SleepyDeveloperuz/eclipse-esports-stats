@@ -314,7 +314,7 @@
   color: var(--text-secondary, #a3a396);
   font-size: 0.825rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease, color 0.18s ease;
 }
 .quick-cmd-trigger:hover {
   background: rgba(228, 196, 110, 0.08);
@@ -437,7 +437,7 @@
   color: var(--text-primary, #f5f5f0);
   cursor: pointer;
   text-align: left;
-  transition: all 0.12s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .command-palette__item:hover,
 .command-palette__item.is-selected {
@@ -560,7 +560,7 @@
     text-decoration: none;
     cursor: pointer;
     min-width: 54px;
-    transition: all 0.15s ease;
+    transition: color 0.15s ease;
   }
   .mobile-dock__item svg,
   .mobile-dock__item i {
@@ -699,7 +699,9 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--text-secondary, #b8b6ab);
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  will-change: transform;
+  transform: translateZ(0);
   flex-shrink: 0;
   font-size: 0.95rem;
 }
@@ -707,10 +709,10 @@
   background: rgba(228, 196, 110, 0.15);
   border-color: rgba(228, 196, 110, 0.4);
   color: var(--primary, #e4c46e);
-  transform: scale(1.06);
+  transform: scale(1.05) translateZ(0);
 }
 .sidebar-close-btn:active {
-  transform: scale(0.94);
+  transform: scale(0.95) translateZ(0);
 }
 
 /* Bottom Close Button in sidebar footer */
@@ -729,7 +731,7 @@
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   margin-bottom: 0.35rem;
 }
 .sidebar-footer-close-btn:hover {
@@ -773,17 +775,19 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-secondary, #b8b6ab);
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  will-change: transform;
+  transform: translateZ(0);
   font-size: 0.9rem;
 }
 .topbar-icon-btn:hover {
   background: rgba(228, 196, 110, 0.12);
   border-color: rgba(228, 196, 110, 0.35);
   color: var(--primary, #e4c46e);
-  transform: scale(1.05);
+  transform: scale(1.05) translateZ(0);
 }
 .topbar-icon-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.95) translateZ(0);
 }
 .topbar-icon-btn kbd {
   font-family: var(--font-mono, monospace);
@@ -809,6 +813,7 @@
   background: rgba(4, 4, 3, 0.8);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  animation: backdropFade 0.2s ease;
 }
 .hotkeys-modal {
   background: #0d0f14;
@@ -818,6 +823,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  animation: paletteScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .hotkeys-modal__header {
   display: flex;
@@ -913,7 +919,7 @@
   border-radius: 8px;
   padding: 0.3rem 0.65rem;
   min-width: 200px;
-  transition: all 0.18s ease;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
 }
 .match-quick-search-wrap:focus-within {
   border-color: rgba(228, 196, 110, 0.4);
@@ -972,14 +978,16 @@
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.18s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+  will-change: transform;
+  transform: translateZ(0);
 }
 .chemistry-duo-card.is-best {
   border-color: rgba(228, 196, 110, 0.4);
   background: rgba(228, 196, 110, 0.06);
 }
 .chemistry-duo-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 .chemistry-duo-card__names {
@@ -1035,6 +1043,7 @@
   background: rgba(4, 4, 3, 0.85);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  animation: backdropFade 0.2s ease;
 }
 .draft-modal {
   background: #0d0f14;
@@ -1046,6 +1055,7 @@
   flex-direction: column;
   max-height: 88vh;
   position: relative;
+  animation: paletteScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .draft-modal__header {
   display: flex;
@@ -1143,14 +1153,16 @@
   color: var(--text-muted, #8e8e84);
   cursor: pointer;
   padding: 0.35rem;
-  transition: all 0.15s ease;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+  will-change: transform;
+  transform: translateZ(0);
   position: relative;
 }
 .draft-slot:hover {
   border-color: var(--primary, #e4c46e);
   background: rgba(228, 196, 110, 0.08);
   color: #fff;
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
 }
 .draft-slot--filled {
   border-style: solid;
@@ -1358,12 +1370,14 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease, background-color 0.18s ease;
+  will-change: transform;
+  transform: translateZ(0);
 }
 .draft-rec-item:hover {
   border-color: rgba(228, 196, 110, 0.4);
   background: rgba(228, 196, 110, 0.08);
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
 }
 .draft-rec-avatar {
   position: relative;
@@ -1412,6 +1426,11 @@
   z-index: 10;
   display: flex;
   flex-direction: column;
+  animation: pickerSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes pickerSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .draft-picker-sheet__header {
   display: flex;
@@ -1451,7 +1470,7 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-secondary, #b8b6ab);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .picker-lane-btn.active, .picker-lane-btn:hover {
   background: rgba(228, 196, 110, 0.15);
@@ -1482,12 +1501,14 @@
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease, background-color 0.18s ease;
+  will-change: transform;
+  transform: translateZ(0);
 }
 .draft-picker-item:hover {
   background: rgba(228, 196, 110, 0.1);
   border-color: rgba(228, 196, 110, 0.4);
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
 }
 .draft-picker-item__media {
   width: 54px;
@@ -1534,11 +1555,27 @@
   font-size: 0.85rem;
   border: none;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
+  will-change: transform;
+  transform: translateZ(0);
 }
 .draft-trigger-btn:hover {
-  transform: translateY(-1px);
+  transform: translateY(-1px) translateZ(0);
   box-shadow: 0 4px 14px rgba(228, 196, 110, 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .command-palette,
+  .hotkeys-modal,
+  .draft-modal,
+  .draft-picker-sheet {
+    animation: none !important;
+  }
+  .command-palette-dialog::backdrop,
+  .hotkeys-dialog::backdrop,
+  .draft-dialog::backdrop {
+    animation: none !important;
+  }
 }
 
 

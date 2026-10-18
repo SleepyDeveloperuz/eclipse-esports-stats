@@ -51,9 +51,10 @@
 .solar-tier-label strong { font-size: 2rem; font-weight: 600; }.solar-tier-label small { color: inherit; font-size: .6rem; letter-spacing: .08em; }
 .solar-tier-label.is-a { background: #ce9456; }.solar-tier-label.is-b { background: #9fab9e; }.solar-tier-label.is-c { background: #9294a0; }.solar-tier-label.is-d { background: #6c747b; }
 .solar-tier-heroes { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 12px 8px; padding: 18px; }
-.solar-tier-hero { display: flex; flex-direction: column; align-items: center; gap: 7px; background: none; border: 0; padding: 5px; color: var(--text-primary); cursor: pointer; min-width: 0; transition: transform .2s; }
-.solar-tier-hero:hover { transform: translateY(-3px); }.solar-tier-hero:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 8px; }
-.solar-tier-hero img, .solar-tier-hero .meta-hero-fallback { width: 64px; height: 64px; object-fit: cover; border-radius: 50%; border: 1px solid #dec78488; }
+.solar-tier-hero { display: flex; flex-direction: column; align-items: center; gap: 7px; background: none; border: 0; padding: 5px; color: var(--text-primary); cursor: pointer; min-width: 0; transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.22s cubic-bezier(0.16, 1, 0.3, 1); will-change: transform; transform: translateZ(0); }
+.solar-tier-hero:hover { transform: translateY(-2px) translateZ(0); }.solar-tier-hero:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 8px; }
+.solar-tier-hero img, .solar-tier-hero .meta-hero-fallback { width: 64px; height: 64px; object-fit: cover; border-radius: 50%; border: 1px solid #dec78488; transition: border-color 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+.solar-tier-hero:hover img, .solar-tier-hero:hover .meta-hero-fallback { border-color: #efd17b; box-shadow: 0 4px 14px rgba(239, 209, 123, 0.3); }
 .solar-tier-hero strong { font-size: .8rem; font-weight: 500; overflow-wrap: anywhere; line-height: 1.2; }.solar-tier-hero small { font-size: .65rem; min-height: 1em; }
 .solar-tier-board footer { padding-top: 12px; font-size: .8rem; }
 @media (max-width: 700px) {
@@ -63,4 +64,5 @@
   .solar-tier-row { grid-template-columns: 48px minmax(0, 1fr); }.solar-tier-label strong { font-size: 1.5rem; }.solar-tier-label small { font-size: .45rem; }
   .solar-tier-heroes { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); padding: 12px 8px; gap: 8px 4px; }.solar-tier-hero img { width: 54px; height: 54px; }
 }
-@media (prefers-reduced-motion: reduce) { .solar-tier-hero { transition: none; }.solar-tier-hero:hover { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .solar-tier-hero, .solar-tier-hero img { transition: none; }.solar-tier-hero:hover { transform: none; } }
+@media (hover: none) { .solar-tier-hero:hover { transform: none !important; } }

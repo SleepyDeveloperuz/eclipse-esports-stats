@@ -78,9 +78,13 @@
   --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.38), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
   --shadow-card-hover: 0 16px 40px -10px rgba(0, 4, 10, 0.68), 0 0 24px -4px rgba(var(--primary-rgb), 0.14), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
 
-  /* Transitions */
-  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Transitions & Smooth Motion */
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quad: cubic-bezier(0.25, 1, 0.5, 1);
+  --duration-fast: 0.18s;
+  --duration-normal: 0.24s;
+  --transition-fast: var(--duration-fast) var(--ease-smooth);
+  --transition-normal: var(--duration-normal) var(--ease-smooth);
 
   /* Fonts */
   --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -121,7 +125,7 @@ body {
 a {
   color: var(--primary);
   text-decoration: none;
-  transition: all var(--transition-fast);
+  transition: color var(--transition-fast), opacity var(--transition-fast);
 }
 
 a:hover {
@@ -622,11 +626,13 @@ html:not(.access-locked) .access-bootstrap {
   font-weight: 600;
   font-size: 0.9rem;
   border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
+  transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
   cursor: pointer;
   user-select: none;
   position: relative;
   border: 1px solid transparent;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .nav-item i,
@@ -638,19 +644,19 @@ html:not(.access-locked) .access-bootstrap {
   flex: 0 0 22px;
   text-align: center;
   color: var(--text-muted);
-  transition: all var(--transition-fast);
+  transition: color var(--transition-fast), transform var(--transition-fast);
 }
 
 .nav-item:hover {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.04);
-  transform: translateX(3px);
+  transform: translateX(2px) translateZ(0);
 }
 
 .nav-item:hover i,
 .nav-item:hover .ecl-icon {
   color: var(--primary);
-  transform: translateY(-1px) rotate(-3deg);
+  transform: translateY(-1px);
 }
 
 .nav-item.active {
@@ -820,13 +826,14 @@ html:not(.access-locked) .access-bootstrap {
   cursor: pointer;
   align-items: center;
   justify-content: center;
-  transition: all var(--transition-fast);
+  transition: transform var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+  will-change: transform;
 }
 
 .hamburger:hover {
   background: rgba(var(--primary-rgb), 0.12);
   border-color: var(--primary);
-  transform: scale(1.05);
+  transform: scale(1.04);
 }
 
 /* ==========================================================================
@@ -840,7 +847,9 @@ html:not(.access-locked) .access-bootstrap {
   border-radius: var(--radius-lg);
   padding: var(--space-4);
   box-shadow: var(--shadow-card);
-  transition: all var(--transition-normal);
+  transition: transform var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+  will-change: transform;
+  transform: translateZ(0);
   position: relative;
   overflow: hidden;
 }
@@ -870,14 +879,16 @@ html:not(.access-locked) .access-bootstrap {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   padding: 1.35rem var(--space-4);
-  transition: all var(--transition-normal);
+  transition: transform var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+  will-change: transform;
+  transform: translateZ(0);
   position: relative;
   overflow: hidden;
   box-shadow: var(--shadow-card);
 }
 
 .stat-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px) translateZ(0);
   border-color: var(--border-hover);
   box-shadow: var(--shadow-card-hover);
 }
@@ -954,11 +965,13 @@ html:not(.access-locked) .access-bootstrap {
   position: relative;
   overflow: hidden;
   box-shadow: 0 0 24px rgba(var(--secondary-rgb), 0.12);
-  transition: all var(--transition-normal);
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .award-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px) translateZ(0);
   box-shadow: 0 0 32px rgba(var(--secondary-rgb), 0.22);
 }
 
@@ -1035,7 +1048,9 @@ html:not(.access-locked) .access-bootstrap {
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), color var(--transition-fast);
+  will-change: transform;
+  transform: translateZ(0);
   line-height: 1;
   gap: 0.45rem;
   user-select: none;
@@ -1043,7 +1058,7 @@ html:not(.access-locked) .access-bootstrap {
 }
 
 .btn:active {
-  transform: scale(0.97);
+  transform: scale(0.97) translateZ(0);
 }
 
 .btn-primary {
@@ -1134,7 +1149,7 @@ html:not(.access-locked) .access-bootstrap {
   color: var(--text-primary);
   font-family: inherit;
   font-size: 0.9rem;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
 }
 
 .form-input:focus,
@@ -1165,7 +1180,7 @@ html:not(.access-locked) .access-bootstrap {
   background: var(--bg-input);
   cursor: pointer;
   position: relative;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
   display: inline-block;
   vertical-align: middle;
 }
@@ -1242,7 +1257,7 @@ html:not(.access-locked) .access-bootstrap {
   font-size: 0.92rem;
   cursor: pointer;
   position: relative;
-  transition: all var(--transition-fast);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
@@ -1304,13 +1319,15 @@ html:not(.access-locked) .access-bootstrap {
   border: 1px solid var(--border-light);
   background: rgba(255, 255, 255, 0.03);
   color: var(--text-secondary);
-  transition: all var(--transition-fast);
+  transition: transform var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .filter-chip:hover {
   border-color: var(--primary);
   color: var(--primary);
-  transform: translateY(-1px);
+  transform: translateY(-1px) translateZ(0);
 }
 
 .filter-chip.active {
@@ -1438,7 +1455,9 @@ html:not(.access-locked) .access-bootstrap {
   padding: 0.4rem 0.9rem;
   border-radius: var(--radius-pill);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: transform var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+  will-change: transform;
+  transform: translateZ(0);
   user-select: none;
   font-size: 0.8rem;
   font-weight: 700;
@@ -1454,7 +1473,7 @@ html:not(.access-locked) .access-bootstrap {
 
 .sub-toggle.playing:hover {
   background: rgba(16, 185, 129, 0.25);
-  transform: translateY(-1px);
+  transform: translateY(-1px) translateZ(0);
 }
 
 .sub-toggle.benched {
@@ -2211,12 +2230,14 @@ html:not(.access-locked) .access-bootstrap {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  transition: all var(--transition-normal);
+  transition: transform var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+  will-change: transform;
+  transform: translateZ(0);
   box-shadow: var(--shadow-card);
 }
 
 .player-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px) translateZ(0);
   border-color: var(--primary);
   box-shadow: var(--shadow-card-hover);
 }
@@ -2331,8 +2352,10 @@ html:not(.access-locked) .access-bootstrap {
   border-radius: 1.35rem;
   background: rgba(255, 255, 255, 0.035);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.055), 0 1.25rem 3rem rgba(0, 4, 10, 0.24);
-  transition: transform 650ms cubic-bezier(0.32, 0.72, 0, 1), box-shadow 650ms cubic-bezier(0.32, 0.72, 0, 1);
-  animation: playerCardEnter 760ms both cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--duration-normal) var(--ease-smooth), box-shadow var(--duration-normal) var(--ease-smooth);
+  will-change: transform;
+  transform: translateZ(0);
+  animation: playerCardEnter 0.4s both var(--ease-smooth);
 }
 
 .player-roster-grid > :nth-child(2) { animation-delay: 60ms; }
@@ -2573,11 +2596,13 @@ html:not(.access-locked) .access-bootstrap {
   font-size: 0.72rem;
   font-weight: 800;
   cursor: pointer;
-  transition: transform 520ms cubic-bezier(0.32, 0.72, 0, 1), background 520ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform var(--transition-fast), background-color var(--transition-fast);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
-.player-profile-cta:hover { background: var(--primary-hover); transform: translateY(-1px); }
-.player-profile-cta:active { transform: scale(0.98); }
+.player-profile-cta:hover { background: var(--primary-hover); transform: translateY(-1px) translateZ(0); }
+.player-profile-cta:active { transform: scale(0.98) translateZ(0); }
 
 .player-profile-cta__icon {
   display: inline-flex;
@@ -2587,7 +2612,7 @@ html:not(.access-locked) .access-bootstrap {
   height: 1.65rem;
   border-radius: 50%;
   background: rgba(6, 16, 23, 0.12);
-  transition: transform 520ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform var(--transition-fast);
 }
 
 .player-profile-cta:hover .player-profile-cta__icon { transform: translate(2px, -1px) scale(1.04); }
@@ -2604,10 +2629,12 @@ html:not(.access-locked) .access-bootstrap {
   color: var(--text-secondary);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
   cursor: pointer;
-  transition: transform 500ms cubic-bezier(0.32, 0.72, 0, 1), color 500ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform var(--transition-fast), color var(--transition-fast);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
-.icon-action:hover { color: var(--primary); transform: translateY(-1px); }
+.icon-action:hover { color: var(--primary); transform: translateY(-1px) translateZ(0); }
 .icon-action--danger:hover { color: var(--danger); }
 
 .roster-empty-state .ecl-icon {
@@ -2633,10 +2660,12 @@ html:not(.access-locked) .access-bootstrap {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
   font: 700 0.76rem/1 var(--font-sans);
   cursor: pointer;
-  transition: color 480ms cubic-bezier(0.32, 0.72, 0, 1), transform 480ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition: color var(--transition-fast), transform var(--transition-fast);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
-.profile-back:hover { color: var(--primary); transform: translateX(-0.2rem); }
+.profile-back:hover { color: var(--primary); transform: translateX(-0.15rem) translateZ(0); }
 
 .player-profile-hero {
   position: relative;
@@ -2767,7 +2796,7 @@ html:not(.access-locked) .access-bootstrap {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-light);
   margin-bottom: 0.6rem;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .compare-metric-row:hover {
@@ -2807,13 +2836,15 @@ html:not(.access-locked) .access-bootstrap {
   border-radius: var(--radius-lg);
   padding: 1.35rem;
   position: relative;
-  transition: all var(--transition-normal);
+  transition: transform var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+  will-change: transform;
+  transform: translateZ(0);
   box-shadow: var(--shadow-card);
 }
 
 .synergy-card:hover {
   border-color: var(--primary);
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
   box-shadow: var(--shadow-card-hover);
 }
 
@@ -2863,7 +2894,9 @@ html:not(.access-locked) .access-bootstrap {
   border-radius: var(--radius-md);
   padding: 1.25rem 1rem;
   text-align: center;
-  transition: all var(--transition-normal);
+  transition: transform var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+  will-change: transform;
+  transform: translateZ(0);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -2872,7 +2905,7 @@ html:not(.access-locked) .access-bootstrap {
 }
 
 .dream-team-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px) translateZ(0);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(var(--primary-rgb), 0.2);
   border-color: var(--primary);
 }
@@ -2979,7 +3012,9 @@ html:not(.access-locked) .access-bootstrap {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
-  transition: all var(--transition-normal);
+  transition: transform var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+  will-change: transform;
+  transform: translateZ(0);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -2988,7 +3023,7 @@ html:not(.access-locked) .access-bootstrap {
 }
 
 .shiny-hero-card:hover {
-  transform: translateY(-4px) scale(1.01);
+  transform: translateY(-2px) translateZ(0);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(var(--primary-rgb), 0.2);
   border-color: rgba(var(--primary-rgb), 0.6);
 }
@@ -3131,7 +3166,8 @@ html:not(.access-locked) .access-bootstrap {
 .phase-card {
   position: relative;
   overflow: hidden;
-  transition: all var(--transition-normal);
+  transition: transform var(--transition-normal), border-color var(--transition-normal), background-color var(--transition-normal);
+  will-change: transform;
 }
 
 .phase-card::before {
@@ -3147,12 +3183,12 @@ html:not(.access-locked) .access-bootstrap {
 
 .phase-card:hover {
   border-color: var(--primary) !important;
-  transform: translateX(4px);
+  transform: translateX(3px);
   background: rgba(var(--primary-rgb), 0.04) !important;
 }
 
 .check-item {
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .check-item:hover {
@@ -3166,7 +3202,7 @@ html:not(.access-locked) .access-bootstrap {
 }
 
 .check-box {
-  transition: all 0.2s ease;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .check-item:hover .check-box {
@@ -3191,7 +3227,7 @@ html:not(.access-locked) .access-bootstrap {
   justify-content: center;
   opacity: 0;
   visibility: hidden;
-  transition: all var(--transition-normal);
+  transition: opacity var(--transition-normal), visibility var(--transition-normal);
   padding: 1rem;
 }
 
@@ -3209,8 +3245,9 @@ html:not(.access-locked) .access-bootstrap {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  transform: scale(0.96) translateY(12px);
-  transition: all var(--transition-normal);
+  transform: scale(0.96) translateY(8px);
+  transition: transform var(--transition-normal), opacity var(--transition-normal);
+  will-change: transform, opacity;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.72), 0 0 42px rgba(var(--primary-rgb), 0.1), inset 0 1px rgba(255,255,255,.04);
 }
 
@@ -3682,11 +3719,12 @@ kbd {
 /* Page Cross-Fade */
 .page-section {
   display: none;
-  animation: pageFadeIn 0.35s ease;
+  animation: pageFadeIn var(--duration-normal) var(--ease-smooth);
   max-width: 1440px;
   margin: 0 auto;
   width: 100%;
   min-width: 0;
+  will-change: opacity, transform;
 }
 
 .page-section.active {
@@ -3694,7 +3732,7 @@ kbd {
 }
 
 @keyframes pageFadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -4305,11 +4343,13 @@ kbd {
 .meta-lab-attribution { display:flex; align-items:center; gap:1.5rem; margin-top:1rem; padding:1rem 1.25rem; border:1px solid rgba(255,255,255,.055); color:var(--text-muted); background:#080806; }
 .meta-lab-attribution > div { margin-right:auto; }.meta-lab-attribution span,.meta-lab-attribution strong,.meta-lab-attribution small { display:block; }.meta-lab-attribution span { color:var(--primary); font:700 .5rem/1 var(--font-mono); letter-spacing:.1em; }.meta-lab-attribution strong { margin:.35rem 0; color:var(--text-primary); font-size:.72rem; }.meta-lab-attribution small,.meta-lab-attribution a { font-size:.58rem; }
 
-.meta-dossier-overlay { position:fixed; z-index:1200; inset:0; display:grid; place-items:center; padding:1.25rem; opacity:0; background:rgba(0,0,0,.82); backdrop-filter:blur(16px); transition:opacity .2s ease; }
-.meta-dossier-overlay.active { opacity:1; }
-.meta-dossier { position:relative; width:min(82rem,calc(100vw - 2.5rem)); max-height:calc(100dvh - 2.5rem); overflow:auto; border:1px solid rgba(var(--primary-rgb),.22); background:#090906; box-shadow:0 2rem 8rem rgba(0,0,0,.75),inset 0 1px rgba(255,255,255,.05); }
-.meta-dossier__close { position:sticky; z-index:5; top:1rem; float:right; display:grid; place-items:center; width:2.65rem; aspect-ratio:1; margin:1rem 1rem -3.65rem 0; border:1px solid rgba(255,255,255,.12); color:var(--text-primary); background:rgba(8,8,6,.85); cursor:pointer; backdrop-filter:blur(12px); }
-.meta-dossier__close:hover { color:#080806; border-color:var(--primary); background:var(--primary); }
+.meta-dossier-overlay { position:fixed; z-index:1200; inset:0; display:grid; place-items:center; padding:1.25rem; opacity:0; pointer-events:none; background:rgba(0,0,0,.82); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); transition:opacity var(--duration-normal) var(--ease-smooth); }
+.meta-dossier-overlay.active { opacity:1; pointer-events:auto; }
+.meta-dossier { position:relative; width:min(82rem,calc(100vw - 2.5rem)); max-height:calc(100dvh - 2.5rem); overflow:auto; border:1px solid rgba(var(--primary-rgb),.22); background:#090906; box-shadow:0 2rem 8rem rgba(0,0,0,.75),inset 0 1px rgba(255,255,255,.05); transform:scale(0.96) translateY(8px); opacity:0; transition:transform var(--duration-normal) var(--ease-smooth), opacity var(--duration-normal) var(--ease-smooth); will-change:transform, opacity; }
+.meta-dossier-overlay.active .meta-dossier { transform:scale(1) translateY(0); opacity:1; }
+.meta-dossier__close { position:sticky; z-index:5; top:1rem; float:right; display:grid; place-items:center; width:2.65rem; aspect-ratio:1; margin:1rem 1rem -3.65rem 0; border:1px solid rgba(255,255,255,.12); color:var(--text-primary); background:rgba(8,8,6,.85); cursor:pointer; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); transition:color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast); will-change:transform; }
+.meta-dossier__close:hover { color:#080806; border-color:var(--primary); background:var(--primary); transform:scale(1.05); }
+.meta-dossier__close:active { transform:scale(0.95); }
 .meta-dossier-loading { min-height:32rem; display:grid; place-content:center; justify-items:center; gap:1.2rem; text-align:center; }
 .meta-dossier-loading > span { width:3.6rem; aspect-ratio:1; border:.35rem solid rgba(var(--primary-rgb),.15); border-top-color:var(--primary); border-radius:50%; animation:metaOrbit 1s linear infinite; }
 .meta-dossier-hero { display:grid; grid-template-columns:18rem minmax(0,1fr); min-height:20rem; border-bottom:1px solid rgba(255,255,255,.06); background:#0b0b08; }
@@ -4577,7 +4617,9 @@ kbd {
   padding: 1.5rem 1rem;
   text-align: center;
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: transform var(--transition-normal), border-color var(--transition-normal), background-color var(--transition-normal), box-shadow var(--transition-normal);
+  will-change: transform;
+  transform: translateZ(0);
   position: relative;
   overflow: hidden;
   min-height: 140px;
@@ -4592,7 +4634,7 @@ kbd {
   border-color: var(--primary);
   background: rgba(var(--primary-rgb), 0.06);
   box-shadow: 0 0 25px rgba(var(--primary-rgb), 0.18), inset 0 0 15px rgba(var(--primary-rgb), 0.08);
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
 }
 
 .ocr-drop-box.has-file {
@@ -4643,13 +4685,14 @@ kbd {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: transform var(--transition-fast), background-color var(--transition-fast);
+  will-change: transform;
   box-shadow: 0 0 10px rgba(244, 63, 94, 0.6);
   z-index: 5;
 }
 
 .ocr-remove-btn:hover {
-  transform: scale(1.15);
+  transform: scale(1.1);
   background: #e11d48;
 }
 
@@ -4659,12 +4702,14 @@ kbd {
   font-weight: 800;
   border: none;
   box-shadow: 0 4px 20px rgba(var(--primary-rgb), 0.4);
-  transition: all var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), color var(--transition-fast);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .ocr-scan-btn:hover:not(:disabled) {
   box-shadow: 0 6px 28px rgba(168, 85, 247, 0.6);
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
   color: #000;
 }
 
@@ -4741,7 +4786,7 @@ kbd {
 .command-focus__list li { display: grid; grid-template-columns: 3.2rem 1fr; align-items: center; min-height: 3.8rem; border-top: 1px solid rgba(255,255,255,.055); }
 .command-focus__list li > span { display: grid; align-self: stretch; place-items: center; color: var(--primary); border-right: 1px solid rgba(255,255,255,.055); font: 700 .68rem/1 var(--font-mono); }
 .command-focus__list li p { margin: 0; padding: .8rem 1rem; color: var(--text-primary); font-weight: 600; }
-.command-link { display: inline-flex; align-items: center; gap: .55rem; margin-top: .9rem; padding: .55rem 0; border: 0; background: transparent; color: var(--primary); font: 700 .72rem/1 var(--font-sans); cursor: pointer; transition: transform .4s cubic-bezier(.22,.8,.24,1), color .4s cubic-bezier(.22,.8,.24,1); }
+.command-link { display: inline-flex; align-items: center; gap: .55rem; margin-top: .9rem; padding: .55rem 0; border: 0; background: transparent; color: var(--primary); font: 700 .72rem/1 var(--font-sans); cursor: pointer; transition: transform var(--transition-fast), color var(--transition-fast); will-change: transform; }
 .command-link span { display: grid; place-items: center; width: 1.55rem; aspect-ratio: 1; border-radius: 50%; background: rgba(var(--primary-rgb),.1); }
 .command-link:hover { color: var(--primary-hover); transform: translate3d(.18rem,0,0); }
 
@@ -5953,4 +5998,25 @@ kbd {
   .modal-overlay.active[data-mandatory] .auth-dialog > p,
   .modal-overlay.active[data-mandatory] .auth-dialog__form,
   .modal-overlay.active[data-mandatory] .auth-dialog__trust { opacity: 1; transform: none; }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (hover: none) {
+  .card:hover,
+  .stat-card:hover,
+  .player-card:hover,
+  .eclipse-player-card:hover,
+  .dream-team-card:hover,
+  .shiny-hero-card:hover,
+  .filter-chip:hover,
+  .sub-toggle.playing:hover,
+  .ocr-drop-box:hover {
+    transform: none !important;
+  }
 }
