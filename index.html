@@ -101,6 +101,8 @@
                     <h2 class="topbar-title" id="pageTitle">Bosh sahifa</h2>
                 </div>
                 <button type="button" class="quick-cmd-trigger" id="quickCmdTrigger" aria-label="Tezkor qidiruv"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> <span>Qidiruv</span> <kbd>⌘K</kbd></button>
+                <button type="button" class="sfx-toggle-btn topbar-icon-btn" aria-label="Ovoz effektlari" title="Ovoz effektlari (M)"><i class="fa-solid fa-volume-xmark" aria-hidden="true"></i></button>
+                <button type="button" class="hotkeys-trigger-btn topbar-icon-btn" id="hotkeysTriggerBtn" aria-label="Klaviatura tugmalari (?)" title="Klaviatura tugmalari (?)"><kbd>?</kbd></button>
                 <div id="topbarAuthContainer" style="margin-left:auto;"></div>
             </header>
 
@@ -167,10 +169,17 @@
                 <div class="filter-bar" id="matchFilterBar">
                     <label><i class="fa-solid fa-filter"></i> Filter</label>
                     <button type="button" class="filter-chip active" data-filter="all" aria-pressed="true">Barchasi</button>
+                    <button type="button" class="filter-chip" data-filter="wins" aria-pressed="false"><i class="fa-solid fa-trophy" style="color:var(--success);"></i> G‘alabalar</button>
+                    <button type="button" class="filter-chip" data-filter="losses" aria-pressed="false"><i class="fa-solid fa-circle-xmark" style="color:var(--danger);"></i> Mag‘lubiyatlar</button>
+                    <button type="button" class="filter-chip" data-filter="team5" aria-pressed="false"><i class="fa-solid fa-shield-halved" style="color:var(--primary);"></i> 5-man Squad</button>
                     <button type="button" class="filter-chip" data-filter="ranked" aria-pressed="false"><i class="fa-solid fa-ranking-star"></i> Ranked</button>
                     <button type="button" class="filter-chip" data-filter="scrim" aria-pressed="false"><i class="fa-solid fa-people-arrows"></i> Scrim</button>
                     <button type="button" class="filter-chip" data-filter="tournament" aria-pressed="false"><i class="fa-solid fa-trophy"></i> Turnir</button>
                     <button type="button" class="filter-chip" data-filter="casual" aria-pressed="false"><i class="fa-solid fa-gamepad"></i> Oddiy</button>
+                    <div class="match-quick-search-wrap" style="margin-left:auto;">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <input type="search" class="match-quick-search-input" id="matchQuickSearch" placeholder="Hero yoki o‘yinchi qidirish…" autocomplete="off">
+                    </div>
                 </div>
                 <div id="matchHistoryContainer"></div>
             </section>
@@ -387,6 +396,41 @@
         </a>
     </nav>
 
+    <!-- Hotkeys Cheat-Sheet Dialog -->
+    <dialog class="hotkeys-dialog" id="hotkeysDialog" aria-labelledby="hotkeysTitle">
+        <div class="hotkeys-modal">
+            <header class="hotkeys-modal__header">
+                <div>
+                    <p class="hotkeys-modal__eyebrow">ECLIPSE HUD // SHORTCUTS</p>
+                    <h3 id="hotkeysTitle"><i class="fa-solid fa-keyboard" style="color:var(--primary);"></i> Klaviatura tugmalari</h3>
+                </div>
+                <button type="button" class="hotkeys-modal__close" id="hotkeysCloseBtn" aria-label="Yopish"><kbd>Esc</kbd></button>
+            </header>
+            <div class="hotkeys-modal__grid">
+                <div class="hotkeys-group">
+                    <h4>Sahifalar navigatsiyasi</h4>
+                    <div class="hotkeys-row"><span>Bosh sahifa</span><kbd>1</kbd></div>
+                    <div class="hotkeys-row"><span>Matchlar tarixi</span><kbd>2</kbd></div>
+                    <div class="hotkeys-row"><span>Jamoa tarkibi</span><kbd>3</kbd></div>
+                    <div class="hotkeys-row"><span>Tahlil va statistika</span><kbd>4</kbd></div>
+                    <div class="hotkeys-row"><span>Briefing va Meta</span><kbd>5</kbd></div>
+                </div>
+                <div class="hotkeys-group">
+                    <h4>Tezkor amallar</h4>
+                    <div class="hotkeys-row"><span>Universal qidiruv</span><div><kbd>⌘K</kbd> / <kbd>/</kbd></div></div>
+                    <div class="hotkeys-row"><span>Match qo‘shish (Admin)</span><kbd>N</kbd></div>
+                    <div class="hotkeys-row"><span>Match yuborish (Skaner)</span><kbd>S</kbd></div>
+                    <div class="hotkeys-row"><span>Audio SFX (Yoqish/O‘chirish)</span><kbd>M</kbd></div>
+                    <div class="hotkeys-row"><span>Ushbu yordam oynasi</span><kbd>?</kbd></div>
+                    <div class="hotkeys-row"><span>Oyna / Menyuni yopish</span><kbd>Esc</kbd></div>
+                </div>
+            </div>
+            <footer class="hotkeys-modal__footer">
+                <span>Eclipse Esports · Professional MLBB Analytics Center</span>
+            </footer>
+        </div>
+    </dialog>
+
     <script src="js/heroes.js?v=2.27.0"></script>
     <script src="js/date-utils.js?v=2.27.0"></script>
     <script src="js/data.js?v=2.31.0"></script>
@@ -409,6 +453,9 @@
     <script src="js/meta-decision-model.js?v=2.33.0"></script>
     <script src="js/meta-decisions.js?v=2.34.1"></script>
     <script src="js/command-palette.js?v=2.36.1"></script>
+    <script src="js/audio.js?v=2.36.1"></script>
+    <script src="js/share-card.js?v=2.36.1"></script>
+    <script src="js/draft-helper.js?v=2.36.1"></script>
     <script src="js/app.js?v=2.36.0"></script>
     <script type="module" src="js/progress.js?v=2.35.0"></script>
     <script type="module" src="js/coach.js?v=2.36.0"></script>

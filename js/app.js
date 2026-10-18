@@ -34,6 +34,7 @@ window.EclipseApp = {
     this.bindDashboardTrendTabs();
     this.bindSettings();
     this.bindKeyboardShortcuts();
+    this.bindQolControls();
     this.initMotion();
 
     // Do not render cached team data until the server confirms whether the
@@ -105,7 +106,9 @@ window.EclipseApp = {
       this.renderAnalyticsArchive(matches, this.dataStore.getPlayers());
     } else {
       const filter = document.querySelector('#matchFilterBar .filter-chip.active')?.dataset.filter || 'all';
-      this.matchManager.renderMatchHistory('matchHistoryContainer', this.getHistoryMatches(matches).filter(match => filter === 'all' || (match.matchType || 'ranked') === filter), this.dataStore.getPlayers());
+      const query = document.getElementById('matchQuickSearch')?.value || '';
+      const filtered = this.filterHistoryMatches(this.getHistoryMatches(matches), filter, query);
+      this.matchManager.renderMatchHistory('matchHistoryContainer', filtered, this.dataStore.getPlayers());
     }
   },
 
@@ -589,6 +592,12 @@ window.EclipseApp = {
   bindKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        const hotkeys = document.getElementById('hotkeysDialog');
+        if (hotkeys?.open) {
+          if (typeof hotkeys.close === 'function') hotkeys.close();
+          else hotkeys.removeAttribute('open');
+          return;
+        }
         const overlay = document.getElementById('modalOverlay');
         if (overlay?.getAttribute('aria-hidden') === 'false') {
           if (overlay.dataset.mandatory !== 'true') {
@@ -636,6 +645,79 @@ window.EclipseApp = {
         return;
       }
 
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        const dialog = document.getElementById('hotkeysDialog');
+        if (dialog) {
+          if (dialog.open) {
+            if (typeof dialog.close === 'function') dialog.close();
+            else dialog.removeAttribute('open');
+          } else if (typeof dialog.showModal === 'function') {
+            dialog.showModal();
+          } else {
+            dialog.setAttribute('open', '');
+          }
+        }
+        return;
+      }
+
+      if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        window.eclipseAudio?.toggle?.();
+        return;
+      }
+
+      if (e.key === 'd' || e.key === 'D') {
+        e.preventDefault();
+        window.draftAssistant?.open?.();
+        return;
+      }
+
+    });
+  },
+
+  bindQolControls() {
+    const hotkeysDialog = document.getElementById('hotkeysDialog');
+    const triggerBtn = document.getElementById('hotkeysTriggerBtn');
+    const closeBtn = document.getElementById('hotkeysCloseBtn');
+
+    if (triggerBtn && hotkeysDialog) {
+      triggerBtn.addEventListener('click', () => {
+        if (typeof hotkeysDialog.showModal === 'function') {
+          hotkeysDialog.showModal();
+        } else {
+          hotkeysDialog.setAttribute('open', '');
+        }
+      });
+    }
+
+    if (closeBtn && hotkeysDialog) {
+      closeBtn.addEventListener('click', () => {
+        if (typeof hotkeysDialog.close === 'function') {
+          hotkeysDialog.close();
+        } else {
+          hotkeysDialog.removeAttribute('open');
+        }
+      });
+    }
+
+    if (hotkeysDialog) {
+      hotkeysDialog.addEventListener('click', (e) => {
+        if (e.target === hotkeysDialog) {
+          if (typeof hotkeysDialog.close === 'function') {
+            hotkeysDialog.close();
+          } else {
+            hotkeysDialog.removeAttribute('open');
+          }
+        }
+      });
+    }
+
+    // Draft Assistant triggers
+    document.querySelectorAll('#draftAssistantBtn, .draft-trigger-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        window.draftAssistant?.open?.();
+      });
     });
   },
 
@@ -732,6 +814,16 @@ window.EclipseApp = {
             chip.classList.toggle('active', chip.dataset.filter === 'all');
             chip.setAttribute('aria-pressed', String(chip.dataset.filter === 'all'));
           });
+          const quickSearchInput = document.getElementById('matchQuickSearch');
+          const runFilter = () => {
+            const activeFilter = filterBar.querySelector('.filter-chip.active')?.dataset.filter || 'all';
+            const query = quickSearchInput?.value || '';
+            const latestMatches = this.getHistoryMatches(this.dataStore.getMatches());
+            const latestPlayers = this.dataStore.getAllPlayers?.() || this.dataStore.getPlayers();
+            const filteredMatches = this.filterHistoryMatches(latestMatches, activeFilter, query);
+            this.matchManager.renderMatchHistory('matchHistoryContainer', filteredMatches, latestPlayers);
+          };
+
           filterChips.forEach(chip => {
             chip.onclick = () => {
               filterChips.forEach(c => {
@@ -740,15 +832,14 @@ window.EclipseApp = {
               });
               chip.classList.add('active');
               chip.setAttribute('aria-pressed', 'true');
-              const filterType = chip.dataset.filter;
-              const latestMatches = this.getHistoryMatches(this.dataStore.getMatches());
-              const latestPlayers = this.dataStore.getAllPlayers?.() || this.dataStore.getPlayers();
-              const filteredMatches = filterType === 'all' 
-                ? latestMatches
-                : latestMatches.filter(m => (m.matchType || 'ranked') === filterType);
-              this.matchManager.renderMatchHistory('matchHistoryContainer', filteredMatches, latestPlayers);
+              runFilter();
             };
           });
+
+          if (quickSearchInput && !quickSearchInput.dataset.bound) {
+            quickSearchInput.dataset.bound = 'true';
+            quickSearchInput.addEventListener('input', runFilter);
+          }
         }
         break;
       case 'submissions':
@@ -806,6 +897,54 @@ window.EclipseApp = {
     const scopes = this.currentAnalyticsMode === 'squad' ? ['individual', 'squad'] : ['team5'];
     return matches.filter(match => scopes.includes(match.scope)
       || (this.authManager?.isAdmin() && !['team5', 'squad', 'individual'].includes(match.scope)));
+  },
+
+  filterHistoryMatches(matches = [], filterType = 'all', query = '') {
+    const list = Array.isArray(matches) ? matches : [];
+    const q = (query || '').trim().toLowerCase();
+
+    return list.filter(match => {
+      if (!match) return false;
+
+      const matchType = (match.matchType || match.type || '').toLowerCase();
+      const isWin = match.result === 'win' || match.result === 'G‘alaba' || match.isWin === true;
+
+      // Filter type check
+      if (filterType === 'wins' && !isWin) return false;
+      if (filterType === 'losses' && isWin) return false;
+      if (filterType === 'team5' && match.scope !== 'team5') return false;
+      if (filterType === 'ranked' && matchType !== 'ranked') return false;
+      if (filterType === 'scrim' && matchType !== 'scrim') return false;
+      if (filterType === 'tournament' && matchType !== 'tournament') return false;
+      if (filterType === 'casual' && matchType !== 'casual') return false;
+
+      // Quick search query check
+      if (q) {
+        const opponent = (match.opponent || '').toLowerCase();
+        const note = (match.note || '').toLowerCase();
+        const date = (match.date || '').toLowerCase();
+        const type = matchType;
+        if (opponent.includes(q) || note.includes(q) || date.includes(q) || type.includes(q)) {
+          return true;
+        }
+
+        const participants = [
+          ...(Array.isArray(match.playerStats) ? match.playerStats : []),
+          ...(Array.isArray(match.guestStats) ? match.guestStats : [])
+        ];
+
+        const matchPlayerFound = participants.some(p => {
+          const hero = (p.heroUsed || p.hero || '').toLowerCase();
+          const name = (p.playerName || p.name || '').toLowerCase();
+          const role = (p.rolePlayed || p.role || '').toLowerCase();
+          return hero.includes(q) || name.includes(q) || role.includes(q);
+        });
+
+        if (!matchPlayerFound) return false;
+      }
+
+      return true;
+    });
   },
 
   getTrackedUnitStats(matches = []) {

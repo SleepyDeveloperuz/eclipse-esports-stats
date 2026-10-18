@@ -35,7 +35,10 @@
     </a>
     <span class="public-meta-access">Hamma uchun ochiq</span>
     <div class="public-meta-actions">
+      <button type="button" class="draft-trigger-btn" id="draftAssistantBtn" aria-label="Draft Assistant"><i class="fa-solid fa-shield-halved"></i> Draft Assistant</button>
       <button type="button" class="quick-cmd-trigger" id="quickCmdTrigger" aria-label="Tezkor qidiruv"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Qidiruv <kbd>⌘K</kbd></button>
+      <button type="button" class="sfx-toggle-btn topbar-icon-btn" aria-label="Ovoz effektlari" title="Ovoz effektlari (M)"><i class="fa-solid fa-volume-xmark" aria-hidden="true"></i></button>
+      <button type="button" class="hotkeys-trigger-btn topbar-icon-btn" id="hotkeysTriggerBtn" aria-label="Klaviatura tugmalari (?)" title="Klaviatura tugmalari (?)"><kbd>?</kbd></button>
       <button type="button" class="btn btn-secondary" data-pwa-install>Ilovani o‘rnatish</button>
       <a class="btn btn-secondary public-meta-login" href="/">Jamoa kirishi <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
     </div>
@@ -49,6 +52,39 @@
     <span>Moonton bilan rasmiy aloqasi yo‘q. Jamoa ma’lumotlari bu sahifada ko‘rsatilmaydi.</span>
   </footer>
   <div class="public-meta-toast" id="publicMetaToast" role="status" aria-live="polite" hidden></div>
+
+  <!-- Hotkeys Cheat-Sheet Dialog -->
+  <dialog class="hotkeys-dialog" id="hotkeysDialog" aria-labelledby="hotkeysTitle">
+    <div class="hotkeys-modal">
+      <header class="hotkeys-modal__header">
+        <div>
+          <p class="hotkeys-modal__eyebrow">ECLIPSE HUD // SHORTCUTS</p>
+          <h3 id="hotkeysTitle"><i class="fa-solid fa-keyboard" style="color:var(--primary);"></i> Klaviatura tugmalari</h3>
+        </div>
+        <button type="button" class="hotkeys-modal__close" id="hotkeysCloseBtn" aria-label="Yopish"><kbd>Esc</kbd></button>
+      </header>
+      <div class="hotkeys-modal__grid">
+        <div class="hotkeys-group">
+          <h4>Meta Lab navigatsiyasi</h4>
+          <div class="hotkeys-row"><span>Universal qidiruv</span><div><kbd>⌘K</kbd> / <kbd>/</kbd></div></div>
+          <div class="hotkeys-row"><span>Audio SFX (Yoqish/O‘chirish)</span><kbd>M</kbd></div>
+          <div class="hotkeys-row"><span>Ushbu yordam oynasi</span><kbd>?</kbd></div>
+          <div class="hotkeys-row"><span>Oynani yopish</span><kbd>Esc</kbd></div>
+        </div>
+        <div class="hotkeys-group">
+          <h4>Jamoa tizimi</h4>
+          <div class="hotkeys-row"><span>Bosh sahifa</span><kbd>1</kbd></div>
+          <div class="hotkeys-row"><span>Matchlar</span><kbd>2</kbd></div>
+          <div class="hotkeys-row"><span>Jamoa</span><kbd>3</kbd></div>
+          <div class="hotkeys-row"><span>Match yuborish</span><kbd>S</kbd></div>
+        </div>
+      </div>
+      <footer class="hotkeys-modal__footer">
+        <span>Eclipse Esports · Meta Lab Public Explorer</span>
+      </footer>
+    </div>
+  </dialog>
+
   <script src="/js/date-utils.js?v=2.27.0"></script>
   <script src="/js/mlbb.js?v=2.34.1"></script>
   <script src="/js/tier-board.js?v=2.33.0"></script>
@@ -57,5 +93,7 @@
     <script src="/js/meta-decisions.js?v=2.34.1"></script>
   <script src="/js/public-meta.js?v=2.28.0"></script>
   <script src="/js/command-palette.js?v=2.36.1"></script>
+  <script src="/js/audio.js?v=2.36.1"></script>
+  <script src="/js/draft-helper.js?v=2.36.1"></script>
 </body>
 </html>

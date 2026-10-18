@@ -30,7 +30,10 @@
 
     static get QUICK_ACTIONS() {
       return [
+        { id: 'act-draft-assistant', label: 'Draft Assistant (Pick & Ban Helper)', group: 'Amallar', icon: 'fa-shield-halved', action: 'draftAssistant' },
         { id: 'act-export-tier', label: 'Meta Tierlistni PNG eksport qilish', group: 'Amallar', icon: 'fa-file-image', action: 'exportTier' },
+        { id: 'act-toggle-sfx', label: 'Audio SFX (Ovoz effektlarini yoqish/o‘chirish)', group: 'Amallar', icon: 'fa-volume-high', action: 'toggleSfx' },
+        { id: 'act-hotkeys', label: 'Klaviatura tugmalari yordamchisi (?)', group: 'Yordam', icon: 'fa-keyboard', action: 'hotkeys' },
         { id: 'act-filter-exp', label: 'EXP Lane qahramonlarini ko‘rish', group: 'Layn filtri', icon: 'fa-shield-halved', lane: 'exp' },
         { id: 'act-filter-gold', label: 'Gold Lane qahramonlarini ko‘rish', group: 'Layn filtri', icon: 'fa-coins', lane: 'gold' },
         { id: 'act-filter-mid', label: 'Mid Lane qahramonlarini ko‘rish', group: 'Layn filtri', icon: 'fa-wand-magic-sparkles', lane: 'mid' },
@@ -329,6 +332,19 @@
       }
 
       // 4. Quick Action
+      if (item.action === 'draftAssistant') {
+        window.draftAssistant?.open();
+        return;
+      }
+      if (item.action === 'toggleSfx') {
+        window.eclipseAudio?.toggle();
+        return;
+      }
+      if (item.action === 'hotkeys') {
+        const dialog = document.getElementById('hotkeysDialog');
+        if (dialog?.showModal) dialog.showModal();
+        return;
+      }
       if (item.action === 'exportTier') {
         const exportBtn = document.querySelector('[data-tier-export]');
         if (exportBtn) exportBtn.click();

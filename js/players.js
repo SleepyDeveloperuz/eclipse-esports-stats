@@ -136,6 +136,38 @@ window.PlayerManager = class PlayerManager {
     const trendByPlayer = new Map(trends.map(item => [item.player.id, item]));
     const totalAppearances = players.reduce((sum, player) => sum + this.statsEngine.getPlayerStats(matches, player.id).matchesPlayed, 0);
 
+    const synergy = this.statsEngine?.getSynergyStats?.(matches, players, { minimumMatches: 2, scope: 'all' });
+    const duos = synergy?.duos || [];
+    let chemistryBannerHtml = '';
+    if (duos.length > 0) {
+      const topDuos = duos.slice(0, 2);
+      const duoCardsHtml = topDuos.map((duo, idx) => `
+        <div class="chemistry-duo-card ${idx === 0 ? 'is-best' : ''}">
+          <div class="chemistry-duo-card__names">
+            <span class="chemistry-duo-rank">👑 #${idx + 1} TANDEM</span>
+            <strong>${this.escapeHtml(duo.player1.name)} + ${this.escapeHtml(duo.player2.name)}</strong>
+            <small>${duo.wins}W - ${duo.losses}L · KDA: ${duo.combinedKda || '—'}</small>
+          </div>
+          <div class="chemistry-duo-card__stats">
+            <span class="chemistry-stat-wr">${duo.winRate}%</span>
+            <span class="chemistry-stat-matches">${duo.matchesTogether} match birga</span>
+          </div>
+        </div>
+      `).join('');
+
+      chemistryBannerHtml = `
+        <section class="team-chemistry-highlight" aria-label="Eng samarali tandemlar">
+          <div class="team-chemistry-highlight__header">
+            <span class="badge" style="background:rgba(228, 196, 110, 0.15); color:var(--primary); font-weight:800;"><i class="fa-solid fa-bolt"></i> TANDEM SYNERGY</span>
+            <h4>Jamoaning eng kuchli tandemlari</h4>
+          </div>
+          <div class="team-chemistry-highlight__grid">
+            ${duoCardsHtml}
+          </div>
+        </section>
+      `;
+    }
+
     let html = `
       <section class="roster-command" aria-label="Eclipse faol tarkibi">
         <div>
@@ -149,6 +181,7 @@ window.PlayerManager = class PlayerManager {
           <span><strong>${String(totalAppearances).padStart(2, '0')}</strong> ishtirok</span>
         </div>
       </section>
+      ${chemistryBannerHtml}
       <div class="player-roster-grid">
     `;
 
@@ -814,7 +847,12 @@ window.PlayerManager = class PlayerManager {
     ` : '';
 
     container.innerHTML = `
-      <button class="profile-back back-to-players"><i class="fa-solid fa-arrow-left"></i> Tarkibga qaytish</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+        <button class="profile-back back-to-players"><i class="fa-solid fa-arrow-left"></i> Tarkibga qaytish</button>
+        <button type="button" class="btn btn-secondary share-player-card-btn" id="sharePlayerCardBtn" style="display:inline-flex; align-items:center; gap:0.5rem; border-color:rgba(212,175,55,0.4);">
+          <i class="fa-solid fa-share-nodes" style="color:var(--primary);"></i> <span>Karta yuklab olish (PNG)</span>
+        </button>
+      </div>
 
       <section class="player-profile-hero ${isHeavenlyyy ? 'player-profile-hero--captain' : ''}" aria-label="${safePlayerName} o‘yinchi profili">
         <div class="player-profile-hero__identity">
@@ -976,6 +1014,37 @@ window.PlayerManager = class PlayerManager {
     container.querySelector('.back-to-players')?.addEventListener('click', () => {
       window.EclipseApp.navigate('players');
     });
+
+    container.querySelector('#sharePlayerCardBtn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Tayyorlanmoqda...';
+      try {
+        if (window.EclipseShareCard?.downloadPlayerCard) {
+          const recent = (recentForm || []).slice(0, 5).map(r => r.isWin ? 'win' : 'loss');
+          await window.EclipseShareCard.downloadPlayerCard({
+            name: player.name,
+            role: primaryRoleLabel || player.primaryRole || 'Operative',
+            winRate: winRateText,
+            matchesCount: stats.matchesPlayed,
+            kda: kdaText,
+            mvpCount: stats.mvpCount,
+            streakCount: stats.winStreak || 0,
+            recentResults: recent,
+            topHero: signatureHero !== '—' && signatureHero !== 'Ma’lumot kutilmoqda' ? signatureHero : 'MLBB Hero'
+          });
+          window.eclipseAudio?.playSuccess?.();
+        }
+      } catch (err) {
+        console.error('Share card generation error:', err);
+        window.showToast?.('Karta yaratishda xatolik yuz berdi.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+    });
+
     window.EclipseCoach?.render(container.querySelector('[data-player-coach]'), window.EclipseApp, { playerId });
   }
 
