@@ -295,11 +295,13 @@ domTest('tier board displays multi-lane flex heroes, tier descriptions, and risi
   const customCatalog = [
     { id: 4, name: 'Chou', lanes: ['EXP Lane'] },
     { id: 116, name: 'Julian', lanes: ['Jungle'] },
-    { id: 73, name: 'Harith', lanes: ['Gold Lane'] }
+    { id: 73, name: 'Harith', lanes: ['Gold Lane'] },
+    { id: 95, name: 'Yu Zhong', lanes: [] }
   ];
   const customRows = [
     { heroId: 4, name: 'Chou', winRate: .54, pickRate: .02, banRate: .1, tier: 'S', eclipseRank: 10, eclipseScore: 65 },
-    { heroId: 116, name: 'Julian', winRate: .58, pickRate: .03, banRate: .4, tier: 'SS', eclipseRank: 2, eclipseScore: 78 }
+    { heroId: 116, name: 'Julian', winRate: .58, pickRate: .03, banRate: .4, tier: 'SS', eclipseRank: 2, eclipseScore: 78 },
+    { heroId: 95, name: 'Yu Zhong', winRate: .49, pickRate: .01, banRate: .01, tier: 'A', eclipseRank: 40, eclipseScore: 50 }
   ];
   const comparison = {
     previousUpdatedAt: '2026-09-28T00:00:00Z',
@@ -341,6 +343,14 @@ domTest('tier board displays multi-lane flex heroes, tier descriptions, and risi
     assert.equal(obsidiaLanes.length, 1, 'Obsidia has exactly 1 lane');
     assert.equal(obsidiaLanes[0], 'gold', 'Obsidia is strictly in gold lane only');
 
+    const yuZhongLanes = manager.heroLanes({ id: 95, name: 'Yu Zhong', lanes: [] });
+    assert.equal(yuZhongLanes.length, 1, 'Yu Zhong has exactly 1 lane');
+    assert.equal(yuZhongLanes[0], 'exp', 'Yu Zhong is strictly in exp lane');
+
+    const yuZhongById = manager.heroLanes(95);
+    assert.equal(yuZhongById.length, 1, 'Yu Zhong by ID has exactly 1 lane');
+    assert.equal(yuZhongById[0], 'exp', 'Yu Zhong by ID is in exp lane');
+
     // Tier description tooltips verification
     const ssDesc = manager.tierDescription('SS');
     assert.equal(ssDesc.en, 'Must ban or 1st pick heroes');
@@ -359,6 +369,13 @@ domTest('tier board displays multi-lane flex heroes, tier descriptions, and risi
     assert.ok(julianBtn.classList.contains('is-falling'), 'Julian has is-falling class');
     const julianMovement = julianBtn.querySelector('.solar-tier-hero__movement.is-down');
     assert.ok(julianMovement, 'Julian has downward movement badge');
+
+    // Yu Zhong DOM rendering and badge verification
+    const yzBtn = w.document.querySelector('.solar-tier-hero[data-hero-id="95"]');
+    assert.ok(yzBtn, 'Yu Zhong button rendered');
+    assert.equal(yzBtn.dataset.lane, 'exp', 'Yu Zhong has exp dataset lane');
+    const yzBadge = yzBtn.querySelector('.solar-lane-badge.is-exp');
+    assert.ok(yzBadge, 'Yu Zhong has exp lane badge rendered');
 
     // Toggle highlight movements
     const toggleBtn = w.document.querySelector('[data-tier-highlight-movements]');

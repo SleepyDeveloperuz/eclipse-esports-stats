@@ -49,7 +49,7 @@ class HeroDatabase {
         { name: 'X.Borg', role: 'Fighter' },
         { name: 'Dyrroth', role: 'Fighter' },
         { name: 'Khaleed', role: 'Fighter' },
-        { name: 'YuZhong', role: 'Fighter' },
+        { name: 'Yu Zhong', role: 'Fighter', aliases: ['YuZhong'] },
         { name: 'Paquito', role: 'Fighter' },
         { name: 'Phoveus', role: 'Fighter' },
         { name: 'Aulus', role: 'Fighter' },

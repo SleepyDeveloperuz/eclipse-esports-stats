@@ -86,7 +86,7 @@ const MLBB_FLEX_LANES = Object.freeze({
   xavier: ['mid'],
   aurora: ['mid'],
   vexana: ['mid'],
-  YuZhong: ['exp'], 
+  yuzhong: ['exp'], 
   claude: ['gold'],
   hayabusa: ['jungle'],
   lylia: ['mid'],
@@ -305,7 +305,11 @@ window.MlbbDataManager = class MlbbDataManager {
   }
 
   heroById(id) {
-    return (this.state.heroes?.data || []).find(hero => Number(hero.id) === Number(id)) || null;
+    const fromCatalog = (this.state.heroes?.data || []).find(hero => Number(hero.id) === Number(id));
+    if (fromCatalog) return fromCatalog;
+    const fromMeta = (this.state.meta?.data?.eclipse || []).find(hero => Number(hero.heroId) === Number(id));
+    if (fromMeta) return { id: fromMeta.heroId, name: fromMeta.name, lanes: [] };
+    return null;
   }
 
   heroLanes(heroOrId) {
@@ -325,6 +329,9 @@ window.MlbbDataManager = class MlbbDataManager {
     const key = String(hero?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     if (key === 'obsidia') {
       return ['gold'];
+    }
+    if (key === 'yuzhong') {
+      return ['exp'];
     }
     const flex = MLBB_FLEX_LANES[key];
     if (flex) {
@@ -495,8 +502,8 @@ window.MlbbDataManager = class MlbbDataManager {
             <thead><tr><th>Manba o‘rni</th><th>Hero</th><th>Win</th><th>Pick</th><th>Ban</th><th>Tier · tajriba</th><th>Eclipse balli</th><th>Eclipse o‘rni</th><th>Pick ko‘rinishi</th></tr></thead>
             <tbody>
               ${rows.map(row => {
-                const lanes = this.heroLanes(row.heroId);
-                const lanesLabels = this.heroLanesLabels(row.heroId);
+                const lanes = this.heroLanes(row);
+                const lanesLabels = this.heroLanesLabels(row);
                 return `
                 <tr data-hero-id="${Number(row.heroId)}" data-tier="${this.escape(row.tier)}" data-hero-name="${this.escape(String(row.name || '').toLowerCase())}" data-lane="${this.escape(lanes.join(' '))}" tabindex="0">
                   <td><strong class="meta-rank">${Number(row.officialRank) || '—'}</strong></td>

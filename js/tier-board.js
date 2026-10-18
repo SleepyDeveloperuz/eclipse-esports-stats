@@ -117,14 +117,14 @@
           const desc = this.tierDescription(tier);
           const tierHeroes = rows.filter(h => h.tier === tier);
           return `<section class="solar-tier-row" aria-label="${tier} tier" title="${this.escape(desc.en)} · ${this.escape(desc.uz)}"><div class="solar-tier-label is-${tier.toLowerCase()}"><span class="solar-tier-info" tabindex="0" role="button" aria-label="${tier} tier tavsifi" title="${this.escape(desc.en)} · ${this.escape(desc.uz)}"><i class="solar-tier-info-icon" aria-hidden="true">i</i><span class="solar-tier-tooltip" role="tooltip"><strong class="solar-tier-tooltip__title">${tier} Tier</strong><span class="solar-tier-tooltip__en">${this.escape(desc.en)}</span><small class="solar-tier-tooltip__uz">${this.escape(desc.uz)}</small></span></span><strong>${tier}</strong><small>${tierHeroes.length} HERO</small></div><div class="solar-tier-heroes">${tierHeroes.map(h => {
-            const lanes = this.heroLanes(h.heroId);
-            const lanesLabels = this.heroLanesLabels(h.heroId);
+            const lanes = this.heroLanes(h);
+            const lanesLabels = this.heroLanesLabels(h);
             const lanesTitle = lanesLabels.length ? lanesLabels.join(' / ') : '';
             const movement = this.heroMovement(h.heroId, h);
             const isRising = movement?.direction === 'up';
             const isFalling = movement?.direction === 'down';
             const movementBadge = movement ? `<span class="solar-tier-hero__movement is-${movement.direction}" title="${this.escape(movement.label)}" aria-label="${this.escape(movement.label)}">${this.movementIconSvg(movement.direction)}</span>` : '';
-            return `<button type="button" class="solar-tier-hero ${isRising ? 'is-rising' : ''} ${isFalling ? 'is-falling' : ''}" data-hero-id="${Number(h.heroId)}" data-lane="${this.escape(lanes.join(' '))}" data-movement="${movement ? movement.direction : 'none'}" title="${this.escape(h.name)}${lanesTitle ? ' · ' + this.escape(lanesTitle) : ''}${movement ? ' · ' + this.escape(movement.label) : ''} · ${h.eclipseScore == null ? 'Baholanmagan' : Number(h.eclipseScore).toFixed(2)}"><span class="solar-tier-hero__portrait">${this.imageMarkup(h.image ? h : { ...h, image: this.heroById(h.heroId)?.images?.portrait })}${movementBadge}${this.laneBadgeMarkup(h.heroId)}</span><strong>${this.escape(h.name)}</strong><small>${this.escape(this.qualityText(h) || this.changeText(h.heroId))}</small></button>`;
+            return `<button type="button" class="solar-tier-hero ${isRising ? 'is-rising' : ''} ${isFalling ? 'is-falling' : ''}" data-hero-id="${Number(h.heroId)}" data-lane="${this.escape(lanes.join(' '))}" data-movement="${movement ? movement.direction : 'none'}" title="${this.escape(h.name)}${lanesTitle ? ' · ' + this.escape(lanesTitle) : ''}${movement ? ' · ' + this.escape(movement.label) : ''} · ${h.eclipseScore == null ? 'Baholanmagan' : Number(h.eclipseScore).toFixed(2)}"><span class="solar-tier-hero__portrait">${this.imageMarkup(h.image ? h : { ...h, image: this.heroById(h.heroId)?.images?.portrait })}${movementBadge}${this.laneBadgeMarkup(h)}</span><strong>${this.escape(h.name)}</strong><small>${this.escape(this.qualityText(h) || this.changeText(h.heroId))}</small></button>`;
           }).join('')}</div></section>`;
         }).join('')}
         <footer>${rows.length} hero · SS / S / A / B / C / D; U = baholanmagan. Majburiy kvota yo‘q; SS bo‘sh bo‘lishi mumkin.<br>Hero ustiga bosing: skills va counters. Yuqori rank yoki SS tier statistik ishonchlilik va g‘alaba kafolati emas.</footer></section>`;
