@@ -758,7 +758,87 @@ domTest('Player profile share card button downloads player card without throwing
   dom.window.close();
 });
 
+domTest('ProgressHub QoL redesign provides week navigator, quick player switcher, and hero chips', async () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="progressContainer"></div></body></html>', {
+    runScripts: 'outside-only',
+    url: 'https://eclipse-esports.uz/'
+  });
+  const { window } = dom;
 
+  const model = await import('../js/progress-model.js');
+  const focusModel = await import('../js/weekly-focus-model.js');
+  Object.assign(window, model, focusModel);
 
+  const progressScript = readFileSync(new URL('../js/progress.js', import.meta.url), 'utf8')
+    .replace(/^import .*;\n/gm, '')
+    .replace(/export (class|function|async function)/g, '$1');
 
+  window.eval(progressScript);
 
+  const players = [
+    { id: 'p1', name: 'God_speed', primaryRole: 'Jungler' },
+    { id: 'p2', name: 'Shadow', primaryRole: 'EXP Laner' }
+  ];
+  const row1 = { playerId: 'p1', heroId: 1, heroUsed: 'Ling', rolePlayed: 'Jungler', kills: 8, deaths: 1, assists: 6, inGameScore: 9.5, damageDealt: 65000, medal: 'mvp' };
+  const row2 = { playerId: 'p1', heroId: 2, heroUsed: 'Fanny', rolePlayed: 'Jungler', kills: 5, deaths: 3, assists: 4, inGameScore: 7.2, damageDealt: 45000, medal: 'gold' };
+  const data = {
+    revision: 1,
+    players,
+    matches: [
+      { id: 'm1', date: '2026-10-15', scope: 'individual', result: 'win', matchType: 'ranked', durationSeconds: 720, playerStats: [row1] },
+      { id: 'm2', date: '2026-10-14', scope: 'individual', result: 'loss', matchType: 'ranked', durationSeconds: 680, playerStats: [row2] }
+    ]
+  };
+
+  const app = {
+    authManager: { isAdmin: () => true, getAccessToken: () => 'token', getToken: () => 'token' },
+    cloudSync: { getStatus: () => ({ pending: false, syncing: false }), async syncDown() {} }
+  };
+
+  const hub = new window.ProgressHub(app);
+  hub.container = window.document.getElementById('progressContainer');
+  hub.data = data;
+  hub.date = '2026-10-15';
+  hub.scope = 'squad';
+  hub.playerId = 'p1';
+
+  // 1. Weekly tab: Navigator controls & Scorecards
+  hub.tab = 'weekly';
+  hub.draw();
+
+  const prevBtn = hub.container.querySelector('[data-week-nav="-1"]');
+  const nextBtn = hub.container.querySelector('[data-week-nav="1"]');
+  const todayBtn = hub.container.querySelector('[data-week-nav="0"]');
+  assert.ok(prevBtn, 'Previous week button exists');
+  assert.ok(nextBtn, 'Next week button exists');
+  assert.ok(todayBtn, 'Today week button exists');
+
+  const initialDate = hub.date;
+  prevBtn.click();
+  assert.notEqual(hub.date, initialDate, 'Clicking previous week shifts the week date');
+
+  // 2. Personal tab: Quick player switcher
+  hub.tab = 'compare';
+  hub.draw();
+
+  const playerChips = hub.container.querySelectorAll('[data-select-player]');
+  assert.equal(playerChips.length, 2, '2 quick player switcher buttons rendered');
+  assert.ok(playerChips[0].classList.contains('active'), 'First player is active initially');
+
+  playerChips[1].click();
+  assert.equal(hub.playerId, 'p2', 'Clicking player chip switches active player');
+
+  // 3. Hero Journey: Hero chip picker when no hero is selected
+  hub.playerId = 'p1';
+  hub.hero = '';
+  hub.tab = 'journey';
+  hub.draw();
+
+  const heroChips = hub.container.querySelectorAll('[data-select-hero]');
+  assert.ok(heroChips.length >= 1, 'Top hero chips rendered when hero is unselected');
+
+  heroChips[0].click();
+  assert.ok(hub.hero, 'Clicking hero chip selects that hero for journey analysis');
+
+  dom.window.close();
+});
