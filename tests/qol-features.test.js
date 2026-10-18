@@ -663,6 +663,102 @@ domTest('Dashboard Widget Manager renders modal, toggles visibility, and persist
   dom.window.close();
 });
 
+domTest('Player profile share card button downloads player card without throwing error', async () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="playerProfileContainer"></div></body></html>', {
+    runScripts: 'outside-only',
+    url: 'https://eclipse-esports.uz/'
+  });
+  const { window } = dom;
+
+  let downloadedCardData = null;
+  window.EclipseShareCard = {
+    downloadPlayerCard: async (data) => {
+      downloadedCardData = data;
+    }
+  };
+  window.showToast = (msg, type) => {
+    if (type === 'error') throw new Error(`Unexpected error toast: ${msg}`);
+  };
+
+  window.eval(readFileSync(new URL('../js/date-utils.js', import.meta.url), 'utf8'));
+  window.eval(readFileSync(new URL('../js/players.js', import.meta.url), 'utf8'));
+
+  const mockDb = {
+    getAllPlayers: () => [
+      { id: 'p1', name: 'God_speed', primaryRole: 'Jungler' }
+    ]
+  };
+
+  const mockStatsEngine = {
+    getPlayerStats: () => ({
+      matchesPlayed: 10,
+      winRate: '70.0',
+      kdaRatio: '5.20',
+      performanceScore: 4.8,
+      mvpCount: 3,
+      avgInGameScore: 9.2,
+      totalDamageDealt: 120000,
+      avgDamageDealt: 12000,
+      totalDamageReceived: 80000,
+      avgDamageReceived: 8000,
+      totalTurretDamage: 45000,
+      avgTurretDamage: 4500,
+      totalGoldEarned: 85000,
+      avgGoldEarned: 8500,
+      totalKills: 45,
+      totalDeaths: 12,
+      totalAssists: 55,
+      avgKills: '4.5',
+      avgDeaths: '1.2',
+      avgAssists: '5.5',
+      avgDamageShare: 28,
+      avgGoldShare: 24,
+      avgGoldPerMinute: 780,
+      avgTurretDamageShare: 32,
+      avgTeamfightParticipation: 75,
+      goldCount: 2,
+      silverCount: 4,
+      bronzeCount: 1,
+      savageCount: 0,
+      maniacCount: 1
+    }),
+    getPlayerRoleBreakdown: () => ({ bestRole: 'Jungler', roles: [] }),
+    getPlayerHeroAnalytics: () => ({ heroes: [], uniqueHeroesCount: 3, mostPicked: { heroName: 'Ling' } }),
+    getPlayerTrends: () => [{ player: { id: 'p1' }, comparisonAvailable: false, diff: null }]
+  };
+  window.StatsEngine = {
+    ROLE_COLORS: {},
+    ROLE_ICONS: {},
+    formatLargeNumber: (n) => String(n)
+  };
+
+  const pm = new window.PlayerManager(mockDb, mockStatsEngine);
+  const sampleMatches = [
+    { date: '2026-10-18T10:00:00Z', result: 'win', players: [{ id: 'p1', heroName: 'Ling', kills: 8, deaths: 1, assists: 6 }] },
+    { date: '2026-10-17T10:00:00Z', result: 'win', players: [{ id: 'p1', heroName: 'Ling', kills: 7, deaths: 2, assists: 8 }] },
+    { date: '2026-10-16T10:00:00Z', result: 'loss', players: [{ id: 'p1', heroName: 'Fanny', kills: 4, deaths: 4, assists: 2 }] }
+  ];
+
+  pm.renderPlayerProfile('playerProfileContainer', 'p1', sampleMatches);
+
+  const shareBtn = window.document.getElementById('sharePlayerCardBtn');
+  assert.ok(shareBtn, 'Share button exists in profile');
+
+  // Trigger click
+  await shareBtn.click();
+
+  assert.ok(downloadedCardData, 'downloadPlayerCard was successfully called');
+  assert.equal(downloadedCardData.name, 'God_speed');
+  assert.equal(downloadedCardData.role, 'Jungler');
+  assert.equal(downloadedCardData.winRate, '70.0%');
+  assert.equal(downloadedCardData.kda, '5.20');
+  assert.equal(downloadedCardData.streakCount, 2, '2 consecutive wins detected');
+  assert.deepEqual(downloadedCardData.recentResults, ['win', 'win', 'loss']);
+
+  dom.window.close();
+});
+
+
 
 
 

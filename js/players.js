@@ -1028,19 +1028,26 @@ window.PlayerManager = class PlayerManager {
       btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Tayyorlanmoqda...';
       try {
         if (window.EclipseShareCard?.downloadPlayerCard) {
-          const recent = (recentForm || []).slice(0, 5).map(r => r.isWin ? 'win' : 'loss');
+          const formResults = Array.isArray(recentForm?.results)
+            ? recentForm.results
+            : (Array.isArray(recentForm) ? recentForm : []);
+          const recent = formResults.slice(0, 5).map(r => typeof r === 'string' ? r : (r.isWin ? 'win' : 'loss'));
+          const currentStreak = recentForm?.streakType === 'win' ? (recentForm.streakCount || 0) : (stats.winStreak || 0);
+
           await window.EclipseShareCard.downloadPlayerCard({
-            name: player.name,
+            name: player.name || 'Eclipse Operative',
             role: primaryRoleLabel || player.primaryRole || 'Operative',
             winRate: winRateText,
-            matchesCount: stats.matchesPlayed,
+            matchesCount: stats.matchesPlayed || 0,
             kda: kdaText,
-            mvpCount: stats.mvpCount,
-            streakCount: stats.winStreak || 0,
+            mvpCount: stats.mvpCount || 0,
+            streakCount: currentStreak,
             recentResults: recent,
             topHero: signatureHero !== '—' && signatureHero !== 'Ma’lumot kutilmoqda' ? signatureHero : 'MLBB Hero'
           });
           window.eclipseAudio?.playSuccess?.();
+        } else {
+          throw new Error('EclipseShareCard moduli topilmadi.');
         }
       } catch (err) {
         console.error('Share card generation error:', err);

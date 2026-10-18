@@ -71,7 +71,7 @@
       // 3. Top Header
       ctx.fillStyle = '#e4c46e';
       ctx.font = 'bold 16px monospace';
-      ctx.letterSpacing = '2px';
+      try { ctx.letterSpacing = '2px'; } catch (_) {}
       ctx.fillText('ECLIPSE ESPORTS // OPERATIVE STATS DOSSIER', 60, 72);
 
       ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
@@ -163,7 +163,9 @@
       recentResults.slice(0, 5).forEach((r, idx) => {
         const px = 300 + idx * 46;
         const py = 452;
-        const isWin = r.isWin === true;
+        const isWin = typeof r === 'string'
+          ? (r.toLowerCase() === 'win' || r.toLowerCase() === 'w')
+          : (r?.isWin === true);
         ctx.fillStyle = isWin ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)';
         ctx.strokeStyle = isWin ? '#10b981' : '#ef4444';
         ctx.lineWidth = 2;
