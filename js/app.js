@@ -650,12 +650,16 @@ window.EclipseApp = {
         const dialog = document.getElementById('hotkeysDialog');
         if (dialog) {
           if (dialog.open) {
+            window.eclipseAudio?.play?.('close');
             if (typeof dialog.close === 'function') dialog.close();
             else dialog.removeAttribute('open');
-          } else if (typeof dialog.showModal === 'function') {
-            dialog.showModal();
           } else {
-            dialog.setAttribute('open', '');
+            window.eclipseAudio?.play?.('click');
+            if (typeof dialog.showModal === 'function') {
+              dialog.showModal();
+            } else {
+              dialog.setAttribute('open', '');
+            }
           }
         }
         return;
@@ -682,17 +686,25 @@ window.EclipseApp = {
     const closeBtn = document.getElementById('hotkeysCloseBtn');
 
     if (triggerBtn && hotkeysDialog) {
-      triggerBtn.addEventListener('click', () => {
-        if (typeof hotkeysDialog.showModal === 'function') {
-          hotkeysDialog.showModal();
-        } else {
-          hotkeysDialog.setAttribute('open', '');
+      triggerBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.eclipseAudio?.play?.('click');
+        if (!hotkeysDialog.open) {
+          if (typeof hotkeysDialog.showModal === 'function') {
+            hotkeysDialog.showModal();
+          } else {
+            hotkeysDialog.setAttribute('open', '');
+          }
         }
       });
     }
 
     if (closeBtn && hotkeysDialog) {
-      closeBtn.addEventListener('click', () => {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.eclipseAudio?.play?.('close');
         if (typeof hotkeysDialog.close === 'function') {
           hotkeysDialog.close();
         } else {
@@ -704,6 +716,7 @@ window.EclipseApp = {
     if (hotkeysDialog) {
       hotkeysDialog.addEventListener('click', (e) => {
         if (e.target === hotkeysDialog) {
+          window.eclipseAudio?.play?.('close');
           if (typeof hotkeysDialog.close === 'function') {
             hotkeysDialog.close();
           } else {

@@ -471,6 +471,8 @@
 
     bindGlobalTriggers() {
       if (typeof document === 'undefined') return;
+      if (DraftAssistant._globalTriggersBound) return;
+      DraftAssistant._globalTriggersBound = true;
 
       document.addEventListener('click', (e) => {
         const draftBtn = e.target.closest('#draftAssistantBtn, .draft-trigger-btn');
@@ -484,11 +486,9 @@
         if (hotkeysTrigger) {
           e.preventDefault();
           const dialog = document.getElementById('hotkeysDialog');
-          if (dialog) {
-            if (dialog.open) {
-              if (typeof dialog.close === 'function') dialog.close();
-              else dialog.removeAttribute('open');
-            } else if (typeof dialog.showModal === 'function') {
+          if (dialog && !dialog.open) {
+            window.eclipseAudio?.play?.('click');
+            if (typeof dialog.showModal === 'function') {
               dialog.showModal();
             } else {
               dialog.setAttribute('open', '');
@@ -502,6 +502,7 @@
           e.preventDefault();
           const dialog = document.getElementById('hotkeysDialog');
           if (dialog) {
+            window.eclipseAudio?.play?.('close');
             if (typeof dialog.close === 'function') dialog.close();
             else dialog.removeAttribute('open');
           }
@@ -510,12 +511,14 @@
 
         const hotkeysDialog = document.getElementById('hotkeysDialog');
         if (hotkeysDialog && e.target === hotkeysDialog) {
+          window.eclipseAudio?.play?.('close');
           if (typeof hotkeysDialog.close === 'function') hotkeysDialog.close();
           else hotkeysDialog.removeAttribute('open');
         }
       });
 
       document.addEventListener('keydown', (e) => {
+        if (e.defaultPrevented) return;
         const tag = e.target?.tagName?.toLowerCase();
         if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) return;
         if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -525,12 +528,16 @@
           const dialog = document.getElementById('hotkeysDialog');
           if (dialog) {
             if (dialog.open) {
+              window.eclipseAudio?.play?.('close');
               if (typeof dialog.close === 'function') dialog.close();
               else dialog.removeAttribute('open');
-            } else if (typeof dialog.showModal === 'function') {
-              dialog.showModal();
             } else {
-              dialog.setAttribute('open', '');
+              window.eclipseAudio?.play?.('click');
+              if (typeof dialog.showModal === 'function') {
+                dialog.showModal();
+              } else {
+                dialog.setAttribute('open', '');
+              }
             }
           }
           return;

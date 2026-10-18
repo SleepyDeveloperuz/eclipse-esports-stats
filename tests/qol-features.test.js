@@ -842,3 +842,67 @@ domTest('ProgressHub QoL redesign provides week navigator, quick player switcher
 
   dom.window.close();
 });
+
+domTest('hotkeysTriggerBtn opens hotkeys dialog and close button closes it without double-trigger race condition', () => {
+  const dom = new JSDOM(`<!DOCTYPE html><html><body>
+    <button type="button" class="hotkeys-trigger-btn topbar-icon-btn" id="hotkeysTriggerBtn"><kbd>?</kbd></button>
+    <dialog class="hotkeys-dialog" id="hotkeysDialog">
+      <div class="hotkeys-modal">
+        <button type="button" class="hotkeys-modal__close" id="hotkeysCloseBtn"><kbd>Esc</kbd></button>
+      </div>
+    </dialog>
+  </body></html>`, {
+    runScripts: 'outside-only',
+    url: 'https://eclipse-esports.uz/'
+  });
+  const { window } = dom;
+
+  // Mock HTMLDialogElement methods in JSDOM
+  window.HTMLDialogElement.prototype.showModal = function() {
+    this.open = true;
+    this.setAttribute('open', '');
+  };
+  window.HTMLDialogElement.prototype.close = function() {
+    this.open = false;
+    this.removeAttribute('open');
+  };
+
+  // Load draft-helper.js (which has global triggers)
+  window.eval(readFileSync(new URL('../js/draft-helper.js', import.meta.url), 'utf8'));
+
+  // DraftAssistant is auto-initialized by draft-helper.js
+  const da = window.draftAssistant;
+
+  const triggerBtn = window.document.getElementById('hotkeysTriggerBtn');
+  const closeBtn = window.document.getElementById('hotkeysCloseBtn');
+  const dialog = window.document.getElementById('hotkeysDialog');
+
+  // Also attach app.js bindQolControls logic to simulate the real app environment
+  triggerBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!dialog.open) {
+      dialog.showModal();
+    }
+  });
+
+  assert.equal(dialog.open, false, 'Dialog is closed initially');
+
+  // Click on the <kbd>?</kbd> or triggerBtn
+  triggerBtn.querySelector('kbd').click();
+  assert.equal(dialog.open, true, 'Dialog opens on hotkeysTriggerBtn click');
+
+  // Click close button
+  closeBtn.click();
+  assert.equal(dialog.open, false, 'Dialog closes on hotkeysCloseBtn click');
+
+  // Trigger keydown '?'
+  window.document.dispatchEvent(new window.KeyboardEvent('keydown', { key: '?', bubbles: true }));
+  assert.equal(dialog.open, true, 'Dialog toggles open on ? keydown');
+
+  // Trigger keydown '?' again to toggle close
+  window.document.dispatchEvent(new window.KeyboardEvent('keydown', { key: '?', bubbles: true }));
+  assert.equal(dialog.open, false, 'Dialog toggles closed on second ? keydown');
+
+  dom.window.close();
+});
