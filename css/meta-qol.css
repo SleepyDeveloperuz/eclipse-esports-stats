@@ -682,4 +682,82 @@
   color: var(--primary, #e4c46e);
 }
 
+/* ==========================================================================
+   Sidebar Close & Collapse Controls (QoL)
+   ========================================================================== */
+
+/* Top Close Button inside sidebar header */
+.sidebar-close-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary, #b8b6ab);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+  font-size: 0.95rem;
+}
+.sidebar-close-btn:hover {
+  background: rgba(228, 196, 110, 0.15);
+  border-color: rgba(228, 196, 110, 0.4);
+  color: var(--primary, #e4c46e);
+  transform: scale(1.06);
+}
+.sidebar-close-btn:active {
+  transform: scale(0.94);
+}
+
+/* Bottom Close Button in sidebar footer */
+.sidebar-footer-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary, #b8b6ab);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  margin-bottom: 0.35rem;
+}
+.sidebar-footer-close-btn:hover {
+  background: rgba(228, 196, 110, 0.12);
+  border-color: rgba(228, 196, 110, 0.35);
+  color: var(--primary, #e4c46e);
+}
+.sidebar-footer-close-btn:active {
+  transform: scale(0.98);
+}
+
+/* Enable Hamburger on Desktop too so users can toggle menu freely */
+.hamburger {
+  display: inline-flex !important;
+  cursor: pointer;
+}
+
+/* Desktop Collapse Mode */
+@media (min-width: 769px) {
+  .app-container.sidebar-collapsed .sidebar {
+    transform: translateX(-100%);
+    box-shadow: none;
+    pointer-events: none;
+  }
+  .app-container.sidebar-collapsed .main-content {
+    margin-left: 0;
+  }
+}
+
+
 

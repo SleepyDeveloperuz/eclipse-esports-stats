@@ -82,8 +82,71 @@ domTest('index.html contains mobile dock navigation and submissions hint', () =>
   assert.match(indexHtml, /mobile-dock/);
   assert.match(indexHtml, /quickCmdTrigger/);
   assert.match(indexHtml, /command-palette\.js/);
+  assert.match(indexHtml, /sidebarCloseBtn/);
+  assert.match(indexHtml, /sidebarFooterCloseBtn/);
 
   const subJs = readFileSync(new URL('../js/submissions.js', import.meta.url), 'utf8');
   assert.match(subJs, /Ctrl\+V/);
   assert.match(subJs, /submission-dropzone__hint/);
 });
+
+domTest('sidebar close buttons and escape handler close open sidebar', () => {
+  const dom = new JSDOM(`
+    <!DOCTYPE html>
+    <html>
+      <body>
+        <div class="app-container">
+          <aside class="sidebar open" id="sidebar">
+            <button id="sidebarCloseBtn"></button>
+            <button id="sidebarFooterCloseBtn"></button>
+          </aside>
+          <div class="sidebar-overlay active" id="sidebarOverlay"></div>
+          <button id="hamburgerBtn" aria-expanded="true"></button>
+        </div>
+      </body>
+    </html>
+  `, { runScripts: 'outside-only' });
+  const { window } = dom;
+  window.innerWidth = 500;
+  window.DataStore = class { constructor() {} };
+  window.StatsEngine = class { constructor() {} };
+  window.AuthManager = class { constructor() {} };
+  window.HeroDatabase = class { constructor() {} };
+  window.SubmissionManager = class { constructor() {} };
+  window.BatchManager = class { constructor() {} };
+  window.BriefingManager = class { constructor() {} };
+  window.MlbbDataManager = class { constructor() {} };
+  window.ProgressManager = class { constructor() {} };
+  window.CoachManager = class { constructor() {} };
+
+  window.eval(readFileSync(new URL('../js/date-utils.js', import.meta.url), 'utf8'));
+  window.eval(readFileSync(new URL('../js/app.js', import.meta.url), 'utf8'));
+
+  const app = window.EclipseApp;
+  app.bindMobileNav();
+
+  const sidebar = window.document.getElementById('sidebar');
+  const overlay = window.document.getElementById('sidebarOverlay');
+  const closeBtn = window.document.getElementById('sidebarCloseBtn');
+
+  assert.ok(sidebar.classList.contains('open'));
+  closeBtn.click();
+  assert.ok(!sidebar.classList.contains('open'));
+  assert.ok(!overlay.classList.contains('active'));
+
+  // Test footer close button
+  sidebar.classList.add('open');
+  overlay.classList.add('active');
+  const footerClose = window.document.getElementById('sidebarFooterCloseBtn');
+  footerClose.click();
+  assert.ok(!sidebar.classList.contains('open'));
+
+  // Test Escape key
+  sidebar.classList.add('open');
+  overlay.classList.add('active');
+  window.document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.ok(!sidebar.classList.contains('open'));
+
+  dom.window.close();
+});
+
