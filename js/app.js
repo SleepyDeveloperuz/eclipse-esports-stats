@@ -719,6 +719,120 @@ window.EclipseApp = {
         window.draftAssistant?.open?.();
       });
     });
+
+    this.initWidgetManager();
+  },
+
+  initWidgetManager() {
+    const WIDGET_CONFIG = [
+      { id: 'widget-command', name: 'Jamoa Signali & Match', icon: 'fa-signal', default: true },
+      { id: 'widget-constellation', name: 'Sinergiya Turqumi (Constellation)', icon: 'fa-circle-nodes', default: true },
+      { id: 'widget-duration', name: 'Power Spike & Davomiylik', icon: 'fa-stopwatch-20', default: true },
+      { id: 'widget-coach', name: 'AI Coach & Maslahatlar', icon: 'fa-robot', default: true }
+    ];
+
+    const STORAGE_KEY = 'eclipse:dashboard_widgets';
+    let savedSettings = {};
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) savedSettings = JSON.parse(stored);
+    } catch (_) {}
+
+    const isVisible = (id) => savedSettings[id] !== undefined ? !!savedSettings[id] : true;
+
+    const applyVisibility = () => {
+      WIDGET_CONFIG.forEach(w => {
+        const el = document.getElementById(w.id);
+        if (el) {
+          el.style.display = isVisible(w.id) ? '' : 'none';
+        }
+      });
+    };
+
+    applyVisibility();
+    this._applyWidgetVisibility = applyVisibility;
+
+    const customizeBtn = document.getElementById('customizeWidgetsBtn');
+    if (!customizeBtn) return;
+
+    let dialog = document.getElementById('widgetManagerDialog');
+    if (!dialog) {
+      dialog = document.createElement('dialog');
+      dialog.id = 'widgetManagerDialog';
+      dialog.className = 'widget-manager-dialog';
+      dialog.setAttribute('aria-labelledby', 'widgetManagerTitle');
+      document.body.appendChild(dialog);
+    }
+
+    const renderDialogContent = () => {
+      dialog.innerHTML = `
+        <div class="widget-manager-modal">
+          <div class="theme-modal__header">
+            <div>
+              <p class="theme-modal__eyebrow">DASHBOARD // MODULAR UX</p>
+              <h3 id="widgetManagerTitle"><i class="fa-solid fa-sliders" style="color:var(--primary);"></i> Vidjetlarni boshqarish</h3>
+            </div>
+            <button type="button" class="theme-modal__close" id="widgetModalCloseBtn" aria-label="Yopish"><kbd>Esc</kbd></button>
+          </div>
+          <div class="widget-toggle-list">
+            ${WIDGET_CONFIG.map(w => {
+              const active = isVisible(w.id);
+              return `
+                <div class="widget-toggle-item ${active ? 'is-active' : ''}" data-widget-id="${w.id}">
+                  <span class="widget-toggle-label">
+                    <i class="fa-solid ${w.icon}"></i>
+                    <span>${w.name}</span>
+                  </span>
+                  <div class="widget-switch" aria-hidden="true"></div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          <div class="theme-modal__footer" style="display:flex; justify-content:space-between; align-items:center;">
+            <button type="button" class="btn btn-secondary" id="resetWidgetsBtn" style="font-size:0.75rem; padding:0.3rem 0.65rem;">Hammasini yoqish</button>
+            <span style="font-size:0.75rem; color:var(--text-muted);">Avtomatik saqlanadi</span>
+          </div>
+        </div>
+      `;
+
+      dialog.querySelector('#widgetModalCloseBtn')?.addEventListener('click', () => dialog.close());
+      dialog.addEventListener('click', e => {
+        if (e.target === dialog) dialog.close();
+      });
+
+      dialog.querySelectorAll('.widget-toggle-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const wId = item.dataset.widgetId;
+          const current = isVisible(wId);
+          savedSettings[wId] = !current;
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSettings));
+          } catch (_) {}
+          item.classList.toggle('is-active', !current);
+          applyVisibility();
+          window.EclipseAudio?.playClick?.();
+        });
+      });
+
+      dialog.querySelector('#resetWidgetsBtn')?.addEventListener('click', () => {
+        WIDGET_CONFIG.forEach(w => { savedSettings[w.id] = true; });
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSettings));
+        } catch (_) {}
+        renderDialogContent();
+        applyVisibility();
+        window.EclipseAudio?.playSuccess?.();
+      });
+    };
+
+    customizeBtn.addEventListener('click', () => {
+      renderDialogContent();
+      if (typeof dialog.showModal === 'function') {
+        dialog.showModal();
+      } else {
+        dialog.setAttribute('open', '');
+      }
+    });
   },
 
   navigate(pageId) {
@@ -1091,20 +1205,39 @@ window.EclipseApp = {
         <p class="command-pulse__delta ${pulseState.className}"><i class="fa-solid ${pulseState.icon}"></i>${pulseState.text}</p>
       </article>`;
 
+    const durationBreakdown = this.statsEngine.getGameDurationBreakdown(matches, { scope: 'all' });
+    const durationHtml = window.StatsEngine.renderDurationAnalyticsHtml(durationBreakdown);
+
     container.innerHTML = `
-      <section class="command-grid command-grid--base" aria-label="Jamoa signali">
-        <article class="command-module command-focus is-loading"><p class="command-kicker">JORIY FOKUS</p><div class="command-inline-loader"><i></i><span>Briefing olinmoqda</span></div></article>
-        ${latestMarkup}
-        ${pulseMarkup}
-        <article class="command-module command-approved is-loading"><p class="command-kicker">CAPTAIN TASDIQLAGAN INSIGHT</p><div class="command-inline-loader"><i></i><span>Qarorlar tekshirilmoqda</span></div></article>
-        <article class="command-module command-next is-loading"><p class="command-kicker">NAVBATDAGI HARAKAT</p><div class="command-inline-loader"><i></i><span>VOD va so‘rovnoma olinmoqda</span></div></article>
-      </section><div data-dashboard-coach></div>`;
+      <div id="widget-command" class="dashboard-widget">
+        <section class="command-grid command-grid--base" aria-label="Jamoa signali">
+          <article class="command-module command-focus is-loading"><p class="command-kicker">JORIY FOKUS</p><div class="command-inline-loader"><i></i><span>Briefing olinmoqda</span></div></article>
+          ${latestMarkup}
+          ${pulseMarkup}
+          <article class="command-module command-approved is-loading"><p class="command-kicker">CAPTAIN TASDIQLAGAN INSIGHT</p><div class="command-inline-loader"><i></i><span>Qarorlar tekshirilmoqda</span></div></article>
+          <article class="command-module command-next is-loading"><p class="command-kicker">NAVBATDAGI HARAKAT</p><div class="command-inline-loader"><i></i><span>VOD va so‘rovnoma olinmoqda</span></div></article>
+        </section>
+      </div>
+
+      <div id="widget-constellation" class="dashboard-widget">
+        <div id="dashboardConstellationContainer"></div>
+      </div>
+
+      <div id="widget-duration" class="dashboard-widget">
+        ${durationHtml}
+      </div>
+
+      <div id="widget-coach" class="dashboard-widget">
+        <div data-dashboard-coach></div>
+      </div>`;
 
     container.querySelector('[data-command="open-match"]')?.addEventListener('click', event => {
       this.matchManager.renderMatchDetailModal(event.currentTarget.dataset.matchId, this.dataStore.getAllPlayers?.() || this.dataStore.getPlayers());
     });
     this.renderDashboardBriefing(container);
     window.EclipseCoach?.render(container.querySelector('[data-dashboard-coach]'), this, { compact: true });
+    this.playerManager.renderSynergyConstellation('dashboardConstellationContainer', matches);
+    this._applyWidgetVisibility?.();
   },
 
   async renderDashboardBriefing(container) {

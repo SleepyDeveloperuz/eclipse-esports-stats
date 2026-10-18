@@ -846,6 +846,9 @@ window.PlayerManager = class PlayerManager {
       </span>
     ` : '';
 
+    const radarMetrics = this.getPlayerRadarMetrics(stats);
+    const radarSvgHtml = this.renderPlayerRadarSvg(radarMetrics, safePlayerName);
+
     container.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
         <button class="profile-back back-to-players"><i class="fa-solid fa-arrow-left"></i> Tarkibga qaytish</button>
@@ -906,6 +909,9 @@ window.PlayerManager = class PlayerManager {
           </details>
         </aside>
       </section>
+
+      <!-- 6-AXIS RADAR PLAYSTYLE CHART -->
+      ${radarSvgHtml}
 
       <!-- SHINY HERO POOL & WIN RATE / USE RATE SHOWCASE -->
       <div data-player-coach></div>
@@ -1119,6 +1125,360 @@ window.PlayerManager = class PlayerManager {
       }
       this.renderPlayersList('playersListContainer');
       if (window.showToast) window.showToast('O‘yinchi arxivga o‘tkazildi.', 'warning');
+    }
+  }
+
+  getPlayerRadarMetrics(stats) {
+    if (!stats) {
+      return {
+        kda: { value: '0.00', score: 0, label: 'KDA Nisbati' },
+        damage: { value: '0%', score: 0, label: 'Damage ulushi' },
+        farm: { value: '0 GPM', score: 0, label: 'Farm / GPM' },
+        push: { value: '0%', score: 0, label: 'Turret Push' },
+        teamfight: { value: '0%', score: 0, label: 'Teamfight %' },
+        survival: { value: '—', score: 50, label: 'Omon qolish' },
+        playstyle: { title: 'Tahlil qilinmoqda', desc: 'Yetarli match mavjud emas' }
+      };
+    }
+
+    const kda = Number(stats.kdaRatio) || 0;
+    const normKda = Math.min(100, Math.max(0, Math.round((kda / 5.5) * 100)));
+
+    const dmgShare = Number(stats.avgDamageShare) || 0;
+    const normDmg = Math.min(100, Math.max(0, Math.round((dmgShare / 30.0) * 100)));
+
+    const gpm = Number(stats.avgGoldPerMinute) || (Number(stats.avgGoldShare) ? Number(stats.avgGoldShare) * 25 : 0);
+    const normFarm = Math.min(100, Math.max(0, Math.round((gpm / 800.0) * 100)));
+
+    const pushShare = Number(stats.avgTurretDamageShare) || 0;
+    const normPush = Math.min(100, Math.max(0, Math.round((pushShare / 30.0) * 100)));
+
+    const tf = Number(stats.avgTeamfightParticipation) || 0;
+    const normTf = Math.min(100, Math.max(0, Math.round((tf / 75.0) * 100)));
+
+    const deaths = Number(stats.avgDeaths);
+    const normSurv = Number.isFinite(deaths) ? Math.max(15, Math.min(100, Math.round(100 - (deaths * 14)))) : 50;
+
+    let playstyleTitle = 'Universal Jangchi';
+    let playstyleDesc = 'Barcha parametrlar bo‘yicha muvozanatli va universal yondashuv.';
+
+    if (normDmg >= 70 && normKda >= 65) {
+      playstyleTitle = 'Bosh Hujumchi (Hyper Carry)';
+      playstyleDesc = 'Yuqori zarba ulushi va dushmanlarni yo‘q qilishga qaratilgan tajovuzkor uslub.';
+    } else if (normPush >= 70) {
+      playstyleTitle = 'Layn Yoriqchi (Split Pusher)';
+      playstyleDesc = 'Minoralarga bosim o‘tkazish va xaritani nazorat qilish ustasi.';
+    } else if (normTf >= 70 && normSurv >= 65) {
+      playstyleTitle = 'Jang Tashabbuskori (Vanguard)';
+      playstyleDesc = 'Jamoaviy to‘qnashuvlarni boshlash va zarbalarni qabul qilish tayanchi.';
+    } else if (normFarm >= 70) {
+      playstyleTitle = 'Resurs Jamg‘aruvchi (Late Scaler)';
+      playstyleDesc = 'Maksimal iqtisodiy ustunlik bilan o‘yinning so‘nggi daqiqalarini hal qiluvchi kuch.';
+    } else if (normSurv >= 75) {
+      playstyleTitle = 'Taktik Posbon (Anchor)';
+      playstyleDesc = 'Kam o‘lish, xavfsiz pozitsiya va barqarorlikni ta’minlovchi o‘yinchi.';
+    }
+
+    return {
+      kda: { value: stats.kdaRatio ? String(stats.kdaRatio) : '—', score: normKda, label: 'KDA Nisbati' },
+      damage: { value: stats.avgDamageShare !== null ? `${stats.avgDamageShare}%` : '—', score: normDmg, label: 'Damage Ulushi' },
+      farm: { value: stats.avgGoldPerMinute ? `${stats.avgGoldPerMinute} GPM` : (stats.avgGoldShare !== null ? `${stats.avgGoldShare}%` : '—'), score: normFarm, label: 'Farm (GPM)' },
+      push: { value: stats.avgTurretDamageShare !== null ? `${stats.avgTurretDamageShare}%` : '—', score: normPush, label: 'Turret Push' },
+      teamfight: { value: stats.avgTeamfightParticipation !== null ? `${stats.avgTeamfightParticipation}%` : '—', score: normTf, label: 'Teamfight %' },
+      survival: { value: Number.isFinite(deaths) ? `${deaths} o‘rt. o‘lim` : '—', score: normSurv, label: 'Omon qolish' },
+      playstyle: { title: playstyleTitle, desc: playstyleDesc }
+    };
+  }
+
+  renderPlayerRadarSvg(metrics, playerName) {
+    const cx = 150;
+    const cy = 145;
+    const R = 90;
+
+    const axes = [
+      { key: 'kda', label: 'KDA' },
+      { key: 'damage', label: 'Damage %' },
+      { key: 'farm', label: 'Farm GPM' },
+      { key: 'push', label: 'Push %' },
+      { key: 'teamfight', label: 'Teamfight' },
+      { key: 'survival', label: 'Omon qolish' }
+    ];
+
+    const levels = [0.25, 0.5, 0.75, 1.0];
+    const gridPolygons = levels.map(level => {
+      const pts = axes.map((_, i) => {
+        const angle = (-90 + i * 60) * (Math.PI / 180);
+        const r = R * level;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(' ');
+      const stroke = level === 1.0 ? 'rgba(var(--primary-rgb), 0.35)' : 'rgba(255, 255, 255, 0.08)';
+      return `<polygon points="${pts}" fill="none" stroke="${stroke}" stroke-width="1" />`;
+    }).join('\n');
+
+    const spokes = axes.map((_, i) => {
+      const angle = (-90 + i * 60) * (Math.PI / 180);
+      const x = cx + R * Math.cos(angle);
+      const y = cy + R * Math.sin(angle);
+      return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(255, 255, 255, 0.1)" stroke-width="1" stroke-dasharray="2,2" />`;
+    }).join('\n');
+
+    const dataPoints = axes.map((ax, i) => {
+      const angle = (-90 + i * 60) * (Math.PI / 180);
+      const score = Math.max(12, Math.min(100, metrics[ax.key]?.score || 0));
+      const r = (score / 100) * R;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      return { x, y, score, label: ax.label, value: metrics[ax.key]?.value || '' };
+    });
+
+    const dataPointsStr = dataPoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+
+    const verticesHtml = dataPoints.map(p => `
+      <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="var(--primary)" stroke="#0d0f14" stroke-width="2" />
+    `).join('\n');
+
+    const labelsHtml = axes.map((ax, i) => {
+      const angle = (-90 + i * 60) * (Math.PI / 180);
+      const lr = R + 22;
+      const lx = cx + lr * Math.cos(angle);
+      const ly = cy + lr * Math.sin(angle);
+      const anchor = Math.abs(Math.cos(angle)) < 0.2 ? 'middle' : (Math.cos(angle) > 0 ? 'start' : 'end');
+      return `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" fill="var(--text-secondary)" font-size="10.5" font-weight="700" text-anchor="${anchor}">${this.escapeHtml(ax.label)}</text>`;
+    }).join('\n');
+
+    return `
+      <div class="player-radar-card">
+        <div class="player-radar-header">
+          <h3>
+            <i class="fa-solid fa-hexagon-nodes" style="color:var(--primary);"></i>
+            <span>6-O‘qli Taktik Radar & O‘yin Uslubi</span>
+          </h3>
+          <span class="radar-playstyle-banner">
+            <i class="fa-solid fa-bolt"></i> ${this.escapeHtml(metrics.playstyle.title)}
+          </span>
+        </div>
+        <div class="player-radar-layout">
+          <div class="player-radar-svg-wrap">
+            <svg class="player-radar-svg" viewBox="0 0 300 290" aria-label="${this.escapeHtml(playerName)} taktika radari">
+              <defs>
+                <radialGradient id="radarGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.25" />
+                  <stop offset="100%" stop-color="var(--primary)" stop-opacity="0.02" />
+                </radialGradient>
+              </defs>
+              ${gridPolygons}
+              ${spokes}
+              <polygon points="${dataPointsStr}" fill="url(#radarGlow)" stroke="var(--primary)" stroke-width="2.5" />
+              ${verticesHtml}
+              ${labelsHtml}
+            </svg>
+          </div>
+          <div class="radar-details">
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:1rem; line-height:1.45;">
+              ${this.escapeHtml(metrics.playstyle.desc)}
+            </p>
+            <div class="radar-metrics-list">
+              <div class="radar-metric-item">
+                <small>KDA Nisbati</small>
+                <strong>${this.escapeHtml(metrics.kda.value)}</strong>
+              </div>
+              <div class="radar-metric-item">
+                <small>Damage Ulushi</small>
+                <strong>${this.escapeHtml(metrics.damage.value)}</strong>
+              </div>
+              <div class="radar-metric-item">
+                <small>Farm / GPM</small>
+                <strong>${this.escapeHtml(metrics.farm.value)}</strong>
+              </div>
+              <div class="radar-metric-item">
+                <small>Turret Push</small>
+                <strong>${this.escapeHtml(metrics.push.value)}</strong>
+              </div>
+              <div class="radar-metric-item">
+                <small>Teamfight %</small>
+                <strong>${this.escapeHtml(metrics.teamfight.value)}</strong>
+              </div>
+              <div class="radar-metric-item">
+                <small>Omon Qolish</small>
+                <strong>${this.escapeHtml(metrics.survival.value)}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  renderSynergyConstellation(containerId, matches) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const players = this.db.getAllPlayers?.() || this.db.getPlayers?.() || [];
+    const starterPlayers = [...players]
+      .sort((a, b) => (b.matchesCount || 0) - (a.matchesCount || 0))
+      .slice(0, 5);
+
+    if (starterPlayers.length < 3) {
+      container.innerHTML = '';
+      return;
+    }
+
+    const cx = 250;
+    const cy = 200;
+    const R = 135;
+    const N = starterPlayers.length;
+
+    const nodes = starterPlayers.map((player, i) => {
+      const angle = (-90 + i * (360 / N)) * (Math.PI / 180);
+      const x = cx + R * Math.cos(angle);
+      const y = cy + R * Math.sin(angle);
+      return {
+        player,
+        index: i,
+        x,
+        y,
+        name: player.name || `P${i + 1}`,
+        initials: (player.name || 'P').substring(0, 2).toUpperCase()
+      };
+    });
+
+    const links = [];
+    for (let i = 0; i < N; i++) {
+      for (let j = i + 1; j < N; j++) {
+        const p1 = nodes[i].player;
+        const p2 = nodes[j].player;
+        
+        const duoMatches = (matches || []).filter(m => {
+          const stats = m.playerStats || m.players || [];
+          const hasP1 = stats.some(s => String(s.playerId || s.id) === String(p1.id));
+          const hasP2 = stats.some(s => String(s.playerId || s.id) === String(p2.id));
+          return hasP1 && hasP2;
+        });
+
+        const total = duoMatches.length;
+        const wins = duoMatches.filter(m => m.result === 'win' || m.result === 'G‘alaba' || m.isWin === true).length;
+        const losses = total - wins;
+        const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : null;
+        const winRateNum = total > 0 ? (wins / total) * 100 : 0;
+
+        links.push({
+          source: nodes[i],
+          target: nodes[j],
+          total,
+          wins,
+          losses,
+          winRate,
+          winRateNum
+        });
+      }
+    }
+
+    const linksSvg = links.map((link, idx) => {
+      let strokeColor = 'rgba(255, 255, 255, 0.12)';
+      let strokeWidth = 1.5;
+      let opacity = 0.5;
+
+      if (link.total >= 1) {
+        if (link.winRateNum >= 70) {
+          strokeColor = 'var(--primary)';
+          strokeWidth = 3.5;
+          opacity = 0.95;
+        } else if (link.winRateNum >= 50) {
+          strokeColor = '#4ee2db';
+          strokeWidth = 2.5;
+          opacity = 0.8;
+        } else {
+          strokeColor = 'rgba(244, 63, 94, 0.6)';
+          strokeWidth = 1.8;
+          opacity = 0.6;
+        }
+      }
+
+      return `
+        <line class="constellation-link"
+          data-link-index="${idx}"
+          data-p1="${this.escapeHtml(link.source.name)}"
+          data-p2="${this.escapeHtml(link.target.name)}"
+          data-matches="${link.total}"
+          data-wr="${link.winRate !== null ? link.winRate + '%' : '0 match'}"
+          x1="${link.source.x.toFixed(1)}" y1="${link.source.y.toFixed(1)}"
+          x2="${link.target.x.toFixed(1)}" y2="${link.target.y.toFixed(1)}"
+          stroke="${strokeColor}"
+          stroke-width="${strokeWidth}"
+          stroke-opacity="${opacity}"
+          stroke-linecap="round" />
+      `;
+    }).join('\n');
+
+    const nodesSvg = nodes.map(node => `
+      <g class="constellation-node" data-player-id="${node.player.id}" data-player-name="${this.escapeHtml(node.name)}" transform="translate(${node.x.toFixed(1)}, ${node.y.toFixed(1)})">
+        <circle r="22" fill="#0d0f14" stroke="var(--primary)" stroke-width="2.2" filter="drop-shadow(0 0 10px rgba(var(--primary-rgb), 0.4))" />
+        <text y="5" text-anchor="middle" fill="#fff" font-size="11" font-weight="800" font-family="var(--font-mono)">${this.escapeHtml(node.initials)}</text>
+        <text y="36" text-anchor="middle" fill="var(--text-secondary)" font-size="11" font-weight="700">${this.escapeHtml(node.name)}</text>
+      </g>
+    `).join('\n');
+
+    container.innerHTML = `
+      <div class="synergy-constellation-card">
+        <div class="synergy-constellation-header">
+          <h3>
+            <i class="fa-solid fa-circle-nodes" style="color:var(--primary);"></i>
+            <span>Tarkib Sinergiya Yulduzlar Turqumi (Constellation)</span>
+          </h3>
+          <span class="badge" style="background:rgba(var(--primary-rgb), 0.15); color:var(--primary); font-weight:800; font-size:0.75rem;">
+            5-TALIK ROSTER GRAFIKI
+          </span>
+        </div>
+        <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:1rem;">
+          Jamoaning 5 asosiy o‘yinchisi o‘rtasidagi sinergiya nurlari. Har bir nur qalinligi va rangi tandemning g‘alaba ko‘rsatkichini (Win Rate) ifodalaydi. Chiziqlar ustiga bosing yoki hover qiling.
+        </p>
+        <div class="constellation-svg-wrap">
+          <svg class="constellation-svg" viewBox="0 0 500 420" aria-label="Jamoa tarkibi sinergiya yulduzlar turqumi">
+            ${linksSvg}
+            ${nodesSvg}
+          </svg>
+          <div class="constellation-tooltip" id="constellationTooltip">
+            <strong><i class="fa-solid fa-handshake" style="color:var(--primary); margin-right:6px;"></i> <span id="constellationTooltipNames">Sinergiya nuri ustiga bosing</span></strong>
+            <span id="constellationTooltipStat">Tafsilotlar</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const svgWrap = container.querySelector('.constellation-svg-wrap');
+    if (svgWrap) {
+      const tooltipNames = svgWrap.querySelector('#constellationTooltipNames');
+      const tooltipStat = svgWrap.querySelector('#constellationTooltipStat');
+
+      svgWrap.querySelectorAll('.constellation-link').forEach(linkEl => {
+        const update = () => {
+          svgWrap.querySelectorAll('.constellation-link').forEach(l => l.classList.remove('is-active'));
+          linkEl.classList.add('is-active');
+          const p1 = linkEl.dataset.p1;
+          const p2 = linkEl.dataset.p2;
+          const matchesCount = linkEl.dataset.matches;
+          const wr = linkEl.dataset.wr;
+          if (tooltipNames) tooltipNames.textContent = `${p1} + ${p2} tandemi`;
+          if (tooltipStat) tooltipStat.textContent = `${matchesCount} match · ${wr} Win Rate`;
+          window.EclipseAudio?.playClick?.();
+        };
+        linkEl.addEventListener('mouseenter', update);
+        linkEl.addEventListener('click', update);
+      });
+
+      svgWrap.querySelectorAll('.constellation-node').forEach(nodeEl => {
+        nodeEl.addEventListener('click', () => {
+          const playerName = nodeEl.dataset.playerName;
+          const connectedLinks = svgWrap.querySelectorAll(`.constellation-link[data-p1="${playerName}"], .constellation-link[data-p2="${playerName}"]`);
+          svgWrap.querySelectorAll('.constellation-link').forEach(l => l.classList.remove('is-active'));
+          connectedLinks.forEach(l => l.classList.add('is-active'));
+          if (tooltipNames) tooltipNames.textContent = `${playerName} o‘yinchisining barcha aloqalari (${connectedLinks.length} ta nur)`;
+          if (tooltipStat) tooltipStat.textContent = 'Faol';
+          window.EclipseAudio?.playClick?.();
+        });
+      });
     }
   }
 };

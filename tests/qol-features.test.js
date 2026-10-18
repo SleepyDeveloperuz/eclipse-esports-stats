@@ -428,4 +428,241 @@ domTest('EclipseShareCard generates 1200x630 canvas and triggers PNG download', 
   dom.window.close();
 });
 
+domTest('ThemeManager toggles cyber accent themes and persists to localStorage', () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><head></head><body><button id="themeSwitcherBtn"></button></body></html>', {
+    runScripts: 'outside-only',
+    url: 'https://eclipse-esports.uz/'
+  });
+  const { window } = dom;
+
+  window.eval(readFileSync(new URL('../js/theme.js', import.meta.url), 'utf8'));
+
+  assert.ok(window.ThemeManager, 'ThemeManager class is loaded');
+  const tm = new window.ThemeManager();
+  assert.equal(tm.currentTheme, 'gold', 'Default theme is gold');
+
+  tm.applyTheme('cyan', false);
+  assert.equal(tm.currentTheme, 'cyan');
+  assert.equal(window.document.documentElement.getAttribute('data-theme'), 'cyan');
+  assert.equal(window.localStorage.getItem('eclipse:theme'), 'cyan');
+
+  tm.applyTheme('crimson', false);
+  assert.equal(tm.currentTheme, 'crimson');
+  assert.equal(window.document.documentElement.getAttribute('data-theme'), 'crimson');
+  assert.equal(window.localStorage.getItem('eclipse:theme'), 'crimson');
+
+  dom.window.close();
+});
+
+domTest('EclipseAudio supports sound packs (cyber, arena, arcade) and pack persistence', () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><body><button class="sfx-toggle-btn"></button></body></html>', {
+    runScripts: 'outside-only',
+    url: 'https://eclipse-esports.uz/'
+  });
+  const { window } = dom;
+
+  // Mock AudioContext
+  window.AudioContext = class MockAudioContext {
+    constructor() { this.state = 'running'; }
+    createGain() { return { gain: { value: 1, setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} }, connect: () => {} }; }
+    createOscillator() { return { type: 'sine', frequency: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} }, connect: () => {}, start: () => {}, stop: () => {} }; }
+    get currentTime() { return 0; }
+  };
+
+  window.eval(readFileSync(new URL('../js/audio.js', import.meta.url), 'utf8'));
+
+  assert.ok(window.EclipseAudio, 'EclipseAudio is defined');
+  assert.equal(window.EclipseAudio.getSoundPack(), 'cyber', 'Default sound pack is cyber');
+
+  window.EclipseAudio.setSoundPack('arena');
+  assert.equal(window.EclipseAudio.getSoundPack(), 'arena');
+  assert.equal(window.localStorage.getItem('eclipse:sfx:pack'), 'arena');
+
+  window.EclipseAudio.setSoundPack('arcade');
+  assert.equal(window.EclipseAudio.getSoundPack(), 'arcade');
+  assert.equal(window.localStorage.getItem('eclipse:sfx:pack'), 'arcade');
+
+  dom.window.close();
+});
+
+domTest('PlayerManager calculates 6-axis radar metrics and renders SVG playstyle chart', () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>', {
+    runScripts: 'outside-only'
+  });
+  const { window } = dom;
+
+  window.eval(readFileSync(new URL('../js/date-utils.js', import.meta.url), 'utf8'));
+  window.eval(readFileSync(new URL('../js/players.js', import.meta.url), 'utf8'));
+
+  const pm = new window.PlayerManager({}, {});
+
+  const mockStats = {
+    kdaRatio: '4.80',
+    avgDamageShare: 28.5,
+    avgGoldPerMinute: 780,
+    avgTurretDamageShare: 32.0,
+    avgTeamfightParticipation: 72.0,
+    avgDeaths: 1.8
+  };
+
+  const metrics = pm.getPlayerRadarMetrics(mockStats);
+  assert.ok(metrics.kda.score > 0, 'KDA score computed');
+  assert.ok(metrics.damage.score > 0, 'Damage score computed');
+  assert.ok(metrics.farm.score > 0, 'Farm score computed');
+  assert.ok(metrics.push.score > 0, 'Push score computed');
+  assert.ok(metrics.teamfight.score > 0, 'Teamfight score computed');
+  assert.ok(metrics.survival.score > 0, 'Survival score computed');
+  assert.ok(metrics.playstyle.title, 'Playstyle title designated');
+
+  const svgHtml = pm.renderPlayerRadarSvg(metrics, 'God_speed');
+  assert.match(svgHtml, /player-radar-card/, 'Radar card container rendered');
+  assert.match(svgHtml, /<svg class="player-radar-svg"/, 'SVG radar element present');
+  assert.match(svgHtml, /<polygon points=/, 'Polygon vertices rendered');
+  assert.match(svgHtml, /6-O‘qli Taktik Radar/, 'Radar title in Uzbek rendered');
+  assert.match(svgHtml, /radar-playstyle-banner/, 'Playstyle banner present');
+
+  dom.window.close();
+});
+
+domTest('StatsEngine computes duration breakdown (early, mid, late) and renders HTML', () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+    runScripts: 'outside-only'
+  });
+  const { window } = dom;
+
+  window.eval(readFileSync(new URL('../js/stats.js', import.meta.url), 'utf8'));
+
+  const engine = new window.StatsEngine({});
+
+  const sampleMatches = [
+    { id: 'm1', result: 'win', durationSeconds: 540 },  // 9 min -> early win
+    { id: 'm2', result: 'win', durationSeconds: 580 },  // 9.6 min -> early win
+    { id: 'm3', result: 'loss', durationSeconds: 720 }, // 12 min -> mid loss
+    { id: 'm4', result: 'win', durationSeconds: 840 },  // 14 min -> mid win
+    { id: 'm5', result: 'win', durationSeconds: 1100 }  // 18.3 min -> late win
+  ];
+
+  const breakdown = engine.getGameDurationBreakdown(sampleMatches, { scope: 'all' });
+  assert.equal(breakdown.hasData, true);
+  assert.equal(breakdown.totalCount, 5);
+  assert.equal(breakdown.phases.early.wins, 2);
+  assert.equal(breakdown.phases.early.losses, 0);
+  assert.equal(breakdown.phases.early.winRate, '100.0');
+
+  assert.equal(breakdown.phases.mid.wins, 1);
+  assert.equal(breakdown.phases.mid.losses, 1);
+  assert.equal(breakdown.phases.mid.winRate, '50.0');
+
+  assert.equal(breakdown.phases.late.wins, 1);
+  assert.equal(breakdown.phases.late.losses, 0);
+
+  assert.equal(breakdown.peakPhase, 'early', 'Peak phase detected as early with 100% WR');
+
+  const html = window.StatsEngine.renderDurationAnalyticsHtml(breakdown);
+  assert.match(html, /duration-analytics-card/);
+  assert.match(html, /O‘yin Davomiyligi & Power Spike Tahlili/);
+  assert.match(html, /PEAK BOSQICH/);
+  assert.match(html, /Erta bosqich \(≤10m\)/);
+
+  dom.window.close();
+});
+
+domTest('PlayerManager renders interactive Synergy Constellation SVG graph', () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="constellationContainer"></div></body></html>', {
+    runScripts: 'outside-only'
+  });
+  const { window } = dom;
+
+  window.eval(readFileSync(new URL('../js/date-utils.js', import.meta.url), 'utf8'));
+  window.eval(readFileSync(new URL('../js/players.js', import.meta.url), 'utf8'));
+
+  const mockDb = {
+    getAllPlayers: () => [
+      { id: 'p1', name: 'Heavenlyyy', matchesCount: 15 },
+      { id: 'p2', name: 'God_speed', matchesCount: 14 },
+      { id: 'p3', name: 'Tofik', matchesCount: 13 },
+      { id: 'p4', name: 'Trouble', matchesCount: 12 },
+      { id: 'p5', name: 'Hiko', matchesCount: 11 }
+    ]
+  };
+
+  const mockMatches = [
+    { result: 'win', players: [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }, { id: 'p4' }, { id: 'p5' }] },
+    { result: 'win', players: [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }, { id: 'p4' }, { id: 'p5' }] },
+    { result: 'loss', players: [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }, { id: 'p4' }, { id: 'p5' }] }
+  ];
+
+  const pm = new window.PlayerManager(mockDb, {});
+  pm.renderSynergyConstellation('constellationContainer', mockMatches);
+
+  const container = window.document.getElementById('constellationContainer');
+  assert.ok(container.querySelector('.synergy-constellation-card'), 'Constellation card created');
+  assert.ok(container.querySelector('.constellation-svg'), 'SVG constellation present');
+  const links = container.querySelectorAll('.constellation-link');
+  // 5 players -> 10 pairs
+  assert.equal(links.length, 10, 'All 10 pair links rendered');
+  const nodes = container.querySelectorAll('.constellation-node');
+  assert.equal(nodes.length, 5, '5 player nodes rendered');
+  assert.ok(container.querySelector('#constellationTooltip'), 'Tooltip element present');
+
+  dom.window.close();
+});
+
+domTest('Dashboard Widget Manager renders modal, toggles visibility, and persists to localStorage', () => {
+  const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(indexHtml, /themeSwitcherBtn/, 'index.html has themeSwitcherBtn');
+  assert.match(indexHtml, /customizeWidgetsBtn/, 'index.html has customizeWidgetsBtn');
+  assert.match(indexHtml, /js\/theme\.js/, 'index.html loads js/theme.js');
+
+  const dom = new JSDOM(`
+    <!DOCTYPE html>
+    <html>
+      <body>
+        <button id="customizeWidgetsBtn"></button>
+        <div id="widget-command">Command</div>
+        <div id="widget-constellation">Constellation</div>
+        <div id="widget-duration">Duration</div>
+        <div id="widget-coach">Coach</div>
+      </body>
+    </html>
+  `, { runScripts: 'outside-only', url: 'https://eclipse-esports.uz/' });
+  const { window } = dom;
+
+  // Mock dialog showModal & close
+  if (!window.HTMLDialogElement.prototype.showModal) {
+    window.HTMLDialogElement.prototype.showModal = function() { this.open = true; };
+    window.HTMLDialogElement.prototype.close = function() { this.open = false; };
+  }
+
+  window.eval(readFileSync(new URL('../js/app.js', import.meta.url), 'utf8'));
+
+  const app = window.EclipseApp;
+  app.initWidgetManager();
+
+  const cmdWidget = window.document.getElementById('widget-command');
+  const durWidget = window.document.getElementById('widget-duration');
+  assert.equal(cmdWidget.style.display, '');
+  assert.equal(durWidget.style.display, '');
+
+  // Open modal
+  const customizeBtn = window.document.getElementById('customizeWidgetsBtn');
+  customizeBtn.click();
+
+  const dialog = window.document.getElementById('widgetManagerDialog');
+  assert.ok(dialog, 'Widget manager dialog created');
+
+  // Toggle duration off
+  const durItem = dialog.querySelector('.widget-toggle-item[data-widget-id="widget-duration"]');
+  assert.ok(durItem, 'Duration toggle item exists');
+  durItem.click();
+
+  assert.equal(durWidget.style.display, 'none', 'Duration widget hidden after toggle');
+  const saved = JSON.parse(window.localStorage.getItem('eclipse:dashboard_widgets') || '{}');
+  assert.equal(saved['widget-duration'], false, 'Preference persisted in localStorage');
+
+  dom.window.close();
+});
+
+
+
 

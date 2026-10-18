@@ -1665,4 +1665,176 @@ window.StatsEngine = class StatsEngine {
         return (b.stats.eclipseIndex ?? 0) - (a.stats.eclipseIndex ?? 0);
       });
   }
+
+  static escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[c]);
+  }
+
+  getGameDurationBreakdown(matches, options = {}) {
+    const scope = options?.scope || 'team5';
+    let eligible = Array.isArray(matches) ? matches : [];
+    if (scope !== 'all') {
+      try {
+        eligible = StatsEngine.filterMatchesByScope(eligible, scope);
+      } catch (_) {}
+    }
+    const validMatches = eligible.filter(match => StatsEngine.numberOrNull(match.durationSeconds) > 0);
+
+    const phases = {
+      early: {
+        key: 'early',
+        name: 'Erta bosqich (≤10m)',
+        focus: 'Snowball va erta agressiya',
+        matches: [],
+        wins: 0,
+        losses: 0,
+        winRate: null,
+        winRateNum: 0
+      },
+      mid: {
+        key: 'mid',
+        name: 'O‘rta bosqich (10–16m)',
+        focus: 'Lord, Turtle va jamoaviy janglar',
+        matches: [],
+        wins: 0,
+        losses: 0,
+        winRate: null,
+        winRateNum: 0
+      },
+      late: {
+        key: 'late',
+        name: 'Kechki bosqich (>16m)',
+        focus: 'Maksimal build va baza qamali',
+        matches: [],
+        wins: 0,
+        losses: 0,
+        winRate: null,
+        winRateNum: 0
+      }
+    };
+
+    validMatches.forEach(m => {
+      const dur = Number(m.durationSeconds);
+      const isWin = m.result === 'win' || m.result === 'G‘alaba' || m.isWin === true;
+      let target;
+      if (dur <= 600) {
+        target = phases.early;
+      } else if (dur <= 960) {
+        target = phases.mid;
+      } else {
+        target = phases.late;
+      }
+
+      target.matches.push(m);
+      if (isWin) target.wins++;
+      else target.losses++;
+    });
+
+    let peakPhase = null;
+    let maxWr = -1;
+
+    Object.values(phases).forEach(p => {
+      const total = p.wins + p.losses;
+      if (total > 0) {
+        p.winRateNum = (p.wins / total) * 100;
+        p.winRate = p.winRateNum.toFixed(1);
+        if (p.winRateNum > maxWr) {
+          maxWr = p.winRateNum;
+          peakPhase = p.key;
+        }
+      } else {
+        p.winRate = '—';
+        p.winRateNum = 0;
+      }
+    });
+
+    return {
+      hasData: validMatches.length > 0,
+      totalCount: validMatches.length,
+      scope,
+      phases,
+      peakPhase,
+      peakPhaseLabel: peakPhase ? phases[peakPhase].name : 'Yetarli ma’lumot yo‘q'
+    };
+  }
+
+  static renderDurationAnalyticsHtml(breakdown) {
+    if (!breakdown || !breakdown.hasData) {
+      return `
+        <div class="duration-analytics-card">
+          <div class="duration-analytics-header">
+            <h3><i class="fa-solid fa-stopwatch-20" style="color:var(--primary);"></i> O‘yin davomiyligi va Power Spike tahlili</h3>
+          </div>
+          <p style="color:var(--text-muted); font-size:0.88rem; margin:0;">Davomiyligi kiritilgan matchlar hozircha mavjud emas.</p>
+        </div>
+      `;
+    }
+
+    const { phases, peakPhase, totalCount } = breakdown;
+    const phaseList = [phases.early, phases.mid, phases.late];
+
+    const cardsHtml = phaseList.map(p => {
+      const isPeak = p.key === peakPhase && p.matches.length > 0;
+      const total = p.wins + p.losses;
+      const wrText = p.winRate === '—' ? '—' : `${p.winRate}%`;
+      const fillWidth = p.winRateNum || 0;
+
+      return `
+        <div class="duration-segment ${isPeak ? 'is-peak' : ''}">
+          <div>
+            <div class="duration-segment__head">
+              <span class="duration-segment__title">${p.name}</span>
+              <span class="duration-segment__badge">${isPeak ? '⚡ PEAK BOSQICH' : p.key.toUpperCase()}</span>
+            </div>
+            <div class="duration-segment__wr">${wrText}</div>
+            <div class="duration-segment__track">
+              <div class="duration-segment__fill" style="width: ${fillWidth}%;"></div>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:0.75rem; color:var(--text-secondary); margin:0 0 0.5rem 0;">${p.focus}</p>
+            <div class="duration-segment__stats">
+              <span><strong>${total}</strong> match</span>
+              <span><strong>${p.wins}W</strong> – <strong>${p.losses}L</strong></span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('\n');
+
+    return `
+      <div class="duration-analytics-card">
+        <div class="duration-analytics-header">
+          <div>
+            <h3>
+              <i class="fa-solid fa-stopwatch-20" style="color:var(--primary);"></i>
+              <span>O‘yin Davomiyligi & Power Spike Tahlili</span>
+            </h3>
+            <p style="color:var(--text-secondary); font-size:0.82rem; margin:0.25rem 0 0 0;">
+              Jamoamiz qaysi o‘yin bosqichida eng samarali ekanligi va uning g‘alaba foizlari (${totalCount} ta match tahlili).
+            </p>
+          </div>
+          ${peakPhase ? `
+            <span class="badge" style="background:var(--primary); color:#000; font-weight:800; font-size:0.75rem;">
+              <i class="fa-solid fa-fire"></i> KUCHLI FAZA: ${phases[peakPhase].name}
+            </span>
+          ` : ''}
+        </div>
+        <div class="duration-analytics-grid">
+          ${cardsHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  renderDurationAnalyticsHtml(breakdown) {
+    return StatsEngine.renderDurationAnalyticsHtml(breakdown);
+  }
 };
+
