@@ -94,6 +94,7 @@
                     <button type="button" class="hamburger" id="hamburgerBtn" aria-label="Navigatsiyani ochish yoki yopish" aria-controls="sidebar" aria-expanded="false"><i class="fa-solid fa-bars"></i></button>
                     <h2 class="topbar-title" id="pageTitle">Bosh sahifa</h2>
                 </div>
+                <button type="button" class="quick-cmd-trigger" id="quickCmdTrigger" aria-label="Tezkor qidiruv"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> <span>Qidiruv</span> <kbd>⌘K</kbd></button>
                 <div id="topbarAuthContainer" style="margin-left:auto;"></div>
             </header>
 
@@ -356,6 +357,30 @@
         <div class="modal" id="modalContent" role="dialog" aria-modal="true" aria-label="Eclipse dialog oynasi"></div>
     </div>
 
+    <!-- Mobile dock -->
+    <nav class="mobile-dock" aria-label="Mobil navigatsiya">
+        <button type="button" class="mobile-dock__item active" data-page="dashboard" aria-label="Bosh sahifa">
+            <svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-dashboard"></use></svg>
+            <span>Bosh</span>
+        </button>
+        <button type="button" class="mobile-dock__item" data-page="match-history" aria-label="Matchlar">
+            <svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-history"></use></svg>
+            <span>Matchlar</span>
+        </button>
+        <button type="button" class="mobile-dock__item mobile-dock__item--action" id="mobileDockSearch" aria-label="Tezkor qidiruv">
+            <div class="mobile-dock__action-circle"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></div>
+            <span>Qidiruv</span>
+        </button>
+        <button type="button" class="mobile-dock__item" data-page="players" aria-label="Jamoa">
+            <svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-players"></use></svg>
+            <span>Jamoa</span>
+        </button>
+        <a href="/meta-lab" class="mobile-dock__item" aria-label="Meta Lab">
+            <i class="fa-solid fa-ranking-star" aria-hidden="true"></i>
+            <span>Meta</span>
+        </a>
+    </nav>
+
     <script src="js/heroes.js?v=2.27.0"></script>
     <script src="js/date-utils.js?v=2.27.0"></script>
     <script src="js/data.js?v=2.31.0"></script>
@@ -377,6 +402,7 @@
     <script src="js/meta-explore.js?v=2.34.1"></script>
     <script src="js/meta-decision-model.js?v=2.33.0"></script>
     <script src="js/meta-decisions.js?v=2.34.1"></script>
+    <script src="js/command-palette.js?v=2.36.1"></script>
     <script src="js/app.js?v=2.36.0"></script>
     <script type="module" src="js/progress.js?v=2.35.0"></script>
     <script type="module" src="js/coach.js?v=2.36.0"></script>

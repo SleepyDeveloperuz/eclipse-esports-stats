@@ -137,6 +137,152 @@
       const button = this.container?.querySelector('[data-tier-export]'); if (button) button.onclick = event => { event.stopPropagation(); this.exportTierPng(button); };
       const cancel = this.container?.querySelector('[data-tier-export-cancel]'); if (cancel) cancel.onclick = event => { event.stopPropagation(); this.cancelTierExport(); };
       this.updateExportControls();
+      this.bindHeroQuickPreview();
+    }
+    bindHeroQuickPreview() {
+      if (!this.container || typeof document === 'undefined') return;
+      const heroes = this.container.querySelectorAll('.solar-tier-hero');
+      if (!heroes.length) return;
+
+      const clearPreview = () => {
+        if (this._previewTimer) {
+          clearTimeout(this._previewTimer);
+          this._previewTimer = null;
+        }
+        document.querySelectorAll('.solar-hero-popover').forEach(el => el.remove());
+        this.container?.querySelectorAll('.solar-tier-hero').forEach(el => {
+          el.classList.remove('is-synergy-match', 'is-counter-match', 'is-hovered');
+        });
+        this.container?.querySelector('.solar-tier-board')?.classList.remove('has-match-highlight');
+      };
+
+      heroes.forEach(btn => {
+        btn.addEventListener('pointerenter', (event) => {
+          if (event.pointerType === 'touch') return;
+          clearPreview();
+          const heroId = Number(btn.dataset.heroId);
+          if (!heroId) return;
+          btn.classList.add('is-hovered');
+          this._previewTimer = setTimeout(() => {
+            this.showHeroPopover(btn, heroId);
+          }, 200);
+        });
+
+        btn.addEventListener('pointerleave', (event) => {
+          if (event.pointerType === 'touch') return;
+          clearPreview();
+        });
+
+        btn.addEventListener('focusin', () => {
+          clearPreview();
+          const heroId = Number(btn.dataset.heroId);
+          if (heroId) {
+            btn.classList.add('is-hovered');
+            this.showHeroPopover(btn, heroId);
+          }
+        });
+
+        btn.addEventListener('focusout', () => {
+          clearPreview();
+        });
+
+        btn.addEventListener('click', () => {
+          clearPreview();
+        });
+      });
+    }
+    showHeroPopover(btn, heroId) {
+      if (typeof document === 'undefined' || !btn) return;
+      const rows = this.tierRows();
+      const heroRow = rows.find(r => Number(r.heroId) === Number(heroId));
+      const catalogHero = this.heroById(heroId) || {};
+      const hero = heroRow || catalogHero;
+      if (!hero || (!hero.name && !catalogHero.name)) return;
+
+      const heroName = hero.name || catalogHero.name;
+      const tier = heroRow?.tier || '—';
+      const winRate = heroRow?.winRate != null ? this.formatRate(heroRow.winRate) : '—';
+      const pickRate = heroRow?.pickRate != null ? this.formatRate(heroRow.pickRate, 3) : '—';
+      const banRate = heroRow?.banRate != null ? this.formatRate(heroRow.banRate, 2) : '—';
+      const score = heroRow?.eclipseScore != null ? Number(heroRow.eclipseScore).toFixed(2) : '—';
+
+      const lanes = this.heroLanes(hero);
+      const laneIcons = lanes.map(l => this.laneIconSvg(l)).join('');
+
+      // Relations
+      const relations = catalogHero.relations || {};
+      const synergies = Array.isArray(relations.synergies) ? relations.synergies.map(Number).filter(id => id > 0) : [];
+      const weakAgainst = Array.isArray(relations.weakAgainst) ? relations.weakAgainst.map(Number).filter(id => id > 0) : [];
+
+      // Highlight on board
+      if (synergies.length || weakAgainst.length) {
+        this.container?.querySelector('.solar-tier-board')?.classList.add('has-match-highlight');
+        synergies.forEach(sId => {
+          this.container?.querySelector(`.solar-tier-hero[data-hero-id="${sId}"]`)?.classList.add('is-synergy-match');
+        });
+        weakAgainst.forEach(cId => {
+          this.container?.querySelector(`.solar-tier-hero[data-hero-id="${cId}"]`)?.classList.add('is-counter-match');
+        });
+      }
+
+      const getHeroChip = (id) => {
+        const h = this.heroById(id) || rows.find(r => Number(r.heroId) === id);
+        return h ? `<span class="solar-hero-popover__chip">${this.escape(h.name)}</span>` : '';
+      };
+
+      const synergyChips = synergies.slice(0, 3).map(getHeroChip).filter(Boolean).join('');
+      const counterChips = weakAgainst.slice(0, 3).map(getHeroChip).filter(Boolean).join('');
+
+      const popover = document.createElement('div');
+      popover.className = 'solar-hero-popover';
+      popover.setAttribute('role', 'tooltip');
+      popover.setAttribute('aria-hidden', 'true');
+
+      popover.innerHTML = `
+        <div class="solar-hero-popover__head">
+          <div class="solar-hero-popover__avatar">
+            ${this.imageMarkup(catalogHero.images?.portrait ? catalogHero : hero)}
+          </div>
+          <div class="solar-hero-popover__info">
+            <h4 class="solar-hero-popover__name">${this.escape(heroName)}</h4>
+            <div class="solar-hero-popover__tags">
+              <span class="solar-hero-popover__tier is-${tier.toLowerCase()}">${this.escape(tier)}</span>
+              <div class="solar-hero-popover__lanes">${laneIcons}</div>
+            </div>
+          </div>
+        </div>
+        <dl class="solar-hero-popover__stats">
+          <div class="solar-hero-popover__stat"><dt>Win</dt><dd>${winRate}</dd></div>
+          <div class="solar-hero-popover__stat"><dt>Pick</dt><dd>${pickRate}</dd></div>
+          <div class="solar-hero-popover__stat"><dt>Ban</dt><dd>${banRate}</dd></div>
+          <div class="solar-hero-popover__stat is-gold"><dt>Score</dt><dd>${score}</dd></div>
+        </dl>
+        ${(synergyChips || counterChips) ? `
+          <div class="solar-hero-popover__relations">
+            ${synergyChips ? `<div class="solar-hero-popover__rel-row"><span class="solar-hero-popover__rel-label is-synergy">Synergy</span><div class="solar-hero-popover__rel-chips">${synergyChips}</div></div>` : ''}
+            ${counterChips ? `<div class="solar-hero-popover__rel-row"><span class="solar-hero-popover__rel-label is-counter">Counter</span><div class="solar-hero-popover__rel-chips">${counterChips}</div></div>` : ''}
+          </div>
+        ` : ''}
+        <small class="solar-hero-popover__tip"><i class="fa-solid fa-arrow-pointer" aria-hidden="true"></i> To‘liq dosye va skilllar uchun bosing</small>
+      `;
+
+      document.body.appendChild(popover);
+
+      // Position
+      if (typeof btn.getBoundingClientRect === 'function') {
+        const rect = btn.getBoundingClientRect();
+        const popoverWidth = 290;
+        const popoverHeight = popover.offsetHeight || 190;
+        let top = rect.top - popoverHeight - 10;
+        if (top < 10) {
+          top = rect.bottom + 10;
+        }
+        let left = rect.left + (rect.width / 2) - (popoverWidth / 2);
+        const winWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+        left = Math.max(10, Math.min(winWidth - popoverWidth - 10, left));
+        popover.style.top = `${Math.round(top)}px`;
+        popover.style.left = `${Math.round(left)}px`;
+      }
     }
     updateExportControls() {
       this.container?.querySelectorAll('[data-meta-rank], [data-tier-export], [data-tier-view]').forEach(control => { control.disabled = Boolean(this.exporting); });

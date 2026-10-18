@@ -142,7 +142,7 @@ window.EclipseApp = {
   },
 
   bindSidebarNav() {
-    document.querySelectorAll('.sidebar-nav .nav-item').forEach(el => {
+    document.querySelectorAll('.sidebar-nav .nav-item, .mobile-dock .mobile-dock__item[data-page]').forEach(el => {
       el.addEventListener('click', (e) => {
         e.preventDefault();
         const page = el.getAttribute('data-page');
@@ -579,7 +579,7 @@ window.EclipseApp = {
       el.setAttribute('hidden', '');
     });
 
-    document.querySelectorAll('.sidebar-nav .nav-item').forEach(el => {
+    document.querySelectorAll('.sidebar-nav .nav-item, .mobile-dock .mobile-dock__item[data-page]').forEach(el => {
       if (el.getAttribute('data-page') === pageId) {
         el.classList.add('active');
         el.setAttribute('aria-current', 'page');

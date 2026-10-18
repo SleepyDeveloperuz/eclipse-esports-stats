@@ -57,6 +57,62 @@ window.PlayerManager = class PlayerManager {
     });
   }
 
+  getPlayerRecentForm(matches, playerId, limit = 5) {
+    const playerMatches = (matches || [])
+      .filter(m => (m.players || []).some(slot => String(slot.playerId || slot.id) === String(playerId)))
+      .sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0))
+      .slice(0, limit);
+
+    const results = playerMatches.map(m => {
+      const slot = (m.players || []).find(s => String(s.playerId || s.id) === String(playerId));
+      const isWin = m.result === 'win' || m.result === 'G‘alaba' || m.isWin === true;
+      return {
+        isWin,
+        date: m.date,
+        hero: slot?.heroName || slot?.hero || '',
+        kda: slot?.kda || `${slot?.kills ?? 0}/${slot?.deaths ?? 0}/${slot?.assists ?? 0}`
+      };
+    });
+
+    let streakCount = 0;
+    let streakType = null;
+    for (const r of results) {
+      if (streakType === null) {
+        streakType = r.isWin ? 'win' : 'loss';
+        streakCount = 1;
+      } else if ((streakType === 'win' && r.isWin) || (streakType === 'loss' && !r.isWin)) {
+        streakCount++;
+      } else {
+        break;
+      }
+    }
+
+    return { results, streakCount, streakType };
+  }
+
+  renderRecentFormHtml(recentForm) {
+    if (!recentForm || !recentForm.results || recentForm.results.length === 0) {
+      return '';
+    }
+    const pillsHtml = recentForm.results.map(r => `
+      <span class="form-pill ${r.isWin ? 'is-win' : 'is-loss'}" title="${r.hero ? this.escapeHtml(r.hero) + ' · ' : ''}${r.isWin ? 'G‘alaba' : 'Mag‘lubiyat'}">${r.isWin ? 'W' : 'L'}</span>
+    `).join('');
+
+    let streakBadge = '';
+    if (recentForm.streakCount >= 2 && recentForm.streakType === 'win') {
+      const isFire = recentForm.streakCount >= 3;
+      streakBadge = `<span class="player-streak-badge ${isFire ? 'is-fire' : ''}">${isFire ? '🔥' : '⚡'} ${recentForm.streakCount} ketma-ket</span>`;
+    }
+
+    return `
+      <div class="player-recent-form" aria-label="So‘nggi o‘yinlar formasi">
+        <span class="player-recent-form__label">Forma:</span>
+        <div class="player-recent-form__pills">${pillsHtml}</div>
+        ${streakBadge}
+      </div>
+    `;
+  }
+
   renderPlayersList(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -128,6 +184,8 @@ window.PlayerManager = class PlayerManager {
       const isCaptain = Boolean(p.captain);
       const detectedRole = p.primaryRole || roleBreakdown.bestRole || 'Rol aniqlanmagan';
       const roleLabel = this.escapeHtml(`${detectedRole}${p.secondaryRole ? ` / ${p.secondaryRole}` : ''}${isCaptain ? ' / Captain' : ''}`);
+      const recentForm = this.getPlayerRecentForm(matches, p.id, 5);
+      const recentFormHtml = this.renderRecentFormHtml(recentForm);
 
       html += `
         <article class="eclipse-player-card ${isCaptain ? 'eclipse-player-card--captain' : ''}" data-id="${safePlayerId}">
@@ -167,6 +225,8 @@ window.PlayerManager = class PlayerManager {
               <div><dt>KDA</dt><dd>${kdaText}</dd></div>
               <div><dt>MVP</dt><dd class="is-gold">${stats.mvpCount}</dd></div>
             </dl>
+
+            ${recentFormHtml}
 
             <footer class="eclipse-player-card__footer">
               <span class="performance-delta ${trendMeta.className}">${trendDiff} forma</span>
@@ -594,6 +654,8 @@ window.PlayerManager = class PlayerManager {
       ? `${trend.diff > 0 ? '+' : ''}${trend.diff.toFixed(2)}`
       : '—';
     const signatureHero = this.escapeHtml(heroAnalytics.mostPicked?.heroName || 'Ma’lumot kutilmoqda');
+    const recentForm = this.getPlayerRecentForm(matches, playerId, 5);
+    const recentFormHtml = this.renderRecentFormHtml(recentForm);
     const fmt = window.StatsEngine.formatLargeNumber;
     const full = value => value === null || value === undefined ? '—' : Number(value).toLocaleString('uz-UZ');
     const metricOrDash = value => value === null || value === undefined || !Number.isFinite(Number(value))
@@ -795,6 +857,7 @@ window.PlayerManager = class PlayerManager {
             <div><dt>MVP</dt><dd>${stats.mvpCount}</dd></div>
             <div><dt>O‘rtacha o‘yin bahosi</dt><dd>${metricOrDash(stats.avgInGameScore)}</dd></div>
           </dl>
+          ${recentFormHtml}
           <div class="player-profile-form ${trendMeta.className}">
             <span>30 kunlik shaxsiy forma</span>
             <strong>${trendDiff}</strong>

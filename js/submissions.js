@@ -252,6 +252,7 @@ window.SubmissionManager = class SubmissionManager {
           <i class="fa-solid ${index === 0 ? 'fa-image' : 'fa-chart-pie'}"></i>
           <strong>${title}${required ? ' <small>TAVSIYA</small>' : ''}</strong>
           <span>${subtitle}</span>
+          <span class="submission-dropzone__hint"><i class="fa-solid fa-paste" aria-hidden="true"></i> <kbd>Ctrl+V</kbd> orqali to‘g‘ridan-to‘g‘ri joylang</span>
         </button>
         <div class="submission-dropzone__preview" hidden>
           <button type="button" class="submission-dropzone__replace" data-select-index="${index}" aria-label="${title} skrinshotini almashtirish"><img alt=""></button>

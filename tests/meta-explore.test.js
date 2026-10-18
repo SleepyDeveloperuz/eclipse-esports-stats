@@ -377,6 +377,14 @@ domTest('tier board displays multi-lane flex heroes, tier descriptions, and risi
     const yzBadge = yzBtn.querySelector('.solar-lane-badge.is-exp');
     assert.ok(yzBadge, 'Yu Zhong has exp lane badge rendered');
 
+    // Hero hover quick-preview popover verification
+    manager.showHeroPopover(chouBtn, 4);
+    const popover = w.document.querySelector('.solar-hero-popover');
+    assert.ok(popover, 'Hero popover created in DOM');
+    assert.match(popover.innerHTML, /Chou/);
+    assert.match(popover.innerHTML, /Score/);
+    popover.remove();
+
     // Toggle highlight movements
     const toggleBtn = w.document.querySelector('[data-tier-highlight-movements]');
     assert.ok(toggleBtn, 'Highlight movements button exists');
