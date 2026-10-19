@@ -111,11 +111,31 @@ const MLBB_FLEX_LANES = Object.freeze({
   floryn: ['roam'],
   nolan: ['jungle'],
   beatrix: ['gold'],
-  ling:['jungle'],
+  ling: ['jungle'],
   argus: ['exp'],
   kagura: ['mid'],
   cecilion: ['mid'],
-  
+  // Configured hero lanes
+  yisunshin: ['jungle', 'gold'],
+  moskov: ['gold'],
+  miya: ['gold'],
+  brody: ['gold'],
+  aamon: ['jungle'],
+  badang: ['exp', 'roam'],
+  clint: ['gold'],
+  leomord: ['jungle', 'exp'],
+  hanabi: ['gold'],
+  melissa: ['gold'],
+  lesley: ['gold'],
+  cici: ['exp', 'gold'],
+  hanzo: ['jungle'],
+  chip: ['roam'],
+  franco: ['roam'],
+  franko: ['roam'],
+  hilda: ['roam', 'exp'],
+  luoyi: ['mid'],
+  grock: ['roam'],
+  lancelot: ['jungle'],
 });
 
 window.MlbbDataManager = class MlbbDataManager {
@@ -317,10 +337,22 @@ window.MlbbDataManager = class MlbbDataManager {
   }
 
   heroById(id) {
-    const fromCatalog = (this.state.heroes?.data || []).find(hero => Number(hero.id) === Number(id));
-    if (fromCatalog) return fromCatalog;
-    const fromMeta = (this.state.meta?.data?.eclipse || []).find(hero => Number(hero.heroId) === Number(id));
-    if (fromMeta) return { id: fromMeta.heroId, name: fromMeta.name, lanes: [] };
+    const num = Number(id);
+    if (Number.isFinite(num)) {
+      const fromCatalog = (this.state.heroes?.data || []).find(hero => Number(hero.id) === num);
+      if (fromCatalog) return fromCatalog;
+      const fromMeta = (this.state.meta?.data?.eclipse || []).find(hero => Number(hero.heroId) === num);
+      if (fromMeta) return { id: fromMeta.heroId, name: fromMeta.name, lanes: [] };
+    }
+    const str = String(id || '').trim().toLowerCase();
+    if (str) {
+      const fromCatalog = (this.state.heroes?.data || []).find(hero => String(hero.name || '').toLowerCase() === str);
+      if (fromCatalog) return fromCatalog;
+      const fromMeta = (this.state.meta?.data?.eclipse || []).find(hero => String(hero.name || '').toLowerCase() === str);
+      if (fromMeta) return { id: fromMeta.heroId, name: fromMeta.name, lanes: [] };
+    }
+    const fromDb = this.heroDb?.getAll?.().find(hero => Number(hero.id) === num) || this.heroDb?.resolve?.(id);
+    if (fromDb) return fromDb;
     return null;
   }
 
@@ -347,10 +379,11 @@ window.MlbbDataManager = class MlbbDataManager {
     }
     const flex = MLBB_FLEX_LANES[key];
     if (flex) {
-      if (!normalized.length) return [...flex];
-      flex.forEach(lane => {
-        if (!normalized.includes(lane)) normalized.push(lane);
+      const merged = [...flex];
+      normalized.forEach(lane => {
+        if (!merged.includes(lane)) merged.push(lane);
       });
+      return merged;
     }
     return normalized;
   }
@@ -548,7 +581,8 @@ window.MlbbDataManager = class MlbbDataManager {
         <div class="meta-hero-grid">
           ${catalog.map(hero => {
             const tier = tierById.get(Number(hero.id));
-            const descriptors = [...(hero.roles || []), ...(hero.lanes || [])].slice(0, 2);
+            const lanes = this.heroLanesLabels(hero);
+            const descriptors = [...(hero.roles || []), ...(lanes.length ? lanes : (hero.lanes || []))].slice(0, 2);
             return `
               <button type="button" class="meta-hero-card" data-hero-id="${Number(hero.id)}" data-hero-search="${this.escape(`${hero.name} ${descriptors.join(' ')}`.toLowerCase())}">
                 <span class="meta-hero-card__visual">${this.imageMarkup(hero)}${hero.isNewToCatalog ? '<em>BAZAGA QO‘SHILDI</em>' : ''}</span>
@@ -796,7 +830,8 @@ window.MlbbDataManager = class MlbbDataManager {
   dossierMarkup(detail, cacheStatus) {
     const skills = Array.isArray(detail.skills) ? detail.skills : [];
     const matchups = detail.matchups || {};
-    const roles = [...(detail.roles || []), ...(detail.lanes || [])];
+    const lanes = this.heroLanesLabels(detail);
+    const roles = [...(detail.roles || []), ...(lanes.length ? lanes : (detail.lanes || []))];
     return `
       <button type="button" class="meta-dossier__close" data-dossier-close aria-label="Yopish"><i class="fa-solid fa-xmark"></i></button>
       <header class="meta-dossier-hero">

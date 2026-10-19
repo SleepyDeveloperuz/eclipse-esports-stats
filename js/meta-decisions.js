@@ -168,7 +168,12 @@
         if (!active()) return;
         const details = Object.fromEntries(ids.map((id, i) => [id, results[i].status === 'fulfilled' ? results[i].value : null]));
         const pool = !this.publicEntry && s.poolOnly ? [...new Set((this.db?.getActivePlayers?.() || []).flatMap(p => (p.heroPool || []).filter(h => ['comfort', 'backup'].includes(h.status)).map(h => Number(h.heroId))))] : null;
-        const catalog = (this.state.heroes?.data || []).map(h => details[h.id]?.data?.id === h.id && details[h.id].data.lanes?.length ? { ...h, lanes: details[h.id].data.lanes } : h);
+        const catalog = (this.state.heroes?.data || []).map(h => {
+          const lanes = details[h.id]?.data?.id === h.id && details[h.id].data.lanes?.length
+            ? details[h.id].data.lanes
+            : (h.lanes?.length ? h.lanes : this.heroLanes(h));
+          return { ...h, lanes };
+        });
         if (this.rankLoading || this.state.meta?.data?.rank !== rank) { target.innerHTML = '<p role="status">Tanlangan rank ma’lumoti kutilmoqda. Yuklanmasa, qayta urining.</p>'; return; }
         const suggestions = model.draft({ catalog, rows: this.state.meta?.data?.eclipse || [], ...s, pool, details, rank });
         const coverage = model.coverage(s.allies.map(id => catalog.find(h => Number(h.id) === id))), laneCount = catalog.filter(h => model.heroLanes(h).length).length;

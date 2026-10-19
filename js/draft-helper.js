@@ -234,7 +234,9 @@
           `;
         }
         const portrait = hero.images?.minimap || hero.images?.portrait || '';
-        const laneLabel = (hero.lanes || []).join(' · ') || (hero.roles || []).join(' · ') || 'MLBB';
+        const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+        const heroLanes = manager?.heroLanesLabels ? manager.heroLanesLabels(hero) : (hero.lanes || []);
+        const laneLabel = heroLanes.join(' · ') || (hero.roles || []).join(' · ') || 'MLBB';
         return `
           <div class="draft-slot draft-slot--filled" data-team="${team}" data-index="${index}">
             <div class="draft-slot__media">
@@ -285,8 +287,9 @@
         if (takenHeroIds.has(h.id || h.name)) return false;
         if (search && !h.name.toLowerCase().includes(search)) return false;
         if (activeLane !== 'all') {
-          const lanes = (h.lanes || []).map(l => String(l).toLowerCase());
-          if (!lanes.some(l => l.includes(activeLane))) return false;
+          const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+          const heroLanes = manager?.heroLanes ? manager.heroLanes(h) : (h.lanes || []).map(l => String(l).toLowerCase());
+          if (!heroLanes.some(l => l.includes(activeLane))) return false;
         }
         return true;
       });

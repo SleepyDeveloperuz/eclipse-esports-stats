@@ -394,4 +394,39 @@ domTest('tier board displays multi-lane flex heroes, tier descriptions, and risi
   } finally { w.close(); }
 });
 
+domTest('hero lanes correctly resolves lane information for meta lab heroes', async () => {
+  const { w, manager } = setup('?view=tier');
+  try {
+    await manager.render(); await tick();
+    const expectations = [
+      { name: 'Yi Sun-Shin', lanes: ['jungle', 'gold'], labels: ['Jungle (Asosiy)', 'Gold Lane'] },
+      { name: 'Moskov', lanes: ['gold'], labels: ['Gold Lane'] },
+      { name: 'Miya', lanes: ['gold'], labels: ['Gold Lane'] },
+      { name: 'Brody', lanes: ['gold'], labels: ['Gold Lane'] },
+      { name: 'Aamon', lanes: ['jungle'], labels: ['Jungle'] },
+      { name: 'Badang', lanes: ['exp', 'roam'], labels: ['Exp Lane (Asosiy)', 'Roam'] },
+      { name: 'Clint', lanes: ['gold'], labels: ['Gold Lane'] },
+      { name: 'Leomord', lanes: ['jungle', 'exp'], labels: ['Jungle (Asosiy)', 'Exp Lane'] },
+      { name: 'Hanabi', lanes: ['gold'], labels: ['Gold Lane'] },
+      { name: 'Melissa', lanes: ['gold'], labels: ['Gold Lane'] },
+      { name: 'Lesley', lanes: ['gold'], labels: ['Gold Lane'] },
+      { name: 'Cici', lanes: ['exp', 'gold'], labels: ['Exp Lane (Asosiy)', 'Gold Lane'] },
+      { name: 'Hanzo', lanes: ['jungle'], labels: ['Jungle'] },
+      { name: 'Chip', lanes: ['roam'], labels: ['Roam'] },
+      { name: 'Franco', lanes: ['roam'], labels: ['Roam'] },
+      { name: 'Franko', lanes: ['roam'], labels: ['Roam'] },
+      { name: 'Hilda', lanes: ['roam', 'exp'], labels: ['Roam (Asosiy)', 'Exp Lane'] },
+      { name: 'Luo Yi', lanes: ['mid'], labels: ['Mid Lane'] },
+      { name: 'Grock', lanes: ['roam'], labels: ['Roam'] },
+      { name: 'Lancelot', lanes: ['jungle'], labels: ['Jungle'] }
+    ];
 
+    for (const exp of expectations) {
+      const heroObj = { name: exp.name, lanes: [] };
+      const resolvedLanes = manager.heroLanes(heroObj);
+      assert.deepEqual(Array.from(resolvedLanes), exp.lanes, `${exp.name} lanes mismatch`);
+      const resolvedLabels = manager.heroLanesLabels(heroObj);
+      assert.deepEqual(Array.from(resolvedLabels), exp.labels, `${exp.name} labels mismatch`);
+    }
+  } finally { w.close(); }
+});
