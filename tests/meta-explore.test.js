@@ -331,25 +331,21 @@ domTest('tier board displays multi-lane flex heroes, tier descriptions, and risi
   });
   try {
     await manager.render(); await tick();
-    // Multi-lane flex verification
-    const chouLanes = manager.heroLanes({ id: 4, name: 'Chou', lanes: ['EXP Lane'] });
-    assert.ok(chouLanes.includes('exp') && chouLanes.includes('roam'), 'Chou has both EXP and Roam lanes');
-    assert.equal(chouLanes[0], 'exp', 'Chou primary lane is exp');
+    // Multi-lane flex verification: istalgan heroga 1, 2, 3 yoki undan ortiq lane berish mumkin
+    const custom1Lane = manager.heroLanes({ name: 'SoloLaner', lanes: ['Gold Lane'] });
+    assert.equal(custom1Lane.length, 1, '1-lane hero qo‘llab-quvvatlanadi');
+    assert.equal(custom1Lane[0], 'gold');
 
-    const julianLanes = manager.heroLanes({ id: 116, name: 'Julian', lanes: ['Jungle'] });
-    assert.ok(julianLanes.includes('jungle') && julianLanes.includes('mid') && julianLanes.includes('exp'), 'Julian has 3 lanes');
+    const custom2Lanes = manager.heroLanes({ name: 'DualLaner', lanes: ['EXP Lane', 'Roam'] });
+    assert.equal(custom2Lanes.length, 2, '2-lane flex hero qo‘llab-quvvatlanadi');
+    assert.equal(custom2Lanes[0], 'exp');
+    assert.equal(custom2Lanes[1], 'roam');
 
-    const obsidiaLanes = manager.heroLanes({ id: 130, name: 'Obsidia', lanes: ['Mid Lane', 'EXP Lane'] });
-    assert.equal(obsidiaLanes.length, 1, 'Obsidia has exactly 1 lane');
-    assert.equal(obsidiaLanes[0], 'gold', 'Obsidia is strictly in gold lane only');
-
-    const yuZhongLanes = manager.heroLanes({ id: 95, name: 'Yu Zhong', lanes: [] });
-    assert.equal(yuZhongLanes.length, 1, 'Yu Zhong has exactly 1 lane');
-    assert.equal(yuZhongLanes[0], 'exp', 'Yu Zhong is strictly in exp lane');
-
-    const yuZhongById = manager.heroLanes(95);
-    assert.equal(yuZhongById.length, 1, 'Yu Zhong by ID has exactly 1 lane');
-    assert.equal(yuZhongById[0], 'exp', 'Yu Zhong by ID is in exp lane');
+    const custom3Lanes = manager.heroLanes({ name: 'TriLaner', lanes: ['Jungle', 'Mid Lane', 'EXP Lane'] });
+    assert.equal(custom3Lanes.length, 3, '3-lane flex hero qo‘llab-quvvatlanadi');
+    assert.equal(custom3Lanes[0], 'jungle');
+    assert.equal(custom3Lanes[1], 'mid');
+    assert.equal(custom3Lanes[2], 'exp');
 
     // Tier description tooltips verification
     const ssDesc = manager.tierDescription('SS');
@@ -394,39 +390,26 @@ domTest('tier board displays multi-lane flex heroes, tier descriptions, and risi
   } finally { w.close(); }
 });
 
-domTest('hero lanes correctly resolves lane information for meta lab heroes', async () => {
+domTest('hero lanes dynamically resolves configured flex lanes and labels without rigid restrictions', async () => {
   const { w, manager } = setup('?view=tier');
   try {
     await manager.render(); await tick();
-    const expectations = [
-      { name: 'Yi Sun-Shin', lanes: ['jungle', 'gold'], labels: ['Jungle (Asosiy)', 'Gold Lane'] },
-      { name: 'Moskov', lanes: ['gold'], labels: ['Gold Lane'] },
-      { name: 'Miya', lanes: ['gold'], labels: ['Gold Lane'] },
-      { name: 'Brody', lanes: ['gold'], labels: ['Gold Lane'] },
-      { name: 'Aamon', lanes: ['jungle'], labels: ['Jungle'] },
-      { name: 'Badang', lanes: ['exp', 'roam'], labels: ['Exp Lane (Asosiy)', 'Roam'] },
-      { name: 'Clint', lanes: ['gold'], labels: ['Gold Lane'] },
-      { name: 'Leomord', lanes: ['jungle', 'exp'], labels: ['Jungle (Asosiy)', 'Exp Lane'] },
-      { name: 'Hanabi', lanes: ['gold'], labels: ['Gold Lane'] },
-      { name: 'Melissa', lanes: ['gold'], labels: ['Gold Lane'] },
-      { name: 'Lesley', lanes: ['gold'], labels: ['Gold Lane'] },
-      { name: 'Cici', lanes: ['exp', 'gold'], labels: ['Exp Lane (Asosiy)', 'Gold Lane'] },
-      { name: 'Hanzo', lanes: ['jungle'], labels: ['Jungle'] },
-      { name: 'Chip', lanes: ['roam'], labels: ['Roam'] },
-      { name: 'Franco', lanes: ['roam'], labels: ['Roam'] },
-      { name: 'Franko', lanes: ['roam'], labels: ['Roam'] },
-      { name: 'Hilda', lanes: ['roam', 'exp'], labels: ['Roam (Asosiy)', 'Exp Lane'] },
-      { name: 'Luo Yi', lanes: ['mid'], labels: ['Mid Lane'] },
-      { name: 'Grock', lanes: ['roam'], labels: ['Roam'] },
-      { name: 'Lancelot', lanes: ['jungle'], labels: ['Jungle'] }
-    ];
 
-    for (const exp of expectations) {
-      const heroObj = { name: exp.name, lanes: [] };
-      const resolvedLanes = manager.heroLanes(heroObj);
-      assert.deepEqual(Array.from(resolvedLanes), exp.lanes, `${exp.name} lanes mismatch`);
-      const resolvedLabels = manager.heroLanesLabels(heroObj);
-      assert.deepEqual(Array.from(resolvedLabels), exp.labels, `${exp.name} labels mismatch`);
+    // 1. Dinamik test: MLBB_FLEX_LANES dagi har qanday hero sozlamasi aniq va to'g'ridan-to'g'ri olinadi
+    const flexEntries = Object.entries(w.MLBB_FLEX_LANES || {});
+    assert.ok(flexEntries.length > 0, 'MLBB_FLEX_LANES mavjud');
+    for (const [key, expectedLanes] of flexEntries.slice(0, 25)) {
+      const resolved = manager.heroLanes({ name: key, lanes: [] });
+      assert.deepEqual(Array.from(resolved), Array.from(expectedLanes), `${key} lanes MLBB_FLEX_LANES sozlamasiga mos kelmadi`);
     }
+
+    // 2. Yangi/ixtiyoriy hero ob'ektlariga istalgancha (1, 2, 3 va h.k.) lane bera olish va uning to'g'ri o'qilishi
+    const multiLaneHero = { name: 'NewMetaHero', lanes: ['Jungle', 'EXP Lane', 'Mid Lane'] };
+    assert.deepEqual(Array.from(manager.heroLanes(multiLaneHero)), ['jungle', 'exp', 'mid']);
+    assert.deepEqual(Array.from(manager.heroLanesLabels(multiLaneHero)), ['Jungle (Asosiy)', 'Exp Lane', 'Mid Lane']);
+
+    const singleLaneHero = { name: 'SpecialistHero', lanes: ['Roam'] };
+    assert.deepEqual(Array.from(manager.heroLanes(singleLaneHero)), ['roam']);
+    assert.deepEqual(Array.from(manager.heroLanesLabels(singleLaneHero)), ['Roam']);
   } finally { w.close(); }
 });

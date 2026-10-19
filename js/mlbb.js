@@ -138,6 +138,10 @@ const MLBB_FLEX_LANES = Object.freeze({
   lancelot: ['jungle'],
 });
 
+if (typeof window !== 'undefined') {
+  window.MLBB_FLEX_LANES = MLBB_FLEX_LANES;
+}
+
 window.MlbbDataManager = class MlbbDataManager {
   constructor(authManager, dataStore, heroDb, cloudSync) {
     this.auth = authManager;
@@ -360,7 +364,20 @@ window.MlbbDataManager = class MlbbDataManager {
     const hero = typeof heroOrId === 'object' && heroOrId !== null
       ? (heroOrId.lanes || heroOrId.name ? heroOrId : this.heroById(heroOrId.heroId ?? heroOrId.id))
       : this.heroById(heroOrId);
-    const raw = hero?.lanes || [];
+    if (!hero) return [];
+
+    const key = String(hero.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // 1. Foydalanuvchi MLBB_FLEX_LANES da istalgan heroga istalgancha (1, 2, 3...) lane kiritishi mumkin
+    if (key && Object.prototype.hasOwnProperty.call(MLBB_FLEX_LANES, key)) {
+      const configured = MLBB_FLEX_LANES[key];
+      if (Array.isArray(configured)) {
+        return [...configured];
+      }
+    }
+
+    // 2. Aks holda hero ma'lumotlaridagi raw lanes dan normalizatsiya qiladi
+    const raw = hero.lanes || [];
     const normalized = [];
     raw.forEach(v => {
       const t = String(v).toLowerCase();
@@ -370,21 +387,7 @@ window.MlbbDataManager = class MlbbDataManager {
       if (/gold/.test(t) && !normalized.includes('gold')) normalized.push('gold');
       if (/roam/.test(t) && !normalized.includes('roam')) normalized.push('roam');
     });
-    const key = String(hero?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (key === 'obsidia') {
-      return ['gold'];
-    }
-    if (key === 'yuzhong') {
-      return ['exp'];
-    }
-    const flex = MLBB_FLEX_LANES[key];
-    if (flex) {
-      const merged = [...flex];
-      normalized.forEach(lane => {
-        if (!merged.includes(lane)) merged.push(lane);
-      });
-      return merged;
-    }
+
     return normalized;
   }
 
