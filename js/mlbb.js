@@ -1,6 +1,6 @@
 const MLBB_FLEX_LANES = Object.freeze({
   // 3-lane flex heroes
-  julian: ['jungle', 'mid', 'exp'],
+  julian: ['jungle'],
   bane: ['jungle'],
   popolandkupa: ['gold', 'jungle'],
   joy: ['jungle', 'exp'],
@@ -36,8 +36,8 @@ const MLBB_FLEX_LANES = Object.freeze({
   martis: ['jungle', 'exp'],
   sun: ['exp', 'jungle'],
   faramis: ['mid', 'roam'],
-  carmilla: ['roam', 'jungle'],
-  kaja: ['roam', 'exp'],
+  carmilla: ['roam'],
+  kaja: ['roam'],
   natalia: ['roam', 'jungle'],
   helcurt: ['jungle', 'roam'],
   saber: ['jungle', 'roam'],
@@ -49,7 +49,7 @@ const MLBB_FLEX_LANES = Object.freeze({
   lukas: ['exp', 'jungle'],
   obsidia: ['gold'],
   aulus: ['jungle', 'exp'],
-  marcel: ['roam', 'exp'],
+  marcel: ['roam'],
   esmeralda: ['exp', 'mid'],
   uranus: ['exp', 'roam'],
   silvanna: ['exp', 'roam', 'jungle'],
