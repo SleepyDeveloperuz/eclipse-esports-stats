@@ -103,7 +103,19 @@ const MLBB_FLEX_LANES = Object.freeze({
   lapulapu: ['exp'],
   wanwan: ['gold'],
   change: ['mid'],
-  zilong: ['exp']
+  zilong: ['exp'],
+  atlas: ['roam'],
+  estes: ['roam'],
+  eudora: ['mid'],
+  hirara:['jungle'],
+  floryn: ['roam'],
+  nolan: ['jungle'],
+  beatrix: ['gold'],
+  ling:['jungle'],
+  argus: ['exp'],
+  kagura: ['mid'],
+  cecilion: ['mid'],
+  
 });
 
 window.MlbbDataManager = class MlbbDataManager {
