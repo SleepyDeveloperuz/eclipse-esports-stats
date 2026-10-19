@@ -1046,6 +1046,12 @@
   border-radius: 16px;
   outline: none;
 }
+.draft-dialog:not([open]) {
+  display: none;
+}
+.draft-dialog[open] {
+  display: block;
+}
 .draft-dialog::backdrop {
   background: rgba(4, 4, 3, 0.85);
   backdrop-filter: blur(10px);
@@ -1438,6 +1444,10 @@
 @keyframes pickerSlideUp {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
+}
+.draft-picker-sheet[hidden],
+.draft-picker-sheet:not(.is-open) {
+  display: none !important;
 }
 .draft-picker-sheet__header {
   display: flex;

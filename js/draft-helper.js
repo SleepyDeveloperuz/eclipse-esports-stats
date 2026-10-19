@@ -12,18 +12,68 @@
       this.init();
     }
 
+    escape(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+    }
+
     getHeroCatalog() {
       // Pull fresh heroes from MlbbDataManager, PublicMetaApp, or HeroDatabase
-      const heroes = window.EclipseApp?.mlbbManager?.state?.heroes?.data ||
-                     window.publicMetaApp?.state?.heroes?.data ||
-                     window.HeroDatabase?.DEFAULT_HEROES || [];
-      return heroes;
+      const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+      const catalog = manager?.state?.heroes?.data;
+      if (Array.isArray(catalog) && catalog.length) return catalog;
+
+      const meta = manager?.state?.meta?.data?.eclipse;
+      if (Array.isArray(meta) && meta.length) {
+        return meta.map(h => ({
+          id: Number(h.heroId || h.id),
+          name: h.name,
+          roles: h.roles || [],
+          lanes: manager?.heroLanes ? manager.heroLanes(h) : (h.lanes || []),
+          images: h.images || { portrait: h.image, minimap: h.image }
+        }));
+      }
+
+      const defaultHeroes = window.HeroDatabase?.DEFAULT_HEROES;
+      if (Array.isArray(defaultHeroes) && defaultHeroes.length) {
+        return defaultHeroes.map((h, i) => ({
+          id: h.id || i + 1,
+          name: h.name,
+          roles: h.roles || [h.role],
+          lanes: manager?.heroLanes ? manager.heroLanes(h) : [],
+          images: {}
+        }));
+      }
+
+      return [];
     }
 
     getMetaTiers() {
-      const meta = window.EclipseApp?.mlbbManager?.state?.meta?.data?.eclipse ||
-                   window.publicMetaApp?.state?.meta?.data?.eclipse || [];
-      return meta;
+      const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+      const meta = manager?.state?.meta?.data?.eclipse;
+      if (Array.isArray(meta) && meta.length) return meta;
+      return [];
+    }
+
+    async ensureCatalog() {
+      if (this.getHeroCatalog().length) return;
+      try {
+        const res = await fetch('/api/mlbb-heroes');
+        const json = await res.json();
+        if (json?.data) {
+          const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+          if (manager) {
+            if (!manager.state) manager.state = {};
+            manager.state.heroes = json;
+          }
+          this.renderSlots();
+          this.renderAnalysis();
+          if (this.activeSlot) this.renderPickerGrid();
+        }
+      } catch (_) {}
     }
 
     init() {
@@ -134,11 +184,15 @@
     }
 
     open() {
-      if (!this.dialog) this.createDialog();
+      if (!this.dialog || !this.dialog.isConnected) this.createDialog();
+      this.closePicker();
       this.renderSlots();
       this.renderAnalysis();
+      this.ensureCatalog();
       if (typeof this.dialog.showModal === 'function') {
-        this.dialog.showModal();
+        if (!this.dialog.open) {
+          this.dialog.showModal();
+        }
       } else {
         this.dialog.setAttribute('open', '');
       }
@@ -167,7 +221,7 @@
 
     openPicker(team, index) {
       this.activeSlot = { team, index };
-      const sheet = this.dialog.querySelector('#draftPickerSheet');
+      const sheet = this.dialog?.querySelector('#draftPickerSheet');
       if (sheet) {
         sheet.hidden = false;
         sheet.classList.add('is-open');
@@ -177,6 +231,7 @@
           input.focus();
         }
         this.renderPickerGrid();
+        this.ensureCatalog();
       }
     }
 
@@ -301,15 +356,18 @@
 
       grid.innerHTML = filtered.map(h => {
         const portrait = h.images?.minimap || h.images?.portrait || '';
-        const laneStr = (h.lanes || []).join(' · ') || '';
+        const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+        const heroLanes = manager?.heroLanesLabels ? manager.heroLanesLabels(h) : (h.lanes || []);
+        const laneStr = heroLanes.join(' · ') || (h.roles || []).join(' · ') || '';
+        const heroId = Number(h.id || h.heroId);
         return `
-          <button type="button" class="draft-picker-item" data-hero-id="${h.id}">
+          <button type="button" class="draft-picker-item" data-hero-id="${heroId}" data-hero-name="${this.escape(h.name)}">
             <div class="draft-picker-item__media">
-              ${portrait ? `<img src="${portrait}" alt="${h.name}">` : `<span>${h.name.slice(0, 2)}</span>`}
+              ${portrait ? `<img src="${this.escape(portrait)}" alt="${this.escape(h.name)}">` : `<span>${this.escape(h.name.slice(0, 2))}</span>`}
             </div>
             <div class="draft-picker-item__info">
-              <strong>${h.name}</strong>
-              <small>${laneStr}</small>
+              <strong>${this.escape(h.name)}</strong>
+              <small>${this.escape(laneStr)}</small>
             </div>
           </button>
         `;
@@ -318,7 +376,7 @@
       grid.querySelectorAll('.draft-picker-item').forEach(btn => {
         btn.addEventListener('click', () => {
           const heroId = Number(btn.dataset.heroId);
-          const hero = allHeroes.find(h => h.id === heroId);
+          const hero = allHeroes.find(h => Number(h.id || h.heroId) === heroId || h.name === btn.dataset.heroName);
           if (hero) this.pickHero(hero);
         });
       });
@@ -368,22 +426,26 @@
 
       // 3. Lane Coverage
       const coveredLanes = new Set();
-      allies.forEach(h => (h.lanes || []).forEach(l => coveredLanes.add(l.toLowerCase())));
+      const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+      allies.forEach(h => {
+        const lanes = manager?.heroLanes ? manager.heroLanes(h) : (h.lanes || []);
+        lanes.forEach(l => coveredLanes.add(String(l).toLowerCase()));
+      });
       const requiredLanes = ['exp', 'jungle', 'mid', 'gold', 'roam'];
       const missingLanes = requiredLanes.filter(l => !coveredLanes.has(l));
 
       // 4. Counter Pick Suggestions (against chosen enemies)
       const allHeroes = this.getHeroCatalog();
       const metaTiers = this.getMetaTiers();
-      const enemyNames = enemies.map(e => e.name.toLowerCase());
-      const takenIds = new Set([...allies.map(a => a.id), ...enemies.map(e => e.id)]);
+      const takenIds = new Set([...allies.map(a => Number(a.id || a.heroId)), ...enemies.map(e => Number(e.id || e.heroId))]);
 
       // Find heroes that have high tiers or good matchup
       const counterSuggestions = allHeroes
-        .filter(h => !takenIds.has(h.id))
+        .filter(h => !takenIds.has(Number(h.id || h.heroId)))
         .map(h => {
           let score = 0;
-          const tierRow = metaTiers.find(m => m.heroId === h.id);
+          const heroId = Number(h.id || h.heroId);
+          const tierRow = metaTiers.find(m => Number(m.heroId) === heroId || m.name === h.name);
           if (tierRow) {
             if (tierRow.tier === 'SS') score += 5;
             if (tierRow.tier === 'S') score += 3.5;
@@ -438,15 +500,18 @@
               ${counterSuggestions.map(cs => {
                 const h = cs.hero;
                 const portrait = h.images?.minimap || h.images?.portrait || '';
+                const recLanes = manager?.heroLanesLabels ? manager.heroLanesLabels(h) : (h.lanes || []);
+                const recLaneLabel = recLanes.join(' · ') || h.roles?.join(' · ') || '';
+                const heroId = Number(h.id || h.heroId);
                 return `
-                  <div class="draft-rec-item" data-pick-suggest="${h.id}">
+                  <div class="draft-rec-item" data-pick-suggest="${heroId}" data-hero-name="${this.escape(h.name)}">
                     <div class="draft-rec-avatar">
-                      ${portrait ? `<img src="${portrait}" alt="${h.name}">` : `<span>${h.name.slice(0, 2)}</span>`}
-                      <span class="draft-rec-tier is-${cs.tier.toLowerCase()}">${cs.tier}</span>
+                      ${portrait ? `<img src="${this.escape(portrait)}" alt="${this.escape(h.name)}">` : `<span>${this.escape(h.name.slice(0, 2))}</span>`}
+                      <span class="draft-rec-tier is-${this.escape(cs.tier.toLowerCase())}">${this.escape(cs.tier)}</span>
                     </div>
                     <div>
-                      <strong>${h.name}</strong>
-                      <small>${(h.lanes || []).join(' · ') || h.roles?.join(' · ')}</small>
+                      <strong>${this.escape(h.name)}</strong>
+                      <small>${this.escape(recLaneLabel)}</small>
                     </div>
                   </div>
                 `;
@@ -460,7 +525,7 @@
       container.querySelectorAll('.draft-rec-item').forEach(item => {
         item.addEventListener('click', () => {
           const heroId = Number(item.dataset.pickSuggest);
-          const hero = allHeroes.find(h => h.id === heroId);
+          const hero = allHeroes.find(h => Number(h.id || h.heroId) === heroId || h.name === item.dataset.heroName);
           const firstEmptyAlly = this.allyPicks.findIndex(p => p === null);
           if (hero && firstEmptyAlly !== -1) {
             this.allyPicks[firstEmptyAlly] = hero;
@@ -481,7 +546,12 @@
         const draftBtn = e.target.closest('#draftAssistantBtn, .draft-trigger-btn');
         if (draftBtn) {
           e.preventDefault();
-          this.open();
+          e.stopPropagation();
+          if (this.dialog?.open) {
+            this.close();
+          } else {
+            this.open();
+          }
           return;
         }
 
@@ -554,7 +624,11 @@
 
         if (e.key === 'd' || e.key === 'D') {
           e.preventDefault();
-          this.open();
+          if (this.dialog?.open) {
+            this.close();
+          } else {
+            this.open();
+          }
           return;
         }
 

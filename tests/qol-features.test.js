@@ -906,3 +906,92 @@ domTest('hotkeysTriggerBtn opens hotkeys dialog and close button closes it witho
 
   dom.window.close();
 });
+
+domTest('draft assistant opens via button/key D, keeps picker sheet hidden initially, picks heroes into slots and closes picker', () => {
+  const dom = new JSDOM(`
+    <!DOCTYPE html>
+    <html>
+      <body>
+        <button type="button" class="draft-trigger-btn" id="draftAssistantBtn">Draft Assistant</button>
+      </body>
+    </html>`, {
+    runScripts: 'outside-only',
+    url: 'https://eclipse-esports.uz/meta-lab'
+  });
+  const { window } = dom;
+
+  // Mock HTMLDialogElement methods in JSDOM
+  window.HTMLDialogElement.prototype.showModal = function() {
+    this.open = true;
+    this.setAttribute('open', '');
+  };
+  window.HTMLDialogElement.prototype.close = function() {
+    this.open = false;
+    this.removeAttribute('open');
+  };
+
+  // Mock publicMetaApp with mock hero data
+  window.publicMetaApp = {
+    state: {
+      heroes: {
+        data: [
+          { id: 'ling', name: 'Ling', heroName: 'Ling', lane: 'jungle', lanes: ['jungle'], primaryLane: 'jungle', role: 'assassin', heroRole: 'assassin', damageType: 'physical', img: 'ling.png' },
+          { id: 'angela', name: 'Angela', heroName: 'Angela', lane: 'roam', lanes: ['roam'], primaryLane: 'roam', role: 'support', heroRole: 'support', damageType: 'magic', img: 'angela.png' }
+        ]
+      }
+    }
+  };
+
+  // Load draft-helper.js
+  window.eval(readFileSync(new URL('../js/draft-helper.js', import.meta.url), 'utf8'));
+
+  const da = window.draftAssistant;
+  assert.ok(da, 'DraftAssistant is instantiated');
+  assert.ok(da.dialog, 'DraftAssistant dialog element exists in DOM');
+
+  const triggerBtn = window.document.getElementById('draftAssistantBtn');
+  const pickerSheet = window.document.getElementById('draftPickerSheet');
+
+  assert.equal(da.dialog.open, false, 'Dialog closed initially');
+  assert.equal(pickerSheet.hidden, true, 'Picker sheet hidden initially');
+
+  // 1. Open dialog via button
+  triggerBtn.click();
+  assert.equal(da.dialog.open, true, 'Dialog opens on button click');
+  assert.equal(pickerSheet.hidden, true, 'Picker sheet remains hidden after dialog opens');
+
+  // 2. Click an empty slot to open picker
+  const firstAllySlot = da.dialog.querySelector('.draft-slot[data-team="ally"][data-index="0"]');
+  assert.ok(firstAllySlot, 'Ally pick slot 0 exists');
+  firstAllySlot.click();
+
+  assert.equal(pickerSheet.hidden, false, 'Picker sheet opens when slot is clicked');
+  assert.equal(pickerSheet.classList.contains('is-open'), true, 'Picker sheet has is-open class');
+
+  // 3. Verify picker grid has heroes
+  const pickerGrid = window.document.getElementById('draftPickerGrid');
+  const heroCards = pickerGrid.querySelectorAll('.draft-picker-item');
+  assert.equal(heroCards.length, 2, 'Picker grid renders available heroes');
+
+  // 4. Click Ling hero card
+  const lingCard = pickerGrid.querySelector('.draft-picker-item[data-hero-name="Ling"]');
+  assert.ok(lingCard, 'Ling card found in picker');
+  lingCard.click();
+
+  // 5. Verify Ling assigned and picker closed
+  assert.equal(pickerSheet.hidden, true, 'Picker sheet closes after selecting hero');
+  assert.equal(pickerSheet.classList.contains('is-open'), false, 'Picker sheet removes is-open class');
+  assert.equal(da.allyPicks[0].name, 'Ling', 'Ling assigned to ally pick slot 0');
+
+  // 6. Test shortcut key 'd'
+  da.close();
+  assert.equal(da.dialog.open, false, 'Dialog is closed');
+
+  window.document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'd', bubbles: true }));
+  assert.equal(da.dialog.open, true, 'Dialog opens via D key');
+
+  window.document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'd', bubbles: true }));
+  assert.equal(da.dialog.open, false, 'Dialog closes via second D key toggle');
+
+  dom.window.close();
+});

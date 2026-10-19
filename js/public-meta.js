@@ -2,6 +2,7 @@
 (() => {
   const guest = Object.freeze({ isAdmin: () => false, getAccessToken: () => '', getToken: () => '' });
   const meta = new window.MlbbDataManager(guest, null, null, null);
+  window.publicMetaApp = meta;
   let toastTimer;
   window.showToast = message => {
     const toast = document.getElementById('publicMetaToast');
