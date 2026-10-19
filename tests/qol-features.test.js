@@ -995,3 +995,76 @@ domTest('draft assistant opens via button/key D, keeps picker sheet hidden initi
 
   dom.window.close();
 });
+
+domTest('multi-match batch upload renders modern cyber dropzone, step pipeline, file chips and rich cards', async () => {
+  const dom = new JSDOM(`
+    <!DOCTYPE html>
+    <html>
+      <body>
+        <div id="batchContainer"></div>
+      </body>
+    </html>`, {
+    runScripts: 'outside-only',
+    url: 'https://eclipse-esports.uz/'
+  });
+  const { window } = dom;
+
+  // Mock app structure
+  const app = {
+    authManager: { isAdmin: () => true, getAccessToken: () => 'token' },
+    dataStore: { getActivePlayers: () => [{ id: 'p1', name: 'Player 1' }], getPlayers: () => [] },
+    heroDb: { getAll: () => [] },
+    cloudSync: { getStatus: () => ({ pending: false }) }
+  };
+
+  window.groupBatchFiles = () => ({ matches: [], unresolved: [] });
+  for (const file of ['date-utils', 'image-upload', 'submissions', 'batch']) {
+    const script = readFileSync(new URL(`../js/${file}.js`, import.meta.url), 'utf8')
+      .replace(/^import .*;\n/gm, '')
+      .replace(/export (class|function|async function)/g, '$1');
+    window.eval(script);
+  }
+  
+  const batch = new window.BatchUpload(app);
+  batch.render();
+
+  // 1. Verify container shell & step pipeline
+  const shell = batch.container.querySelector('.batch-shell');
+  assert.ok(shell, 'Batch shell rendered');
+  assert.ok(batch.container.querySelector('#batchStep1.is-active'), 'Step 1 is active initially');
+  assert.ok(batch.container.querySelector('#batchStep2'), 'Step 2 exists');
+  assert.ok(batch.container.querySelector('#batchStep3'), 'Step 3 exists');
+  assert.ok(batch.container.querySelector('[data-batch-back]'), 'Back button exists');
+
+  // 2. Verify modern dropzone and file tray
+  const dropzone = batch.container.querySelector('#batchDropzone');
+  const fileInput = batch.container.querySelector('#batchFiles');
+  const fileTray = batch.container.querySelector('#batchFileTray');
+  assert.ok(dropzone, 'Dropzone element exists');
+  assert.ok(fileInput, 'File input element exists');
+  assert.equal(fileTray.hidden, true, 'File tray hidden initially');
+
+  // 3. Test adding match item
+  const group = { battleId: '950914999598100774', score: { index: 0 }, damage: { index: 1 }, date: '2026-10-19', result: 'win' };
+  batch.addItem(group, ['data:image/jpeg;base64,score', 'data:image/jpeg;base64,damage'], [{ name: 'score.jpg' }, { name: 'damage.jpg' }], '2026-10-19', 'ranked');
+
+  assert.equal(batch.items.length, 1, 'Item added to queue');
+  const item = batch.items[0];
+  assert.ok(item.root.querySelector('.batch-item__num-tag'), 'Match number badge exists');
+  assert.match(item.root.querySelector('.batch-item__id-tag').textContent, /950914999598100774/, 'Battle ID tag displayed');
+  assert.match(item.root.querySelector('.batch-item__type-tag').textContent, /Scoreboard \+ Damage/, 'Complete pair badge displayed');
+  assert.ok(item.root.querySelector('.batch-status-pill.is-waiting'), 'Waiting status pill rendered');
+
+  // 4. Test item status change
+  item.state = 'ready';
+  batch.itemStatus(item, 'Tayyor · 2026-10-19 · WIN');
+  assert.ok(item.root.querySelector('.batch-status-pill.is-ready'), 'Ready status pill rendered');
+  assert.match(item.root.querySelector('[data-item-status]').textContent, /Tayyor/, 'Item status text updated');
+
+  // 5. Test step progression
+  batch.setStep(3);
+  assert.ok(batch.container.querySelector('#batchStep3.is-active'), 'Step 3 active');
+  assert.ok(batch.container.querySelector('#batchStep1.is-done'), 'Step 1 marked done');
+
+  dom.window.close();
+});
