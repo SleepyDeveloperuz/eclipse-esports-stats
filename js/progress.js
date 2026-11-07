@@ -47,22 +47,40 @@ export class ProgressHub {
   select(key, label, options) { return `<label>${label}<select class="form-select" data-progress-filter="${key}">${this.options(options, this[key])}</select></label>`; }
   rows() { return observations(eligibleMatches(this.data, this.scope), this); }
   draw() {
-    const tabs = [['weekly', 'Eclipse Weekly'], ['compare', 'Win vs Loss'], ['journey', 'Hero Journey'], ['moments', 'Eclipse Moments']];
-    if (this.app.authManager.isAdmin()) tabs.push(['history', 'Corrections & Undo']);
+    const tabs = [
+      ['weekly', 'Eclipse Weekly', 'fa-calendar-week'],
+      ['compare', 'Win vs Loss', 'fa-code-compare'],
+      ['journey', 'Hero Journey', 'fa-route'],
+      ['moments', 'Eclipse Moments', 'fa-star']
+    ];
+    if (this.app.authManager.isAdmin()) tabs.push(['history', 'Corrections & Undo', 'fa-clock-rotate-left']);
     if (!tabs.some(([id]) => id === this.tab)) this.tab = 'weekly';
     const personal = ['compare', 'journey', 'moments'].includes(this.tab);
     const candidates = observations(eligibleMatches(this.data, this.scope), { playerId: this.playerId });
     const heroes = [...new Set(candidates.map(o => o.row.heroUsed))].filter(Boolean).sort();
     if (this.hero && !heroes.includes(this.hero)) this.hero = '';
-    this.container.innerHTML = `<header class="progress-heading"><div><p class="section-eyebrow">ECLIPSE / PROGRESS</p><h2>Your next chapter.</h2><p>O‘zingizning natijalaringiz. Aniq kontekst. Haqiqiy o‘sish.</p></div>${button('refresh', 'Yangilash')}</header>
-      <nav class="progress-tabs" aria-label="Progress bo‘limlari">${tabs.map(([id, label]) => `<button type="button" data-progress-tab="${id}" aria-pressed="${id === this.tab}">${label}</button>`).join('')}</nav>
-      ${personal ? `<div class="progress-player-chips" aria-label="O‘yinchini tez tanlash"><span class="player-chips-label">O‘yinchi:</span><div class="player-chips-track">${(this.data.players || []).map(p => `<button type="button" class="progress-player-chip ${p.id === this.playerId ? 'active' : ''}" data-select-player="${esc(p.id)}"><span class="player-avatar-circle">${esc(p.name.slice(0, 2).toUpperCase())}</span><span class="player-chip-name">${esc(p.name)}</span></button>`).join('')}</div></div>` : ''}
-      <div class="progress-filters">${this.tab !== 'history' ? this.select('scope', 'Statistika tarkibi', [['team5', 'Team 5'], ['squad', 'Practice · 1–4']]) : ''}
-      ${this.tab === 'weekly' ? `<label>Hafta sanasi<input type="date" class="form-input" data-progress-filter="date" value="${esc(this.date)}"></label>` : ''}
-      ${personal ? this.select('playerId', 'O‘yinchi', this.data.players.map(p => [p.id, `${p.name}${p.active === false ? ' · arxiv' : ''}`]))
-        + this.select('hero', 'Qahramon', [['', 'Barcha qahramonlar'], ...heroes.map(h => [h, h])])
-        + this.select('role', 'Layn', [['', 'Barcha laynlar'], ...['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'].map(r => [r, r])])
-        + this.select('matchType', 'Match turi', [['ranked', 'Ranked'], ['scrim', 'Scrim'], ['tournament', 'Tournament'], ['casual', 'Casual']]) : ''}</div>
+    this.container.innerHTML = `<header class="progress-heading progress-hero">
+        <div class="progress-hero__signal" aria-hidden="true">
+          <span></span><i class="fa-solid fa-chart-line"></i>
+        </div>
+        <div class="progress-hero__copy">
+          <div class="progress-hero-eyebrow-row">
+            <p class="section-eyebrow">ECLIPSE // PROGRESS ANALYTICS</p>
+            <span class="progress-live-badge"><span class="pulse-dot"></span> LIVE DATA</span>
+          </div>
+          <h2>Your next chapter.</h2>
+          <p>O‘zingizning natijalaringiz. Aniq kontekst. Haqiqiy jamoaviy va individual o‘sish.</p>
+        </div>
+        <div class="progress-hero__actions">${button('refresh', '<i class="fa-solid fa-arrows-rotate"></i> Yangilash')}</div>
+      </header>
+      <nav class="progress-tabs" aria-label="Progress bo‘limlari">${tabs.map(([id, label, icon]) => `<button type="button" class="progress-tab-btn ${id === this.tab ? 'active' : ''}" data-progress-tab="${id}" aria-pressed="${id === this.tab}"><i class="fa-solid ${icon}"></i> <span>${label}</span>${id === 'weekly' ? '<span class="tab-chip-pill">Live</span>' : ''}</button>`).join('')}</nav>
+      ${personal ? `<div class="progress-player-chips" aria-label="O‘yinchini tez tanlash"><div class="player-chips-header"><i class="fa-solid fa-user-astronaut"></i><span class="player-chips-label">O‘yinchi:</span></div><div class="player-chips-track">${(this.data.players || []).map(p => `<button type="button" class="progress-player-chip ${p.id === this.playerId ? 'active' : ''}" data-select-player="${esc(p.id)}"><span class="player-avatar-circle">${esc(p.name.slice(0, 2).toUpperCase())}</span><span class="player-chip-name">${esc(p.name)}</span></button>`).join('')}</div></div>` : ''}
+      <div class="progress-filters progress-filter-dock">${this.tab !== 'history' ? this.select('scope', '<i class="fa-solid fa-shield-halved"></i> Statistika tarkibi', [['team5', 'Team 5 · Asosiy tarkib'], ['squad', 'Practice · 1–4 o‘yinchi']]) : ''}
+      ${this.tab === 'weekly' ? `<label><i class="fa-solid fa-calendar-day"></i> Hafta sanasi<input type="date" class="form-input" data-progress-filter="date" value="${esc(this.date)}"></label>` : ''}
+      ${personal ? this.select('playerId', '<i class="fa-solid fa-user"></i> O‘yinchi', this.data.players.map(p => [p.id, `${p.name}${p.active === false ? ' · arxiv' : ''}`]))
+        + this.select('hero', '<i class="fa-solid fa-mask"></i> Qahramon', [['', 'Barcha qahramonlar'], ...heroes.map(h => [h, h])])
+        + this.select('role', '<i class="fa-solid fa-compass"></i> Layn', [['', 'Barcha laynlar'], ...['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'].map(r => [r, r])])
+        + this.select('matchType', '<i class="fa-solid fa-trophy"></i> Match turi', [['ranked', 'Ranked'], ['scrim', 'Scrim'], ['tournament', 'Tournament'], ['casual', 'Casual']]) : ''}</div>
       <div class="progress-content">${this.tab === 'weekly' ? this.weeklyMarkup() : this.tab === 'compare' ? this.compareMarkup() : this.tab === 'journey' ? this.journeyMarkup() : this.tab === 'moments' ? this.momentsMarkup() : this.historyMarkup()}</div>
       <p class="progress-feedback" role="status" aria-live="polite"></p>`;
     this.bind();
@@ -77,49 +95,61 @@ export class ProgressHub {
     const topMvp = report?.players?.reduce((best, p) => p.mvps > (best?.mvps || 0) ? p : best, null);
     const navBar = `<div class="weekly-nav-bar">
       <div class="weekly-nav-controls">
-        <button type="button" class="btn btn-secondary btn-sm" data-week-nav="-1" title="Oldingi hafta">◀ Oldingi hafta</button>
+        <button type="button" class="btn btn-secondary btn-sm weekly-nav-btn" data-week-nav="-1" title="Oldingi hafta">◀ Oldingi hafta</button>
         <div class="weekly-current-badge">
           <span class="weekly-calendar-icon">📅</span>
           <strong>${draft.start} — ${draft.end}</strong>
           ${isLiveWeek ? '<span class="status-pill status-pill-live">Joriy hafta</span>' : '<span class="status-pill status-pill-past">Yakunlangan</span>'}
         </div>
-        <button type="button" class="btn btn-secondary btn-sm" data-week-nav="1" title="Keyingi hafta">Keyingi hafta ▶</button>
-        <button type="button" class="btn btn-secondary btn-sm" data-week-nav="0" title="Joriy haftaga qaytish">Bugun</button>
+        <button type="button" class="btn btn-secondary btn-sm weekly-nav-btn" data-week-nav="1" title="Keyingi hafta">Keyingi hafta ▶</button>
+        <button type="button" class="btn btn-secondary btn-sm weekly-today-btn" data-week-nav="0" title="Joriy haftaga qaytish">Bugun</button>
       </div>
     </div>`;
 
     const reportMarkup = report ? `<article class="progress-report weekly-main-report">
       <div class="weekly-report-top">
-        <div>
-          <p class="section-eyebrow">ECLIPSE WEEKLY / ${esc(scopeName(report.scope))}</p>
+        <div class="weekly-report-meta-group">
+          <div class="weekly-scope-pill"><i class="fa-solid fa-layer-group"></i> ${esc(scopeName(report.scope))}</div>
           <h3>${report.start} — ${report.end}</h3>
           <p class="weekly-report-meta">${report.publishedAt ? `Nashr qilingan snapshot · ${esc(report.publishedAt.slice(0, 16).replace('T', ' '))} UTC.` : 'Joriy bazadan preview.'}${isLiveWeek ? ' Hafta hali davom etmoqda.' : ''}</p>
         </div>
         <div class="weekly-report-actions">
-          ${button('weekly-png', '📸 PNG yuklab olish', !report.count)}
-          ${admin ? button('publish', saved ? 'Hisobotni qayta publish qilish' : 'Jamoaga publish qilish', !report.count) : ''}
-          ${admin && saved ? button('unpublish', 'Unpublish') : ''}
+          ${button('weekly-png', '<i class="fa-solid fa-camera"></i> PNG yuklab olish', !report.count)}
+          ${admin ? button('publish', saved ? '<i class="fa-solid fa-cloud-arrow-up"></i> Qayta publish qilish' : '<i class="fa-solid fa-cloud-arrow-up"></i> Jamoaga publish qilish', !report.count) : ''}
+          ${admin && saved ? button('unpublish', '<i class="fa-solid fa-eye-slash"></i> Unpublish') : ''}
         </div>
       </div>
       <div class="progress-numbers progress-kpi-grid">
-        <div class="kpi-card">
+        <div class="kpi-card kpi-card-matches">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">MATCH</span>
+            <i class="fa-solid fa-gamepad kpi-card-icon"></i>
+          </div>
           <strong>${report.count}</strong>
-          <span>MATCH</span>
           <small class="kpi-sub">${report.wins} W / ${report.losses} L</small>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card kpi-card-winrate">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">WIN RATE</span>
+            <i class="fa-solid fa-chart-pie kpi-card-icon"></i>
+          </div>
           <strong class="${(report.winRate ?? 0) >= 50 ? 'rate-positive' : 'rate-negative'}">${fmt(report.winRate)}%</strong>
-          <span>WIN RATE</span>
-          <div class="kpi-progress-bar"><div class="kpi-progress-fill" style="width: ${Math.min(100, Math.max(0, report.winRate || 0))}%"></div></div>
+          <div class="kpi-progress-bar"><div class="kpi-progress-fill ${(report.winRate ?? 0) >= 50 ? 'fill-win' : 'fill-loss'}" style="width: ${Math.min(100, Math.max(0, report.winRate || 0))}%"></div></div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card kpi-card-mvp">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">HAFTA MVP'SI</span>
+            <i class="fa-solid fa-crown kpi-card-icon gold"></i>
+          </div>
           <strong class="kpi-highlight">${topMvp && topMvp.mvps > 0 ? esc(topMvp.name) : '—'}</strong>
-          <span>HAFTA MVP'SI</span>
           <small class="kpi-sub">${topMvp && topMvp.mvps > 0 ? `${topMvp.mvps} ta MVP` : 'Hali yo‘q'}</small>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card kpi-card-hero">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">ENG KO‘P O‘YNALGAN</span>
+            <i class="fa-solid fa-fire kpi-card-icon orange"></i>
+          </div>
           <strong class="kpi-hero">${report.heroes[0]?.[0] || '—'}</strong>
-          <span>ENG KO‘P O‘YNALGAN</span>
           <small class="kpi-sub">${report.heroes[0]?.[1] ? `${report.heroes[0][1]} ta match` : '—'}</small>
         </div>
       </div>
@@ -317,6 +347,7 @@ export class ProgressHub {
 
     if (!this.hero) {
       return `<div class="progress-empty journey-hero-picker">
+        <div class="empty-icon-wrap"><i class="fa-solid fa-route"></i></div>
         <h3>Qaysi hero bilan yo‘lingizni ko‘ramiz?</h3>
         <p>Quyidagi eng ko‘p o‘ynalgan qahramonlardan birini tanlang yoki yuqoridagi filtrdan foydalaning:</p>
         ${topHeroes.length ? `<div class="journey-chips-grid">${topHeroes.map(h => `
@@ -329,7 +360,7 @@ export class ProgressHub {
     }
     const result = heroJourney(this.rows()), player = this.data.players.find(p => p.id === this.playerId);
     const pool = player?.heroPool?.find(h => h.heroName === this.hero);
-    return `<article class="progress-report">
+    return `<article class="progress-report journey-main-report">
       <div class="journey-header">
         <div>
           <p class="section-eyebrow">HERO JOURNEY / ${esc(pool?.status || 'Captain status belgilanmagan')}</p>
@@ -337,13 +368,13 @@ export class ProgressHub {
           <p class="journey-subtitle">${result.count} match · ${esc(this.matchType)} · ${esc(this.role || 'Barcha laynlar')}</p>
         </div>
         ${topHeroes.length > 1 ? `<div class="journey-quick-switch">
-          <span class="quick-switch-label">Tezkor:</span>
+          <span class="quick-switch-label">Tezkor tanlov:</span>
           ${topHeroes.map(h => `<button type="button" class="journey-mini-chip ${h.name === this.hero ? 'active' : ''}" data-select-hero="${esc(h.name)}">${esc(h.name)} (${h.count})</button>`).join('')}
         </div>` : ''}
       </div>
       ${!result.window ? '<p class="text-dim">Taqqoslash uchun kamida 2 ta match kerak.</p>' : `
         <div class="journey-summary-card">
-          <div class="journey-window-note">Dastlabki ${result.window} va eng so‘nggi ${result.window} match taqqoslanmoqda.${result.window < 5 ? ' <small class="text-dim">(Hali kichik sample)</small>' : ''}</div>
+          <div class="journey-window-note"><i class="fa-solid fa-arrows-split-up-and-left"></i> Dastlabki ${result.window} va eng so‘nggi ${result.window} match taqqoslanmoqda.${result.window < 5 ? ' <small class="text-dim">(Hali kichik sample)</small>' : ''}</div>
           <div class="journey-progress-pill">
             <span>Win Rate dinamikasi:</span>
             <strong class="journey-rate-start">${fmt(result.first.winRate)}%</strong>
@@ -388,11 +419,17 @@ export class ProgressHub {
     const rows = this.rows(); this.momentList = moments(rows);
     return `<div class="moments-container">
       <div class="moments-intro">
-        <p class="moments-lead">Har bir o‘yinchining shaxsiy rekordlari va eng yorqin matchlari.</p>
-        <details class="progress-info-toggle">
-          <summary>ℹ️ Rekordlar qanday aniqlanadi?</summary>
-          <p class="progress-note">Rekordlar faqat tanlangan tarkib, hero, layn va match turidagi saqlangan natijalar orasidan olinadi. Bir xil rekordlar “teng rekord” deb belgilanadi.</p>
-        </details>
+        <div class="moments-intro-card">
+          <div class="moments-intro-copy">
+            <p class="section-eyebrow"><i class="fa-solid fa-trophy"></i> HALL OF RECORDS</p>
+            <h3>Eclipse Moments</h3>
+            <p class="moments-lead">Har bir o‘yinchining shaxsiy rekordlari, eng yorqin lahzalari va match yutuqlari.</p>
+          </div>
+          <details class="progress-info-toggle">
+            <summary>ℹ️ Rekordlar qanday aniqlanadi?</summary>
+            <p class="progress-note">Rekordlar faqat tanlangan tarkib, hero, layn va match turidagi saqlangan natijalar orasidan olinadi. Bir xil rekordlar “teng rekord” deb belgilanadi.</p>
+          </details>
+        </div>
       </div>
       <div class="moment-grid">
         ${this.momentList.map((o, i) => `
@@ -407,20 +444,23 @@ export class ProgressHub {
               ${o.reasons.map(r => `<span class="moment-reason-pill">${esc(r)}</span>`).join('')}
             </div>
             <div class="moment-card-footer">
-              ${button(`moment-${i}`, '📸 Moment PNG yuklash')}
+              ${button(`moment-${i}`, '<i class="fa-solid fa-camera"></i> Moment PNG yuklash')}
             </div>
           </article>
-        `).join('') || '<div class="progress-empty"><h3>Hali rekord yoki MVP topilmadi.</h3><p>Istalgan qayd etilgan matchni pastdan tanlab kartochka yaratishingiz mumkin.</p></div>'}
+        `).join('') || '<div class="progress-empty"><div class="empty-icon-wrap"><i class="fa-solid fa-award"></i></div><h3>Hali rekord yoki MVP topilmadi.</h3><p>Istalgan qayd etilgan matchni pastdan tanlab kartochka yaratishingiz mumkin.</p></div>'}
       </div>
       ${rows.length ? `
         <div class="moment-custom-picker">
-          <h4>Shaxsiy tanlov orqali kartochka yaratish</h4>
+          <div class="moment-picker-header">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <h4>Shaxsiy tanlov orqali kartochka yaratish</h4>
+          </div>
           <label class="progress-pick">Matchni tanlang
             <select class="form-select" id="momentPick">
               ${this.options([...rows].reverse().map(o => [o.match.id, `${o.match.date} · ${o.row.heroUsed} · ${o.match.result === 'win' ? 'W' : 'L'}`]), '')}
             </select>
           </label>
-          ${button('moment-picked', '📸 Tanlangan match PNG')}
+          ${button('moment-picked', '<i class="fa-solid fa-camera"></i> Tanlangan match PNG')}
         </div>
       ` : ''}
     </div>`;
