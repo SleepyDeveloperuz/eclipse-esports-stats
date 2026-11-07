@@ -181,6 +181,9 @@
   .batch-toolbar button { width: 100%; }
   .batch-preview img { width: 100%; max-width: 140px; }
 }
+.batch-admin-notice { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 0; padding: 6px 12px; border-radius: 8px; background: rgba(233, 200, 108, 0.12); border: 1px solid rgba(233, 200, 108, 0.35); color: #edd075; font-size: 12px; font-weight: 600; }
+.batch-admin-notice i { color: #e9c86c; }
+.batch-worker-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 @media(max-width:600px) { .progress-heading { align-items:start; flex-direction:column } .progress-numbers { gap:26px } .progress-table-wrap th,.progress-table-wrap td { padding:12px 9px } }
 .weekly-focus { padding:clamp(20px,3vw,36px); margin:24px 0; border:1px solid #e9c86c50; border-radius:18px; background:#10130fea; overflow-wrap:anywhere }
 .weekly-focus h3 { font-size:clamp(24px,3vw,34px); margin:8px 0; letter-spacing:-.025em }

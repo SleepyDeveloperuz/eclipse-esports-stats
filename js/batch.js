@@ -99,6 +99,7 @@ export class BatchUpload {
         <p class="progress-note batch-privacy-note">
           <i class="fa-solid fa-shield-halved"></i> Rasmlar faqat shu tab xotirasida saqlanadi va serverda qolmaydi. AI limiti odatdagidek: juftlash uchun 1 so‘rov, har match uchun 1 scan. Natijalarni yuborishdan oldin tahrirlash imkoniyati mavjud.
         </p>
+        ${this.admin ? '<div class="batch-admin-notice"><i class="fa-solid fa-crown"></i> <strong>Admin konsoli:</strong> Multi-match natijalarini faqat jamoa lideri (IGL / Captain) yuklaydi va tasdiqlaydi.</div>' : ''}
 
         <div class="batch-upload-panel">
           <div class="batch-dropzone" id="batchDropzone" tabindex="0" role="button" aria-label="Skrinshotlarni yuklash uchun bosing yoki fayllarni tashlang">
@@ -529,18 +530,59 @@ export class BatchUpload {
     const item = { group, worker, root, state: 'waiting' };
     this.items.push(item);
 
+    const actionWrap = document.createElement('div');
+    actionWrap.className = 'batch-worker-actions';
+    actionWrap.innerHTML = `
+      <button type="button" class="btn btn-primary btn-sm batch-save-item-btn" data-batch-save-item>
+        <i class="fa-solid fa-check"></i> Match ma’lumotlarini saqlash
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm" data-batch-cancel-item>
+        Yopish
+      </button>
+    `;
+    worker.container.append(actionWrap);
+
+    actionWrap.querySelector('[data-batch-save-item]').onclick = () => {
+      try {
+        const payload = worker.collectDraft();
+        item.state = 'ready';
+        this.itemStatus(item, this.summary(payload.draft));
+        worker.container.hidden = true;
+        root.querySelector('[data-edit]').classList.remove('active');
+        this.updateControls();
+        window.eclipseAudio?.playSuccess?.();
+        window.showToast?.(`Match #${matchNumber} ma’lumotlari muvaffaqiyatli saqlandi.`, 'success');
+      } catch (err) {
+        window.showToast?.(err.message, 'error');
+        const errBox = worker.container.querySelector('#practiceFormError');
+        if (errBox) {
+          errBox.textContent = err.message;
+          errBox.hidden = false;
+        }
+      }
+    };
+
+    actionWrap.querySelector('[data-batch-cancel-item]').onclick = () => {
+      worker.container.hidden = true;
+      root.querySelector('[data-edit]').classList.remove('active');
+      window.eclipseAudio?.playClick?.();
+    };
+
     root.querySelector('[data-edit]').onclick = () => {
       worker.container.hidden = !worker.container.hidden;
       root.querySelector('[data-edit]').classList.toggle('active', !worker.container.hidden);
       window.eclipseAudio?.playClick?.();
     };
 
-    worker.container.addEventListener('change', () => {
+    const markReview = () => {
       if (!this.busy && item.state !== 'sent') {
         item.state = 'review';
-        this.itemStatus(item, 'Tahrirlandi · yuborishda tekshiriladi');
+        this.itemStatus(item, 'Tahrirlandi · saqlash tugmasini bosing yoki to‘g‘ridan-to‘g‘ri yuboring');
+        this.updateControls();
       }
-    });
+    };
+    worker.container.addEventListener('change', markReview);
+    worker.container.addEventListener('input', markReview);
 
     this.updateControls();
   }
@@ -597,6 +639,7 @@ export class BatchUpload {
 
   async send(generation) {
     if (this.app.cloudSync.getStatus().pending) throw new Error('Avval lokal o‘zgarishlar cloudga saqlansin.');
+    this.status(this.app.authManager.isAdmin() ? 'Jamoa lideri (IGL) nomidan matchlar saqlanmoqda…' : 'Matchlar yuborilmoqda…');
     let sent = 0;
     for (const item of this.items) {
       if (generation !== this.generation) break;

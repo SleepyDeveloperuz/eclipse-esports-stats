@@ -409,13 +409,19 @@
       if (!summary) return;
       summary.dataset.detailsOpen = String(open);
       const toggle = summary.querySelector('button');
-      toggle.textContent = open ? 'Tahrirni yopish' : 'Tahrirlash · ixtiyoriy';
-      toggle.setAttribute('aria-expanded', String(open));
+      if (toggle) {
+        toggle.innerHTML = open ? '<i class="fa-solid fa-check"></i> Tahrirni tasdiqlash' : '<i class="fa-solid fa-pen-to-square"></i> Tahrirlash · ixtiyoriy';
+        toggle.setAttribute('aria-expanded', String(open));
+      }
       for (const child of form.children) {
-        if (!child.matches('.submission-form-grid, .submission-result-fieldset, .submission-participants-head, #practicePlayerRows, .match-extra:not([data-scan-summary]), .submission-note, #matchDraftStatus, [data-clear-draft]')) continue;
+        if (!child.matches('.submission-form-grid, .submission-result-fieldset, .submission-participants-head, #practicePlayerRows, .match-extra:not([data-scan-summary]), .submission-note, #matchDraftStatus, [data-clear-draft], .submission-confirm-edits-bar')) continue;
         if (!open && child.dataset.scanDisplay === undefined) child.dataset.scanDisplay = child.style.display;
         child.style.display = open ? (child.dataset.scanDisplay || '') : 'none';
         if (open) delete child.dataset.scanDisplay;
+      }
+      if (!open) {
+        this.refreshScanSummary();
+        this.saveDraft();
       }
     }
     refreshScanSummary({ collapse = false } = {}) {
@@ -434,10 +440,30 @@
       if (!summary && !collapse) return true;
       if (!summary) {
         summary = document.createElement('section'); summary.dataset.scanSummary = ''; summary.className = 'match-extra';
-        summary.innerHTML = '<strong>Yuborishga tayyor</strong><p data-scan-overview></p><div data-scan-players></div><button type="button" class="btn btn-sm btn-secondary" aria-expanded="false">Tahrirlash · ixtiyoriy</button>';
+        summary.innerHTML = '<strong>Yuborishga tayyor</strong><p data-scan-overview></p><div data-scan-players></div><button type="button" class="btn btn-sm btn-secondary" aria-expanded="false"><i class="fa-solid fa-pen-to-square"></i> Tahrirlash · ixtiyoriy</button>';
         form.querySelector('#practiceScanStatus').after(summary);
-        summary.querySelector('button').onclick = () => this.setScanDetailsOpen(summary.dataset.detailsOpen !== 'true');
+        summary.querySelector('button').onclick = () => {
+          const currentlyOpen = summary.dataset.detailsOpen === 'true';
+          this.setScanDetailsOpen(!currentlyOpen);
+          if (currentlyOpen) {
+            window.showToast?.('Tahrirlangan ma’lumotlar saqlandi', 'success');
+            window.eclipseAudio?.playSuccess?.();
+          }
+        };
         this.setScanDetailsOpen(true);
+      }
+      let confirmBar = form.querySelector('.submission-confirm-edits-bar');
+      if (!confirmBar) {
+        confirmBar = document.createElement('div');
+        confirmBar.className = 'submission-confirm-edits-bar';
+        confirmBar.innerHTML = '<button type="button" class="btn btn-sm btn-secondary" data-confirm-edits><i class="fa-solid fa-check"></i> Tahrirni tasdiqlash va saqlash</button>';
+        const note = form.querySelector('.submission-note');
+        if (note) note.after(confirmBar);
+        confirmBar.querySelector('[data-confirm-edits]').onclick = () => {
+          this.setScanDetailsOpen(false);
+          window.showToast?.('Tahrirlangan ma’lumotlar saqlandi', 'success');
+          window.eclipseAudio?.playSuccess?.();
+        };
       }
       const matchType = form.querySelector('#practiceMatchType')?.selectedOptions[0]?.textContent || draft.matchType;
       summary.querySelector('[data-scan-overview]').textContent = `${draft.result === 'win' ? 'Win' : 'Loss'} · ${draft.playerStats.length} o‘yinchi${draft.durationFormatted ? ` · ${draft.durationFormatted}` : ''}. Sana: ${draft.date} · Tur: ${matchType} (formadagi tanlov). Faqat kerak bo‘lsa tahrirlang.`;
@@ -464,7 +490,7 @@
       const options = players.map(player => `<option value="${this.escape(player.id)}">${this.escape(player.name)}</option>`).join('');
       const submitter = form.querySelector('#practiceSubmitter');
       const claimedPlayerId = submitter.value;
-      submitter.innerHTML = (this.auth.isAdmin() ? '<option value="admin">Captain · boshqa o‘yinchilar nomidan</option>' : '<option value="">Rosterdan tanlang…</option>') + options;
+      submitter.innerHTML = (this.auth.isAdmin() ? '<option value="admin">Jamoa lideri (IGL / Captain) nomidan</option>' : '<option value="">Rosterdan tanlang…</option>') + options;
       submitter.value = claimedPlayerId;
       const substitutes = form.querySelector('#practiceSubstitutes');
       const selected = new Set([...substitutes.selectedOptions].map(option => option.value));
@@ -506,19 +532,29 @@
     async submitForm(event) {
       event.preventDefault();
       if (this.saving) return;
-      if (this.auth.isAdmin() && this.cloudSync?.getStatus?.().pending) return window.showToast?.('Avval oldingi mahalliy o‘zgarishlar cloudga saqlansin. So‘ng qayta yuboring.', 'warning');
+      if (this.auth.isAdmin() && this.cloudSync?.getStatus?.().pending) {
+        this.saving = false;
+        return window.showToast?.('Avval oldingi mahalliy o‘zgarishlar cloudga saqlansin. So‘ng qayta yuboring.', 'warning');
+      }
       this.saving = true;
       const submittedForm = this.container.querySelector('#practiceSubmissionForm');
       const controls = [...this.container.querySelectorAll('input, select, textarea, button')].map(el => [el, el.disabled]);
       try {
         controls.forEach(([el]) => { el.disabled = true; });
-        await Promise.all([...this.container.querySelectorAll('.submission-player-row')].map(row => row._roleLookupPromise));
+        await Promise.all([...this.container.querySelectorAll('.submission-player-row')]
+          .map(row => row._roleLookupPromise)
+          .filter(Boolean)
+          .map(p => Promise.resolve(p).catch(() => {})));
         if (!submittedForm?.isConnected || this.container?.querySelector('#practiceSubmissionForm') !== submittedForm) return;
         // Restore original validation state before the base submit collects the form.
         controls.forEach(([el, disabled]) => { if (el.isConnected) el.disabled = disabled; });
         const save = super.submitForm(event);
         controls.forEach(([el]) => { el.disabled = true; });
         await save;
+      } catch (err) {
+        window.showToast?.(err.message, 'error');
+        const errorBox = this.container?.querySelector('#practiceFormError');
+        if (errorBox) { errorBox.textContent = err.message; errorBox.hidden = false; }
       } finally {
         controls.forEach(([el, disabled]) => { if (el.isConnected) el.disabled = disabled; }); this.saving = false;
         this.updateFormMode();

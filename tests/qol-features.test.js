@@ -1066,5 +1066,59 @@ domTest('multi-match batch upload renders modern cyber dropzone, step pipeline, 
   assert.ok(batch.container.querySelector('#batchStep3.is-active'), 'Step 3 active');
   assert.ok(batch.container.querySelector('#batchStep1.is-done'), 'Step 1 marked done');
 
+  // 6. Test item save button in worker
+  assert.ok(item.worker.container.querySelector('[data-batch-save-item]'), 'Save item button exists in worker');
+  assert.ok(item.worker.container.querySelector('[data-batch-cancel-item]'), 'Cancel item button exists in worker');
+
+  dom.window.close();
+});
+
+domTest('Admin upload shows IGL notice and submission-hero collapses telemetry on narrow viewports', async () => {
+  if (!JSDOM) return;
+  const dom = new JSDOM(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <link rel="stylesheet" href="css/style.css">
+      </head>
+      <body>
+        <div id="submissionContainer"></div>
+      </body>
+    </html>`, {
+    runScripts: 'outside-only',
+    url: 'https://eclipse-esports.uz/'
+  });
+  const { window } = dom;
+
+  const app = {
+    authManager: { isAdmin: () => true, getAccessToken: () => 'token' },
+    dataStore: { getActivePlayers: () => [{ id: 'p1', name: 'Player 1' }], getPlayers: () => [{ id: 'p1', name: 'Player 1' }] },
+    heroDb: { getAll: () => [{ id: 1, name: 'Miya' }], resolve: name => ({ id: 1, name }) },
+    cloudSync: { getStatus: () => ({ pending: false }) }
+  };
+
+  window.groupBatchFiles = () => ({ matches: [], unresolved: [] });
+  for (const file of ['date-utils', 'image-upload', 'submissions', 'match-desk']) {
+    const script = readFileSync(new URL(`../js/${file}.js`, import.meta.url), 'utf8')
+      .replace(/^import .*;\n/gm, '')
+      .replace(/export (class|function|async function)/g, '$1');
+    window.eval(script);
+  }
+
+  const manager = new window.SubmissionManager(app.authManager, app.dataStore, app.heroDb, app.cloudSync);
+  manager.container = window.document.querySelector('#submissionContainer');
+  manager.renderState();
+
+  // 1. Check IGL notice & admin hero copy
+  assert.match(manager.container.querySelector('.submission-hero__copy > p:last-child').textContent, /IGL \/ Captain/, 'Admin hero mentions IGL / Captain');
+  assert.ok(manager.container.querySelector('.submission-igl-notice'), 'IGL notice banner is rendered for admin');
+  const submitter = manager.container.querySelector('#practiceSubmitter');
+  assert.match(submitter.options[0].textContent, /Jamoa lideri \(IGL \/ Captain\) nomidan/, 'Submitter option specifies team leader IGL');
+
+  // 2. Check submission-hero media query rules in style.css
+  const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  assert.match(css, /@media\s*\(max-width:\s*1180px\)[\s\S]*?\.submission-hero\s*\{[^}]*grid-template-columns:\s*4\.5rem minmax\(0,\s*1fr\)/, 'submission-hero collapses to 2 columns at 1180px');
+  assert.match(css, /@media\s*\(max-width:\s*1180px\)[\s\S]*?\.submission-telemetry\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/, 'submission-telemetry wraps to full row at 1180px');
+
   dom.window.close();
 });

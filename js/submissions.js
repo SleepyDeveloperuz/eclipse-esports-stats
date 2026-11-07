@@ -163,9 +163,11 @@ window.SubmissionManager = class SubmissionManager {
           <span></span><i class="fa-solid fa-satellite-dish"></i>
         </div>
         <div class="submission-hero__copy">
-          <p class="section-eyebrow">ECLIPSE // TEAM INPUT</p>
+          <p class="section-eyebrow">ECLIPSE // ${isAdmin ? 'CAPTAIN CONSOLE' : 'TEAM INPUT'}</p>
           <h2 id="submissionHeading">Match yuborish</h2>
-          <p>1–5 a’zoning to‘liq natijasini kiriting. Besh a’zo — Team 5, qolganlari — Practice. Jamoadosh yuborgan match Captain tasdiqlagach statistikaga kiradi.</p>
+          <p>${isAdmin
+            ? 'Faqat jamoa lideri (IGL / Captain) match natijalarini to‘liq kiritadi. Kiritilgan matchlar to‘g‘ridan-to‘g‘ri jamoa statistikasiga qo‘shiladi.'
+            : '1–5 a’zoning to‘liq natijasini kiriting. Besh a’zo — Team 5, qolganlari — Practice. Jamoadosh yuborgan match Captain tasdiqlagach statistikaga kiradi.'}</p>
         </div>
         <div class="submission-telemetry" aria-label="Submission holati">
           <span><strong>${Number(counts.pending) || 0}</strong><small>Kutilmoqda</small></span>
@@ -211,6 +213,7 @@ window.SubmissionManager = class SubmissionManager {
           ${this.dropzoneMarkup(0, 'Scoreboard', '1–2 rasm yuklang · avtomatik o‘qiladi', true)}
           ${this.dropzoneMarkup(1, 'Damage', 'Batafsil statistika · ixtiyoriy', false)}
         </div>
+        ${this.auth.isAdmin() ? '<div class="submission-igl-notice"><i class="fa-solid fa-crown"></i> <span><strong>Admin konsoli:</strong> Match natijasini faqat jamoa lideri (IGL / Captain) yuklaydi va saqlaydi.</span></div>' : ''}
         <p class="submission-privacy"><i class="fa-solid fa-shield-halved"></i> Skrinshotlar saytda saqlanmaydi. Natija, raqamlar va qahramonlar avtomatik to‘ldiriladi; faqat kerak bo‘lsa tuzating. Skan vaqti va tuzatilgan maydon nomlari Captain uchun kuzatiladi — bu kuzatuvga rasm va qiymatlar kirmaydi.</p>
         <button type="button" class="btn btn-secondary submission-scan-btn" id="practiceScanBtn" disabled>
           <i class="fa-solid fa-wand-magic-sparkles"></i> Qayta o‘qish
@@ -219,7 +222,7 @@ window.SubmissionManager = class SubmissionManager {
         <div id="practiceScanStatus" class="submission-status-line" role="status" aria-live="polite"></div>
 
         <div class="submission-form-grid">
-          <label><span>Kim kiritmoqda?</span><select class="form-select" id="practiceSubmitter" required>${this.auth.isAdmin() ? '<option value="admin">Captain · boshqa o‘yinchilar nomidan</option>' : '<option value="">Rosterdan tanlang…</option>'}${playerOptions}</select></label>
+          <label><span>Kim kiritmoqda?</span><select class="form-select" id="practiceSubmitter" required>${this.auth.isAdmin() ? '<option value="admin">Jamoa lideri (IGL / Captain) nomidan</option>' : '<option value="">Rosterdan tanlang…</option>'}${playerOptions}</select></label>
           <label><span>Sana</span><input class="form-input" id="practiceDate" type="date" value="${today}" required></label>
           <label><span>Match turi</span><select class="form-select" id="practiceMatchType" required><option value="ranked">Ranked</option><option value="scrim">Scrim</option><option value="tournament">Turnir</option><option value="casual">Oddiy</option></select></label>
           <label><span>Davomiylik <em>ixtiyoriy</em></span><input class="form-input" id="practiceDuration" inputmode="numeric" placeholder="15:30" pattern="\\d{1,3}:[0-5]\\d"></label>
@@ -817,7 +820,9 @@ window.SubmissionManager = class SubmissionManager {
       const submission = this.collectDraft();
       if (button) {
         button.disabled = true;
-        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Yuborilmoqda…';
+        button.innerHTML = this.auth.isAdmin()
+          ? '<i class="fa-solid fa-spinner fa-spin"></i> Jamoa lideri (IGL) nomidan saqlanmoqda…'
+          : '<i class="fa-solid fa-spinner fa-spin"></i> Yuborilmoqda…';
       }
       const payload = await this.request(this.editingMatch || this.editingSubmission ? 'PATCH' : 'POST', {
         idempotencyKey: window.crypto?.randomUUID?.() || `submit_${Date.now()}`,
@@ -846,7 +851,9 @@ window.SubmissionManager = class SubmissionManager {
     } finally {
       if (button?.isConnected) {
         button.disabled = false;
-        button.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Captain navbatiga yuborish';
+        button.innerHTML = this.auth.isAdmin()
+          ? 'Matchni saqlash'
+          : '<i class="fa-solid fa-paper-plane"></i> Captain navbatiga yuborish';
       }
     }
   }
