@@ -263,6 +263,8 @@
       if (typeof document === 'undefined') return;
       const setup = () => {
         this.updateButtons();
+        const hasToggle = document.querySelector('.sfx-toggle-btn');
+        if (!hasToggle) return;
         document.addEventListener('click', (e) => {
           const btn = e.target.closest('.sfx-toggle-btn');
           if (btn) {
