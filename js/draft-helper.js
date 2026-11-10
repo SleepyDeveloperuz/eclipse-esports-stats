@@ -616,12 +616,6 @@
           return;
         }
 
-        if (e.key === 'm' || e.key === 'M') {
-          e.preventDefault();
-          window.eclipseAudio?.toggle?.();
-          return;
-        }
-
         if (e.key === 'd' || e.key === 'D') {
           e.preventDefault();
           if (this.dialog?.open) {

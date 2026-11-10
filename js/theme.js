@@ -79,17 +79,7 @@
 
       document.addEventListener('click', event => {
         const btn = event.target.closest('#themeSwitcherBtn');
-        if (btn) {
-          event.preventDefault();
-          this.openModal();
-        }
-      });
-
-      // Keyboard shortcut 'T' to open or cycle themes
-      document.addEventListener('keydown', event => {
-        if (event.key?.toLowerCase() === 't' && !event.ctrlKey && !event.metaKey && !event.altKey) {
-          const activeTag = document.activeElement?.tagName?.toLowerCase();
-          if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+        if (btn && !btn.hidden && btn.style.display !== 'none') {
           event.preventDefault();
           this.openModal();
         }
@@ -109,7 +99,7 @@
           <div class="theme-modal__header">
             <div>
               <p class="theme-modal__eyebrow">ECLIPSE CUSTOMIZER // UX</p>
-              <h3 id="themeSettingsTitle"><i class="fa-solid fa-palette" style="color:var(--primary);"></i> Mavzular & Ovoz</h3>
+              <h3 id="themeSettingsTitle"><i class="fa-solid fa-palette" style="color:var(--primary);"></i> Aksent mavzulari</h3>
             </div>
             <button type="button" class="theme-modal__close" id="themeModalCloseBtn" aria-label="Yopish"><kbd>Esc</kbd></button>
           </div>
@@ -124,33 +114,6 @@
                     <span class="theme-card__check"><i class="fa-solid fa-check"></i></span>
                   </button>
                 `).join('')}
-              </div>
-            </div>
-
-            <div class="theme-section" style="margin-top:1.25rem;">
-              <label class="theme-section__title">OVOZ EFFECTLARI (SFX PACK)</label>
-              <div class="sound-pack-grid">
-                <button type="button" class="sound-pack-card" data-sound-pack="cyber">
-                  <div class="sound-pack-card__info">
-                    <strong><i class="fa-solid fa-wave-square"></i> Eclipse Cyber</strong>
-                    <small>Silliq kiber-sintezator tovushlari</small>
-                  </div>
-                  <span class="sound-pack-badge">Standart</span>
-                </button>
-                <button type="button" class="sound-pack-card" data-sound-pack="arena">
-                  <div class="sound-pack-card__info">
-                    <strong><i class="fa-solid fa-trophy"></i> Tournament Arena</strong>
-                    <small>Pastki bass va stadion akkordlari</small>
-                  </div>
-                  <span class="sound-pack-badge">Arena</span>
-                </button>
-                <button type="button" class="sound-pack-card" data-sound-pack="arcade">
-                  <div class="sound-pack-card__info">
-                    <strong><i class="fa-solid fa-gamepad"></i> Retro 8-Bit</strong>
-                    <small>Chiptune vintage o‘yin signallari</small>
-                  </div>
-                  <span class="sound-pack-badge">8-Bit</span>
-                </button>
               </div>
             </div>
           </div>
@@ -176,27 +139,11 @@
         });
       });
 
-      dialog.querySelectorAll('[data-sound-pack]').forEach(card => {
-        card.addEventListener('click', () => {
-          const pack = card.dataset.soundPack;
-          if (window.EclipseAudio) {
-            window.EclipseAudio.setSoundPack(pack);
-            window.EclipseAudio.playSuccess();
-            window.showToast?.(`Ovoz to‘plami: ${pack.toUpperCase()} 🔊`);
-            this.updateSoundPackSelection();
-          }
-        });
-      });
-
       return dialog;
     }
 
     updateSoundPackSelection() {
-      if (!this.dialog) return;
-      const currentPack = window.EclipseAudio?.getSoundPack?.() || 'cyber';
-      this.dialog.querySelectorAll('[data-sound-pack]').forEach(card => {
-        card.classList.toggle('is-active', card.dataset.soundPack === currentPack);
-      });
+      // Audio removed
     }
 
     openModal() {
