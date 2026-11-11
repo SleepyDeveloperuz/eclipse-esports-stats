@@ -7,7 +7,13 @@ import {
   formatSubmissionTelegramMessage,
   getSubmissionInlineKeyboard,
   formatDailyScrimSummary,
-  handleTelegramWebhook
+  handleTelegramWebhook,
+  getDefaultGroupId,
+  getMainReplyKeyboard,
+  formatMetaLabSummary,
+  formatTeamOverallStats,
+  formatRosterSummary,
+  formatPhotoUploadInstructions
 } from '../lib/telegram-bot.js';
 import { normaliseOcrPayload } from '../api/ocr.js';
 import { normalisePracticeDraft } from '../api/submissions.js';
@@ -307,5 +313,89 @@ test('Submissions Draft: savage: true automatically enforces maniac: true', () =
   assert.equal(normalized.playerStats[0].savage, true);
   assert.equal(normalized.playerStats[0].maniac, true);
 });
+
+test('Telegram Bot: normalizes supergroup ID and generates main reply keyboard', () => {
+  const orig = process.env.TELEGRAM_GROUP_ID;
+  process.env.TELEGRAM_GROUP_ID = '-3648509145';
+  assert.equal(getDefaultGroupId(), '-1003648509145');
+  process.env.TELEGRAM_GROUP_ID = '-1003648509145';
+  assert.equal(getDefaultGroupId(), '-1003648509145');
+  process.env.TELEGRAM_GROUP_ID = orig;
+
+  const kb = getMainReplyKeyboard();
+  assert.ok(kb && Array.isArray(kb.keyboard));
+  assert.equal(kb.resize_keyboard, true);
+  const allTexts = kb.keyboard.flat().map(b => b.text);
+  assert.ok(allTexts.includes('📸 Match yuborish'));
+  assert.ok(allTexts.includes('📊 Bugungi scrimlar'));
+  assert.ok(allTexts.includes('🧬 Meta Lab (Nusxa olish)'));
+  assert.ok(allTexts.includes('🏆 Jamoa statistikasi'));
+  assert.ok(allTexts.includes('👥 O‘yinchilar tarkibi'));
+});
+
+test('Telegram Bot: formats Meta Lab click-to-copy bans and role picks', () => {
+  const metaText = formatMetaLabSummary();
+  assert.ok(metaText.includes('MLBB META LAB'));
+  assert.ok(metaText.includes('<code>Zhuxin, Fanny, Suyou, Nolan, Hayabusa, Mathilda</code>'));
+  assert.ok(metaText.includes('Nusxa olish uchun'));
+  assert.ok(metaText.includes('EXP Laner'));
+  assert.ok(metaText.includes('Jungler'));
+  assert.ok(metaText.includes('KOMANDA CHATI UCHUN NUSXA'));
+});
+
+test('Telegram Bot: blocks photo match submission in groups and redirects to PM', async () => {
+  const groupUpdate = {
+    message: {
+      message_id: 888,
+      chat: { id: -1003648509145, type: 'supergroup' },
+      from: { id: 111, username: 'player_one', first_name: 'Player' },
+      photo: [{ file_id: 'photo_abc_1' }]
+    }
+  };
+
+  const result = await handleTelegramWebhook(groupUpdate);
+  assert.equal(result.ok, true);
+  assert.equal(result.blockedInGroup, true);
+});
+
+test('Telegram Bot: handles Meta Lab, Stats, and Roster commands', async () => {
+  const metaUpdate = {
+    message: {
+      chat: { id: 1210055227, type: 'private' },
+      text: '🧬 Meta Lab (Nusxa olish)'
+    }
+  };
+  const metaRes = await handleTelegramWebhook(metaUpdate);
+  assert.equal(metaRes.ok, true);
+  assert.equal(metaRes.command, 'meta');
+
+  const statsUpdate = {
+    message: {
+      chat: { id: 1210055227, type: 'private' },
+      text: '/stats'
+    }
+  };
+  const statsRes = await handleTelegramWebhook(statsRes => statsRes, {
+    getMatches: async () => [{ result: 'win', matchType: 'scrim' }, { result: 'loss', matchType: 'ranked' }]
+  });
+  const handledStats = await handleTelegramWebhook(statsUpdate, {
+    getMatches: async () => [{ result: 'win', matchType: 'scrim' }]
+  });
+  assert.equal(handledStats.ok, true);
+  assert.equal(handledStats.command, 'stats');
+
+  const rosterUpdate = {
+    message: {
+      chat: { id: 1210055227, type: 'private' },
+      text: '👥 O‘yinchilar tarkibi'
+    }
+  };
+  const rosterRes = await handleTelegramWebhook(rosterUpdate, {
+    getPlayers: async () => [{ name: 'Heavenlyyy', role: 'Mid Laner' }]
+  });
+  assert.equal(rosterRes.ok, true);
+  assert.equal(rosterRes.command, 'roster');
+});
+
 
 

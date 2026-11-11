@@ -71,8 +71,20 @@ export default async function handler(req, res) {
       approveSubmission,
       rejectSubmission,
       getMatches: async () => {
-        const bundle = await readBundle();
-        return bundle.officialData?.matches || [];
+        try {
+          const bundle = await readBundle();
+          return bundle.officialData?.matches || [];
+        } catch {
+          return [];
+        }
+      },
+      getPlayers: async () => {
+        try {
+          const bundle = await readBundle();
+          return bundle.officialData?.players || [];
+        } catch {
+          return [];
+        }
       },
       createSubmissionFromPhoto: async ({ fileUrl, caption, sender }) => {
         // Build mock request for createSubmission with OCR / manual fallback

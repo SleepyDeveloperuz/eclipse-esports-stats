@@ -4,7 +4,8 @@ import {
   isTelegramConfigured,
   getBotToken,
   handleTelegramWebhook,
-  sendTelegramMessage
+  sendTelegramMessage,
+  setBotCommands
 } from '../lib/telegram-bot.js';
 import {
   readBundle,
@@ -44,10 +45,12 @@ async function startPolling() {
   let me;
   try {
     me = await getMe();
+    await setBotCommands();
     console.log(`\n======================================================`);
     console.log(`🤖 ECLIPSE ESPORTS TELEGRAM BOT ISHGA TUSHDI!`);
     console.log(`Bot nomi: ${me.first_name}`);
     console.log(`Bot username: @${me.username}`);
+    console.log(`Buyruqlar menyusi: O‘rnatildi [Menu]`);
     console.log(`Holati: Xabarlar va skrinshotlarni qabul qilishga tayyor...`);
     console.log(`To‘xtatish uchun: Ctrl + C`);
     console.log(`======================================================\n`);
@@ -78,8 +81,20 @@ async function startPolling() {
               approveSubmission,
               rejectSubmission,
               getMatches: async () => {
-                const bundle = await readBundle();
-                return bundle.officialData?.matches || [];
+                try {
+                  const bundle = await readBundle();
+                  return bundle.officialData?.matches || [];
+                } catch {
+                  return [];
+                }
+              },
+              getPlayers: async () => {
+                try {
+                  const bundle = await readBundle();
+                  return bundle.officialData?.players || [];
+                } catch {
+                  return [];
+                }
               },
               createSubmissionFromPhoto: async ({ fileUrl, caption, sender }) => {
                 const submitterName = sender
