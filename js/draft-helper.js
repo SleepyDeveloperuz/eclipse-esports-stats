@@ -6,7 +6,58 @@
     constructor() {
       this.allyPicks = [null, null, null, null, null];
       this.enemyPicks = [null, null, null, null, null];
-      this.activeSlot = null; // { team: 'ally' | 'enemy', index: 0..4 }
+      this.allyBans = [null, null, null, null, null];
+      this.enemyBans = [null, null, null, null, null];
+      this.isTournamentMode = false;
+      this.selectedBlueprint = null;
+      this.blueprints = [
+        {
+          id: 'bp-snowball',
+          name: '🚀 Snowball Fast Push',
+          roleFocus: 'Erta o‘yin, tajovuzkor invayt va 10-daqiqada minoralarni qulatish',
+          recommendedBans: ['Diggie', 'Mathilda'],
+          recommendedPicks: ['Roger', 'Beatrix', 'Mathilda', 'Chou', 'Valentina'],
+          ifThenRules: [
+            { trigger: 'Fanny', counter: 'Darhol Khufra yoki Moskov javobini oling (Knockup & Anti-dash)' },
+            { trigger: 'Claude', counter: '12-daqiqagacha push qilib o‘yinni yopish (Late scaling oldini olish)' }
+          ]
+        },
+        {
+          id: 'bp-antidive',
+          name: '🛡️ Anti-Dive CC Wall',
+          roleFocus: 'Assasinlar va sakrab kiruvchi gankerlarga qarshi mustahkam devor',
+          recommendedBans: ['Fanny', 'Ling'],
+          recommendedPicks: ['Khufra', 'Phoveus', 'Ruby', 'Brody', 'Yve'],
+          ifThenRules: [
+            { trigger: 'Ling', counter: 'Baxia va Ruby bilan javob berish (Anti-heal & suppression)' },
+            { trigger: 'Nolan', counter: 'Minsitthar yoki Franco tanlanadi (Silencing & suppression)' },
+            { trigger: 'Wanwan', counter: 'Phoveus yoki Khufra bilan javob bering' }
+          ]
+        },
+        {
+          id: 'bp-late-hyper',
+          name: '🏹 Late Scaling Hyper',
+          roleFocus: '15+ daqiqada Lord olish va 1 ta hypercarry atrofida himoyalanib yutish',
+          recommendedBans: ['Mathilda', 'Chou'],
+          recommendedPicks: ['Claude', 'Angela', 'Tigreal', 'Fredrinn', 'Faramis'],
+          ifThenRules: [
+            { trigger: 'Fanny', counter: 'Minoralar ostida himoyalanib, 12-daqiqagacha ehtiyotkor o‘ynang' },
+            { trigger: 'Martis', counter: 'Erta teamfightga kirmang, uning passivasi tushishini kuting' }
+          ]
+        },
+        {
+          id: 'bp-objective',
+          name: '⚔️ Objective / Turtle Control',
+          roleFocus: 'Barcha Turtle va Lordlarni 100% nazorat qilishga mo‘ljallangan tank-jungler kompo',
+          recommendedBans: ['Wanwan', 'Fanny'],
+          recommendedPicks: ['Baxia', 'Paquito', 'Novaria', 'Harith', 'Arlott'],
+          ifThenRules: [
+            { trigger: 'Baxia', counter: 'DHS (Demon Hunter Sword) va Karrie yoki Claude oling' },
+            { trigger: 'Barats', counter: 'Valir yoki Karrie bilan kiting qiling' }
+          ]
+        }
+      ];
+      this.activeSlot = null; // { team: 'ally' | 'enemy' | 'ally_ban' | 'enemy_ban', index: 0..4 }
       this.dialog = null;
       this.container = null;
       this.init();
@@ -100,8 +151,35 @@
               <p class="draft-modal__eyebrow">ECLIPSE TACTICAL // PICK & BAN HELPER</p>
               <h3><i class="fa-solid fa-shield-halved" style="color:var(--primary);"></i> Draft Assistant</h3>
             </div>
+            <div class="draft-header-controls" style="display:flex; align-items:center; gap:0.5rem; margin-left:auto; margin-right:1rem;">
+              <button type="button" class="btn btn-sm btn-secondary" id="draftTournamentToggle" title="Moonton 10-Ban turnir simulyatori">
+                <i class="fa-solid fa-trophy"></i> <span id="tournamentModeLabel">10-Ban Turnir</span>
+              </button>
+              <select class="form-select draft-blueprint-select" id="draftBlueprintSelect" aria-label="Draft Blueprint" style="font-size:0.78rem; padding:0.25rem 0.5rem;">
+                <option value="">Draft Blueprint tanlang…</option>
+                ${this.blueprints.map(bp => `<option value="${bp.id}">${bp.name}</option>`).join('')}
+              </select>
+            </div>
             <button type="button" class="draft-modal__close" id="draftCloseBtn" aria-label="Yopish"><kbd>Esc</kbd></button>
           </header>
+
+          <!-- 10-Ban Tournament Panel -->
+          <div class="draft-bans-panel" id="draftBansPanel" hidden>
+            <div class="draft-bans-group is-blue">
+              <div class="draft-bans-header">
+                <span class="draft-bans-label"><i class="fa-solid fa-ban"></i> Blue Bans (Moonton 3 + 2)</span>
+                <small>Phase 1: 3 ta · Phase 2: 2 ta</small>
+              </div>
+              <div class="draft-ban-slots" id="allyBanSlots"></div>
+            </div>
+            <div class="draft-bans-group is-red">
+              <div class="draft-bans-header">
+                <span class="draft-bans-label"><i class="fa-solid fa-ban"></i> Red Bans (Moonton 3 + 2)</span>
+                <small>Phase 1: 3 ta · Phase 2: 2 ta</small>
+              </div>
+              <div class="draft-ban-slots" id="enemyBanSlots"></div>
+            </div>
+          </div>
 
           <div class="draft-board">
             <!-- Blue Team (Ally) -->
@@ -165,6 +243,22 @@
       dialog.querySelector('#draftResetBtn')?.addEventListener('click', () => this.reset());
       dialog.querySelector('#draftPickerClose')?.addEventListener('click', () => this.closePicker());
 
+      dialog.querySelector('#draftTournamentToggle')?.addEventListener('click', () => {
+        this.isTournamentMode = !this.isTournamentMode;
+        const panel = dialog.querySelector('#draftBansPanel');
+        const btn = dialog.querySelector('#draftTournamentToggle');
+        if (panel) panel.hidden = !this.isTournamentMode;
+        if (btn) btn.classList.toggle('btn-primary', this.isTournamentMode);
+        this.renderSlots();
+        window.eclipseAudio?.playClick?.();
+      });
+
+      dialog.querySelector('#draftBlueprintSelect')?.addEventListener('change', (e) => {
+        this.selectedBlueprint = e.target.value || null;
+        this.renderAnalysis();
+        window.eclipseAudio?.playSuccess?.();
+      });
+
       // Search and lane filter inside picker
       const searchInput = dialog.querySelector('#draftPickerSearch');
       searchInput?.addEventListener('input', () => this.renderPickerGrid());
@@ -212,6 +306,8 @@
     reset() {
       this.allyPicks = [null, null, null, null, null];
       this.enemyPicks = [null, null, null, null, null];
+      this.allyBans = [null, null, null, null, null];
+      this.enemyBans = [null, null, null, null, null];
       this.closePicker();
       this.renderSlots();
       this.renderAnalysis();
@@ -249,8 +345,12 @@
       const { team, index } = this.activeSlot;
       if (team === 'ally') {
         this.allyPicks[index] = hero;
-      } else {
+      } else if (team === 'enemy') {
         this.enemyPicks[index] = hero;
+      } else if (team === 'ally_ban') {
+        this.allyBans[index] = hero;
+      } else if (team === 'enemy_ban') {
+        this.enemyBans[index] = hero;
       }
       this.closePicker();
       this.renderSlots();
@@ -262,8 +362,12 @@
       event?.stopPropagation();
       if (team === 'ally') {
         this.allyPicks[index] = null;
-      } else {
+      } else if (team === 'enemy') {
         this.enemyPicks[index] = null;
+      } else if (team === 'ally_ban') {
+        this.allyBans[index] = null;
+      } else if (team === 'enemy_ban') {
+        this.enemyBans[index] = null;
       }
       this.renderSlots();
       this.renderAnalysis();
@@ -306,6 +410,27 @@
         `;
       };
 
+      const renderBanSlotHtml = (hero, team, index) => {
+        const isP1 = index < 3;
+        const phaseLabel = isP1 ? `Phase 1 (Ban ${index + 1})` : `Phase 2 (Ban ${index + 1})`;
+        if (!hero) {
+          return `
+            <button type="button" class="draft-ban-slot draft-ban-slot--empty" data-team="${team}" data-index="${index}" title="${phaseLabel}">
+              <i class="fa-solid fa-ban"></i>
+              <span>${index + 1}</span>
+            </button>
+          `;
+        }
+        const portrait = hero.images?.minimap || hero.images?.portrait || '';
+        return `
+          <div class="draft-ban-slot draft-ban-slot--filled" data-team="${team}" data-index="${index}" title="${hero.name} (${phaseLabel})">
+            ${portrait ? `<img src="${portrait}" alt="${hero.name}" class="draft-ban-slot__img">` : `<span>${hero.name.slice(0, 2)}</span>`}
+            <div class="draft-ban-slot__overlay"><i class="fa-solid fa-ban"></i></div>
+            <button type="button" class="draft-ban-slot__remove" data-remove-team="${team}" data-remove-index="${index}" title="Olib tashlash">✕</button>
+          </div>
+        `;
+      };
+
       if (allyContainer) {
         allyContainer.innerHTML = this.allyPicks.map((h, i) => renderSlotHtml(h, 'ally', i)).join('');
       }
@@ -313,14 +438,24 @@
         enemyContainer.innerHTML = this.enemyPicks.map((h, i) => renderSlotHtml(h, 'enemy', i)).join('');
       }
 
+      // Render Bans if panel exists
+      const allyBanContainer = this.dialog.querySelector('#allyBanSlots');
+      const enemyBanContainer = this.dialog.querySelector('#enemyBanSlots');
+      if (allyBanContainer) {
+        allyBanContainer.innerHTML = this.allyBans.map((h, i) => renderBanSlotHtml(h, 'ally_ban', i)).join('');
+      }
+      if (enemyBanContainer) {
+        enemyBanContainer.innerHTML = this.enemyBans.map((h, i) => renderBanSlotHtml(h, 'enemy_ban', i)).join('');
+      }
+
       // Bind slot clicks
-      this.dialog.querySelectorAll('.draft-slot--empty').forEach(btn => {
+      this.dialog.querySelectorAll('.draft-slot--empty, .draft-ban-slot--empty').forEach(btn => {
         btn.addEventListener('click', () => {
           this.openPicker(btn.dataset.team, Number(btn.dataset.index));
         });
       });
 
-      this.dialog.querySelectorAll('.draft-slot__remove').forEach(btn => {
+      this.dialog.querySelectorAll('.draft-slot__remove, .draft-ban-slot__remove').forEach(btn => {
         btn.addEventListener('click', (e) => {
           this.removeHero(btn.dataset.removeTeam, Number(btn.dataset.removeIndex), e);
         });
@@ -469,8 +604,39 @@
         else if (frontlineScore < 3) balanceWarning = '⚠️ Frontline (Tank/Fighter) yetishmayapti. Jamoa janglarida himoyachi qahramon oling.';
       }
 
+      // Check active Blueprint triggers
+      let blueprintCardHtml = '';
+      const bp = this.selectedBlueprint ? this.blueprints.find(b => b.id === this.selectedBlueprint) : null;
+      const enemyHeroNames = enemies.map(h => (h.name || '').toLowerCase());
+
+      if (bp) {
+        const triggered = (bp.ifThenRules || []).filter(r => enemyHeroNames.includes(r.trigger.toLowerCase()));
+        blueprintCardHtml = `
+          <div class="draft-card draft-blueprint-card" style="grid-column: 1 / -1; background: linear-gradient(135deg, rgba(228, 196, 110, 0.08) 0%, rgba(13, 15, 20, 0.95) 100%); border: 1px solid rgba(228, 196, 110, 0.35);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
+              <span class="badge" style="background:rgba(228, 196, 110, 0.2); color:var(--primary); font-size:0.7rem; font-weight:700;"><i class="fa-solid fa-chess"></i> FAOL DRAFT BLUEPRINT</span>
+              <strong style="color:#fff; font-size:1.05rem;">${bp.name}</strong>
+            </div>
+            <p style="font-size:0.82rem; color:var(--text-secondary); margin:0 0 0.6rem 0;">${bp.roleFocus}</p>
+            <div style="display:flex; flex-wrap:wrap; gap:1.5rem; font-size:0.8rem; margin-bottom:0.5rem;">
+              <div><strong style="color:var(--text-muted);">Tavsiya Banlar:</strong> <span style="color:#f87171;">${bp.recommendedBans.join(', ')}</span></div>
+              <div><strong style="color:var(--text-muted);">Asosiy tanlovlar:</strong> <span style="color:#38bdf8;">${bp.recommendedPicks.join(', ')}</span></div>
+            </div>
+            ${triggered.length ? `
+              <div style="background:rgba(239, 68, 68, 0.15); border:1px solid rgba(239, 68, 68, 0.4); border-radius:6px; padding:0.5rem 0.8rem; margin-top:0.4rem;">
+                <span style="font-size:0.75rem; color:#fca5a5; font-weight:700;"><i class="fa-solid fa-triangle-exclamation"></i> Taktik javob qoidasi faollashdi:</span>
+                <ul style="margin:0.25rem 0 0 1.2rem; padding:0; font-size:0.8rem; color:#fee2e2;">
+                  ${triggered.map(t => `<li><strong>Raqib ${t.trigger} oldi:</strong> ${t.counter}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+
       container.innerHTML = `
         <div class="draft-analytics-grid">
+          ${blueprintCardHtml}
           <!-- Damage Balance Bar -->
           <div class="draft-card">
             <h4><i class="fa-solid fa-scale-balanced" style="color:var(--primary);"></i> Zarar balansi</h4>

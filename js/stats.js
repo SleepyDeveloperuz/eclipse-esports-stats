@@ -1808,6 +1808,32 @@ window.StatsEngine = class StatsEngine {
       `;
     }).join('\n');
 
+    // Coach Diagnostic Verdicts
+    let coachDiagnosticHtml = '';
+    const late = phases.late;
+    const early = phases.early;
+    if (late && late.matches.length >= 2 && late.winRateNum < 50) {
+      coachDiagnosticHtml = `
+        <div class="duration-coach-diagnostic is-warning" style="margin-top:1rem; padding:0.85rem 1.1rem; border-radius:8px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.35); display:flex; align-items:flex-start; gap:0.75rem;">
+          <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444; font-size:1.1rem; margin-top:0.15rem;"></i>
+          <div>
+            <strong style="color:#fca5a5; font-size:0.85rem; display:block; margin-bottom:0.2rem;">Murabbiy Diagnostikasi (Late Game muammosi):</strong>
+            <span style="font-size:0.8rem; color:#fee2e2; line-height:1.45;">Jamoa 16+ daqiqadan oshgan uzun matchlarda kutilganidan ko‘proq yutqazmoqda (${late.winRate}% WR). 15-daqiqadagi Lord oldidagi positioning va ortiqcha xavfli harakatlarni kamaytirish talab etiladi.</span>
+          </div>
+        </div>
+      `;
+    } else if (early && early.matches.length >= 2 && early.winRateNum >= 70) {
+      coachDiagnosticHtml = `
+        <div class="duration-coach-diagnostic is-success" style="margin-top:1rem; padding:0.85rem 1.1rem; border-radius:8px; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.35); display:flex; align-items:flex-start; gap:0.75rem;">
+          <i class="fa-solid fa-bolt-lightning" style="color:#22c55e; font-size:1.1rem; margin-top:0.15rem;"></i>
+          <div>
+            <strong style="color:#86efac; font-size:0.85rem; display:block; margin-bottom:0.2rem;">Taktik Ustunlik (Snowball effekti):</strong>
+            <span style="font-size:0.8rem; color:#dcfce7; line-height:1.45;">Jamoaning erta o‘yindagi tempi va 5-daqiqadagi 1-Turtle nazorati juda yuqori darajada (${early.winRate}% WR). Erta tajovuzkor bosim o‘tkazish uslubini saqlab qolish tavsiya etiladi.</span>
+          </div>
+        </div>
+      `;
+    }
+
     return `
       <div class="duration-analytics-card">
         <div class="duration-analytics-header">
@@ -1829,6 +1855,7 @@ window.StatsEngine = class StatsEngine {
         <div class="duration-analytics-grid">
           ${cardsHtml}
         </div>
+        ${coachDiagnosticHtml}
       </div>
     `;
   }

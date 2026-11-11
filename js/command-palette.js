@@ -21,6 +21,7 @@
         { id: 'page-stats', label: 'Tahlil va statistika', group: 'Sahifalar', icon: 'fa-chart-pie', page: 'statistics', url: '/#statistics' },
         { id: 'page-progress', label: 'Eclipse Progress', group: 'Sahifalar', icon: 'fa-chart-line', page: 'progress', url: '/#progress' },
         { id: 'page-briefing', label: 'Briefing & Meta tahlil', group: 'Sahifalar', icon: 'fa-newspaper', page: 'briefing', url: '/#briefing' },
+        { id: 'page-scouting', label: 'Raqiblar razvedkasi (Scouting & Counter)', group: 'Sahifalar', icon: 'fa-crosshairs', page: 'scouting', url: '/#scouting' },
         { id: 'page-metalab', label: 'Meta Lab (MLBB Tierlist)', group: 'Sahifalar', icon: 'fa-ranking-star', url: '/meta-lab' },
         { id: 'page-submissions', label: 'Match kiritish (Hub / Skaner)', group: 'Sahifalar', icon: 'fa-satellite-dish', page: 'submissions', url: '/#submissions' },
         { id: 'page-add-match', label: 'Qo‘lda kiritish (Admin)', group: 'Sahifalar', icon: 'fa-keyboard', page: 'add-match', url: '/#add-match' },
@@ -30,6 +31,7 @@
 
     static get QUICK_ACTIONS() {
       return [
+        { id: 'act-daily-scrim', label: 'Kunlik Scrim Hisoboti (Telegram / Discord / HD Rasm)', group: 'Amallar', icon: 'fa-file-invoice', action: 'dailyScrim' },
         { id: 'act-draft-assistant', label: 'Draft Assistant (Pick & Ban Helper)', group: 'Amallar', icon: 'fa-shield-halved', action: 'draftAssistant' },
         { id: 'act-export-tier', label: 'Meta Tierlistni PNG eksport qilish', group: 'Amallar', icon: 'fa-file-image', action: 'exportTier' },
         { id: 'act-toggle-sfx', label: 'Audio SFX (Ovoz effektlarini yoqish/o‘chirish)', group: 'Amallar', icon: 'fa-volume-high', action: 'toggleSfx' },
@@ -333,6 +335,12 @@
       }
 
       // 4. Quick Action
+      if (item.action === 'dailyScrim') {
+        const matches = window.EclipseApp?.dataStore?.getMatches?.() || [];
+        const players = window.EclipseApp?.dataStore?.getPlayers?.() || [];
+        window.EclipseShareCard?.openDailyScrimModal?.(matches, players);
+        return;
+      }
       if (item.action === 'draftAssistant') {
         window.draftAssistant?.open();
         return;

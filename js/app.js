@@ -1050,6 +1050,7 @@ window.EclipseApp = {
       'progress': 'Eclipse Progress',
       'batch': 'Multi-match upload',
       'briefing': 'Briefing',
+      'scouting': 'Raqiblar Razvedkasi (Scouting)',
       'meta-lab': 'Meta Lab',
       'settings': 'Sozlamalar'
     };
@@ -1137,6 +1138,10 @@ window.EclipseApp = {
         break;
       case 'briefing':
         this.briefingManager.render('briefingContainer');
+        break;
+      case 'scouting':
+        this.scoutingManager ||= new window.ScoutingManager(this.dataStore);
+        this.scoutingManager.render('scoutingContainer');
         break;
       case 'meta-lab':
         this.mlbbData.render('metaLabContainer');

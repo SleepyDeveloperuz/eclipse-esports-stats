@@ -113,6 +113,90 @@ window.PlayerManager = class PlayerManager {
     `;
   }
 
+  renderHeroPoolDepthMatrix(heroPool) {
+    if (!Array.isArray(heroPool) || !heroPool.length) return '';
+    const sTier = heroPool.filter(h => h.status === 'comfort');
+    const aTier = heroPool.filter(h => h.status === 'backup');
+    const jokerTier = heroPool.filter(h => h.status === 'learning');
+
+    // Ban resilience calculation
+    let resilienceLevel = 'medium';
+    let resilienceBadge = 'O‘rtacha Chidamlilik';
+    let resilienceDesc = 'Raqib 3 ta asosiy heroni ban qilsa, zaxirada ishonchli variantlar qoladi.';
+
+    const totalReliable = sTier.length + aTier.length;
+    if (sTier.length >= 4) {
+      resilienceLevel = 'high';
+      resilienceBadge = '🛡️ Yuqori Ban Chidamliligi';
+      resilienceDesc = `Raqib 3 ta asosiy heroni ban qilsa ham, kamida ${sTier.length - 3} ta S-Tier va ${aTier.length} ta A-Tier zaxira variantlar mavjud.`;
+    } else if (sTier.length <= 1 && aTier.length <= 1) {
+      resilienceLevel = 'critical';
+      resilienceBadge = '⚠️ Target Ban xavfi!';
+      resilienceDesc = `Turnir darajasidagi herolar juda kam (${sTier.length} S-Tier). Raqib 2-3 ta target ban bilan o‘yinchini qiyin vaziyatga solishi mumkin.`;
+    } else if (sTier.length >= 2 && totalReliable >= 4) {
+      resilienceLevel = 'good';
+      resilienceBadge = '✅ Yaxshi Ban Chidamliligi';
+      resilienceDesc = `Raqib asosiy herolarni yopsa ham, ${aTier.length} ta Scrimda sinovdan o‘tgan A-Tier zaxira variantlar mavjud.`;
+    } else {
+      resilienceLevel = 'medium';
+      resilienceBadge = '⚖️ O‘rtacha Chidamlilik';
+      resilienceDesc = `Jami ${totalReliable} ta ishonchli hero (${sTier.length} S / ${aTier.length} A). Ban bosimiga ehtiyotkorlik bilan yondashish zarur.`;
+    }
+
+    const renderHeroChips = (list, tierClass) => {
+      if (!list.length) return '<span class="depth-hero-empty">—</span>';
+      return list.map(h => `<span class="depth-hero-chip ${tierClass}">${this.escapeHtml(h.heroName || '')}</span>`).join('');
+    };
+
+    return `
+      <div class="roster-hero-pool depth-matrix" aria-label="Captain belgilagan hero pool va chuqurlik matritsasi">
+        <div class="depth-matrix__header">
+          <div class="depth-matrix__title">
+            <i class="fa-solid fa-layer-group"></i>
+            <strong>Qahramonlar chuqurligi matritsasi</strong>
+          </div>
+          <span class="depth-matrix__resilience depth-matrix__resilience--${resilienceLevel}" title="${resilienceDesc}">
+            ${resilienceBadge}
+          </span>
+        </div>
+
+        <div class="depth-matrix__grid">
+          <div class="depth-matrix__tier depth-matrix__tier--s">
+            <div class="depth-matrix__tier-head">
+              <span class="depth-tier-badge s-tier">🌟 S-Tier</span>
+              <span class="depth-tier-label">Turnir darajasi (100% ishonchli)</span>
+              <span class="depth-tier-count">${sTier.length} ta</span>
+            </div>
+            <div class="depth-matrix__heroes">${renderHeroChips(sTier, 'depth-hero-chip--s')}</div>
+          </div>
+
+          <div class="depth-matrix__tier depth-matrix__tier--a">
+            <div class="depth-matrix__tier-head">
+              <span class="depth-tier-badge a-tier">⚔️ A-Tier</span>
+              <span class="depth-tier-label">Scrim darajasi (Sinovdan o‘tgan)</span>
+              <span class="depth-tier-count">${aTier.length} ta</span>
+            </div>
+            <div class="depth-matrix__heroes">${renderHeroChips(aTier, 'depth-hero-chip--a')}</div>
+          </div>
+
+          <div class="depth-matrix__tier depth-matrix__tier--joker">
+            <div class="depth-matrix__tier-head">
+              <span class="depth-tier-badge joker-tier">🃏 Joker / Pocket</span>
+              <span class="depth-tier-label">Kutilmagan qurol / Maxsus pick</span>
+              <span class="depth-tier-count">${jokerTier.length} ta</span>
+            </div>
+            <div class="depth-matrix__heroes">${renderHeroChips(jokerTier, 'depth-hero-chip--joker')}</div>
+          </div>
+        </div>
+
+        <div class="depth-matrix__tactical-note">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span><strong>Ban tahlili:</strong> ${resilienceDesc}</span>
+        </div>
+      </div>
+    `;
+  }
+
   renderPlayersList(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -241,6 +325,13 @@ window.PlayerManager = class PlayerManager {
                   <span class="role-signal" style="--role-color:${bestRoleColor};"></span>${roleLabel}
                 </div>
                 <div class="roster-player-tags">${(p.tags || []).map(tag => `<span>${this.escapeHtml(tag)}</span>`).join('')}</div>
+                ${p.heroPool && p.heroPool.length ? `
+                  <div class="roster-pool-summary" title="Hero Pool: ${p.heroPool.filter(h => h.status === 'comfort').length} S-Tier, ${p.heroPool.filter(h => h.status === 'backup').length} A-Tier, ${p.heroPool.filter(h => h.status === 'learning').length} Joker">
+                    <span class="pool-chip pool-chip--s" title="S-Tier (Turnir)">🌟 ${p.heroPool.filter(h => h.status === 'comfort').length} S</span>
+                    <span class="pool-chip pool-chip--a" title="A-Tier (Scrim)">⚔️ ${p.heroPool.filter(h => h.status === 'backup').length} A</span>
+                    <span class="pool-chip pool-chip--j" title="Pocket/Joker">🃏 ${p.heroPool.filter(h => h.status === 'learning').length} J</span>
+                  </div>
+                ` : ''}
               </div>
             </div>
 
@@ -872,7 +963,7 @@ window.PlayerManager = class PlayerManager {
               ${titleBadge}
             </div>
             <div class="roster-player-tags">${player.primaryRole ? `<span>Asosiy layn: ${this.escapeHtml(player.primaryRole)}</span>` : ''}${(player.tags || []).map(tag => `<span>${this.escapeHtml(tag)}</span>`).join('')}</div>
-            ${(player.heroPool || []).length ? `<div class="roster-hero-pool" aria-label="Captain belgilagan hero pool">${Object.entries({ comfort: 'Ishonchli', backup: 'Zaxira', learning: 'O‘rganilyapti' }).map(([state, label]) => `<p><strong>${label}:</strong> ${player.heroPool.filter(hero => hero.status === state).map(hero => this.escapeHtml(hero.heroName)).join(', ') || '—'}</p>`).join('')}<small>Captain tanlovi — avtomatik reyting emas.</small></div>` : ''}
+            ${(player.heroPool || []).length ? this.renderHeroPoolDepthMatrix(player.heroPool) : ''}
             <p>${isHeavenlyyy ? 'Jamoani boshqaruvchi strategik markaz.' : 'Eclipse tarkibidagi individual kuch profili.'} ${heroAnalytics.uniqueHeroesCount} ta hero bilan ${stats.matchesPlayed} ta match qayd etilgan.</p>
             <div class="player-profile-roles">
               <div style="--profile-role-color:${bestRoleColor};">
@@ -1081,7 +1172,12 @@ window.PlayerManager = class PlayerManager {
       <label><input type="checkbox" name="captain" ${player.captain ? 'checked' : ''}> Captain belgisi (admin huquqini bermaydi)</label>
       <label>Teglar<input class="form-input" name="tags" maxlength="128" value="${this.escapeHtml((player.tags || []).join(', '))}" placeholder="Masalan: Shotcaller, Flex, Initiator"></label>
       <p>Vergul bilan ajrating: ko‘pi bilan 5 ta teg, har biri 24 belgigacha. Layn matchlardagi tarixiy rollarni o‘zgartirmaydi.</p>
-      <fieldset><legend>Hero pool · Captain tanlovi</legend>${Object.entries({ comfort: 'Ishonchli', backup: 'Zaxira', learning: 'O‘rganilyapti' }).map(([state, label]) => `<label>${label}<input class="form-input" name="pool_${state}" maxlength="1700" value="${this.escapeHtml((player.heroPool || []).filter(hero => hero.status === state).map(hero => hero.heroName).join(', '))}" placeholder="Miya, Layla"></label>`).join('')}<small>Katalogdagi nomlarni vergul bilan ajrating. Jami 20 tagacha; bir hero faqat bitta holatda.</small></fieldset>
+      <fieldset><legend><i class="fa-solid fa-layer-group"></i> Hero pool · Chuqurlik matritsasi (Captain tanlovi)</legend>
+        <label>🌟 S-Tier (Turnir darajasi — 100% ishonchli)<input class="form-input" name="pool_comfort" maxlength="1700" value="${this.escapeHtml((player.heroPool || []).filter(hero => hero.status === 'comfort').map(hero => hero.heroName).join(', '))}" placeholder="Chou, Khufra, Paquito"></label>
+        <label>⚔️ A-Tier (Scrim darajasi — Sinovdan o‘tgan)<input class="form-input" name="pool_backup" maxlength="1700" value="${this.escapeHtml((player.heroPool || []).filter(hero => hero.status === 'backup').map(hero => hero.heroName).join(', '))}" placeholder="Grock, Minotaur, Ruby"></label>
+        <label>🃏 Joker / Pocket (Maxsus kutilmagan qurol)<input class="form-input" name="pool_learning" maxlength="1700" value="${this.escapeHtml((player.heroPool || []).filter(hero => hero.status === 'learning').map(hero => hero.heroName).join(', '))}" placeholder="Franco, Kaja, Diggie"></label>
+        <small>Katalogdagi nomlarni vergul bilan ajrating. Jami 20 tagacha; bir hero faqat bitta toifada.</small>
+      </fieldset>
       <p role="status" data-roster-status></p><div class="roster-edit-actions"><button type="button" class="btn btn-secondary" data-cancel>Bekor qilish</button><button class="btn btn-primary" type="submit">Saqlash</button></div></form>`;
     document.body.append(dialog);
     dialog.addEventListener('close', () => dialog.remove());

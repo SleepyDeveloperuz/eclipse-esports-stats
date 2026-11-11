@@ -1046,10 +1046,22 @@ window.MatchManager = class MatchManager {
       }
       groupByKey.get(key).items.push({ match, index });
     });
-    container.innerHTML = `<div class="match-ledger">${grouped.map(group => `
+    container.innerHTML = `
+      <div class="match-history-toolbar" style="margin-bottom: 1rem; display: flex; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary daily-scrim-report-btn">
+          <i class="fa-solid fa-file-invoice"></i> Kunlik Scrim Hisoboti
+        </button>
+      </div>
+      <div class="match-ledger">${grouped.map(group => `
       ${group.label ? `<header class="match-session-heading"><div><p class="section-eyebrow">SESSION</p><h3>${this.escape(group.label)}</h3></div><span>${group.items.length} match</span></header>` : ''}
       ${group.items.map(item => cardMarkup(item.match, item.index)).join('')}
     `).join('')}</div>`;
+
+    container.querySelectorAll('.daily-scrim-report-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        window.EclipseShareCard?.openDailyScrimModal?.(matches, players);
+      });
+    });
 
     container.querySelectorAll('.view-match-btn').forEach(btn => {
       btn.addEventListener('click', e => {

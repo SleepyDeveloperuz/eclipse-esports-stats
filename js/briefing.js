@@ -181,6 +181,11 @@ window.BriefingManager = class BriefingManager {
           <span><strong>${activePolls.length}</strong><small>Ochiq ovoz</small></span>
           <span><strong>${this.patchState?.data?.length || '—'}</strong><small>Patch radar</small></span>
         </div>
+        <div class="briefing-actions" style="grid-column: 1 / -1; display: flex; justify-content: flex-end; margin-top: 0.75rem;">
+          <button type="button" class="btn btn-secondary briefing-scrim-report-btn">
+            <i class="fa-solid fa-file-invoice"></i> Kunlik Scrim Hisoboti
+          </button>
+        </div>
       </section>
 
       <div class="briefing-layout">
@@ -616,6 +621,14 @@ window.BriefingManager = class BriefingManager {
         window.EclipseApp?.matchManager?.renderMatchDetailModal(button.dataset.matchId, window.EclipseApp.dataStore.getAllPlayers?.() || window.EclipseApp.dataStore.getPlayers());
       }
     };
+
+    this.container.querySelectorAll('.briefing-scrim-report-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const matches = this.db?.getMatches?.() || window.EclipseApp?.dataStore?.getMatches?.() || [];
+        const players = this.db?.getPlayers?.() || window.EclipseApp?.dataStore?.getPlayers?.() || [];
+        window.EclipseShareCard?.openDailyScrimModal?.(matches, players);
+      });
+    });
 
     document.getElementById('briefingFocusForm')?.addEventListener('submit', async event => {
       event.preventDefault();

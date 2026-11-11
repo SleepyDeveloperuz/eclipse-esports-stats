@@ -14,6 +14,7 @@ import {
 } from './auth.js';
 import { normalisePayload } from './sync.js';
 import { normaliseAwardEvidence } from '../lib/match-awards.js';
+import { notifySubmissionCreated } from '../lib/telegram-bot.js';
 
 const GIST_ID = process.env.GIST_ID;
 const SESSION_SECRET = process.env.SESSION_SECRET;
@@ -488,7 +489,7 @@ function toPublicSubmission(submission) {
   };
 }
 
-async function readBundle({ withCatalog = false } = {}) {
+export async function readBundle({ withCatalog = false } = {}) {
   const files = await readTeamFiles();
   let officialData = normalisePayload({ players: [], matches: [], heroes: [] });
   if (files[DATA_FILE]?.content) {
@@ -542,7 +543,7 @@ function responseList(submissions, statusFilter = null) {
   return { counts, submissions: ordered.map(toPublicSubmission) };
 }
 
-async function createSubmission(req, identity) {
+export async function createSubmission(req, identity) {
   const rawBody = req.body && typeof req.body === 'object' ? req.body : {};
   const encoded = JSON.stringify(rawBody);
   if (Buffer.byteLength(encoded, 'utf8') > MAX_BODY_BYTES) fail('Submission hajmi juda katta', 'BODY_TOO_LARGE', 413);
@@ -611,7 +612,7 @@ async function createSubmission(req, identity) {
   return record;
 }
 
-async function rejectSubmission(id, reason) {
+export async function rejectSubmission(id, reason) {
   const bundle = await readBundle();
   const submission = findSubmission(bundle, id);
   if (!submission) fail('Submission topilmadi', 'SUBMISSION_NOT_FOUND', 404);
@@ -628,7 +629,7 @@ async function rejectSubmission(id, reason) {
   return next;
 }
 
-async function approveSubmission(id, attempts = 3, options = {}) {
+export async function approveSubmission(id, attempts = 3, options = {}) {
   let latestError;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
@@ -747,6 +748,7 @@ export default async function handler(req, res) {
         return res.status(201).json({ success: true, ...result, submission: toPublicSubmission(result.submission) });
       }
       const submission = await queueMutation(() => createSubmission(req, identity));
+      notifySubmissionCreated(submission).catch(() => {});
       return res.status(201).json({ success: true, submission: toPublicSubmission(submission) });
     }
 
