@@ -54,6 +54,24 @@ class DataStore {
     }
   }
 
+  safeStorageSet(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      if (error && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED' || error.code === 22)) {
+        try {
+          localStorage.removeItem('mlbb-jamoa-dasturi-progress');
+          localStorage.removeItem('eclipse_cloud_pending_write');
+          localStorage.removeItem('eclipse_last_backup');
+          localStorage.removeItem('eclipse_removed_heroes');
+          localStorage.setItem(key, value);
+          return;
+        } catch (_) { /* ignore retry failure */ }
+      }
+      throw error;
+    }
+  }
+
   scrubValue(value, depth = 0) {
     if (depth > 8) return null;
     if (typeof value === 'string') {
@@ -487,7 +505,7 @@ class DataStore {
         seen.add(player.id);
         return true;
       });
-    localStorage.setItem(this.PLAYERS_KEY, JSON.stringify(this.scrubValue(normalized)));
+    this.safeStorageSet(this.PLAYERS_KEY, JSON.stringify(this.scrubValue(normalized)));
   }
 
   addPlayer(name, profile = {}) {
@@ -605,7 +623,7 @@ class DataStore {
         seen.add(match.id);
         return true;
       });
-    localStorage.setItem(this.MATCHES_KEY, JSON.stringify(this.scrubValue(normalized)));
+    this.safeStorageSet(this.MATCHES_KEY, JSON.stringify(this.scrubValue(normalized)));
   }
 
   addMatch(matchObj) {

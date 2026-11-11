@@ -45,5 +45,54 @@
       throw new Error('Aylantirilgan rasm hajmi katta. Kichikroq skrinshot yuboring.');
     } finally { source.width = source.height = canvas.width = canvas.height = 1; }
   }
-  window.EclipseImageUpload = { isHeic, validate, toJpeg };
+  async function compressScreenshot(fileOrDataUrl, { maxWidth = 1920, maxHeight = 1080, quality = 0.88, signal } = {}) {
+    if (signal?.aborted) throw aborted();
+    if (typeof Image === 'undefined' || typeof document === 'undefined') return fileOrDataUrl;
+    let src = typeof fileOrDataUrl === 'string' ? fileOrDataUrl : null;
+    let objectUrl = null;
+    if (!src && fileOrDataUrl instanceof Blob) {
+      try { objectUrl = URL.createObjectURL(fileOrDataUrl); src = objectUrl; }
+      catch { return fileOrDataUrl; }
+    }
+    if (!src) return fileOrDataUrl;
+
+    try {
+      const img = new Image();
+      img.src = src;
+      await (img.decode ? img.decode() : new Promise((res, rej) => { img.onload = res; img.onerror = rej; }));
+      if (signal?.aborted) throw aborted();
+
+      const isHuge = typeof fileOrDataUrl === 'string' ? fileOrDataUrl.length > 800000 : (fileOrDataUrl.size || 0) > 600000;
+      if (img.width <= maxWidth && img.height <= maxHeight && !isHuge) {
+        return fileOrDataUrl;
+      }
+
+      const ratio = Math.min(1, maxWidth / img.width, maxHeight / img.height);
+      const targetW = Math.max(1, Math.round(img.width * ratio));
+      const targetH = Math.max(1, Math.round(img.height * ratio));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+
+      let compressed = null;
+      try {
+        compressed = canvas.toDataURL('image/webp', quality);
+        if (!compressed || !compressed.startsWith('data:image/webp')) compressed = null;
+      } catch { compressed = null; }
+
+      if (!compressed) {
+        compressed = canvas.toDataURL('image/jpeg', quality);
+      }
+
+      return compressed || fileOrDataUrl;
+    } catch {
+      return fileOrDataUrl;
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    }
+  }
+  window.EclipseImageUpload = { isHeic, validate, toJpeg, compressScreenshot };
 })();

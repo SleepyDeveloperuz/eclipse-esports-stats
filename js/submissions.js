@@ -176,7 +176,11 @@ window.SubmissionManager = class SubmissionManager {
         </div>
       </section>
 
-      <div class="batch-entry-link"><button type="button" class="btn btn-secondary" data-open-batch>Multi-match upload · bir nechta match</button></div>
+      <div class="submission-mode-switch" role="group" aria-label="Match kiritish usuli">
+        <button type="button" class="btn btn-secondary active" data-mode="single"><i class="fa-solid fa-camera"></i> Bitta match (AI Skaner)</button>
+        <button type="button" class="btn btn-secondary" data-open-batch><i class="fa-solid fa-layer-group"></i> Multi-match upload</button>
+        <button type="button" class="btn btn-secondary" data-open-manual><i class="fa-solid fa-keyboard"></i> Qo‘lda kiritish</button>
+      </div>
       <div class="submission-layout">
         <section class="submission-panel submission-compose" aria-labelledby="submissionFormTitle">
           <header class="submission-panel__header">
@@ -198,6 +202,7 @@ window.SubmissionManager = class SubmissionManager {
 
     this.bindForm();
     this.container.querySelector('[data-open-batch]')?.addEventListener('click', () => window.EclipseApp.navigate('batch'));
+    this.container.querySelector('[data-open-manual]')?.addEventListener('click', () => window.EclipseApp.navigate('add-match'));
     this.bindInbox();
     this.updatePendingBadge();
     window.EclipseApp?.refreshMotion?.(this.container);
@@ -462,13 +467,24 @@ window.SubmissionManager = class SubmissionManager {
     const reader = new FileReader();
     reader.onload = event => {
       if (readId !== this._imageReads[index] || !form?.isConnected || this.container?.querySelector('#practiceSubmissionForm') !== form) return;
-      this._imageLoading[index] = false;
-      this.formDirty = true;
-      this.images[index] = event.target.result;
-      this.imageNames[index] = file.name || `${index + 1}-skrinshot`;
-      this.updateImageSlots();
-      if (!this._manualFormEdits && (this._formEditVersion || 0) === editVersion) this.scheduleImageScan();
-      else form.querySelector('#practiceScanStatus').textContent = 'Rasm yuklandi. Kiritgan tuzatishlaringiz saqlandi; yangi rasmni o‘qish uchun “Qayta o‘qish”ni bosing.';
+      let rawData = event.target.result;
+      const finish = data => {
+        if (readId !== this._imageReads[index] || !form?.isConnected || this.container?.querySelector('#practiceSubmissionForm') !== form) return;
+        this._imageLoading[index] = false;
+        this.formDirty = true;
+        this.images[index] = data;
+        this.imageNames[index] = file.name || `${index + 1}-skrinshot`;
+        this.updateImageSlots();
+        if (!this._manualFormEdits && (this._formEditVersion || 0) === editVersion) this.scheduleImageScan();
+        else form.querySelector('#practiceScanStatus').textContent = 'Rasm yuklandi. Kiritgan tuzatishlaringiz saqlandi; yangi rasmni o‘qish uchun “Qayta o‘qish”ni bosing.';
+      };
+      if (typeof rawData === 'string' && rawData.length > 900000 && window.EclipseImageUpload?.compressScreenshot) {
+        window.EclipseImageUpload.compressScreenshot(rawData, { maxWidth: 1920, maxHeight: 1080, quality: 0.88 })
+          .then(finish)
+          .catch(() => finish(rawData));
+      } else {
+        finish(rawData);
+      }
     };
     reader.onerror = error => {
       if (readId !== this._imageReads[index] || !form?.isConnected || this.container?.querySelector('#practiceSubmissionForm') !== form) return;
@@ -490,7 +506,13 @@ window.SubmissionManager = class SubmissionManager {
   }
 
   readImages(files, index = 0) {
-    [...(files || [])].slice(0, 2 - index).forEach((file, offset) => this.readImage(file, index + offset));
+    const list = [...(files || [])];
+    if (list.length > 2) {
+      window.showToast?.(`${list.length} ta skrinshot aniqlandi. Multi-match yuklash oynasiga yo‘naltirilmoqda…`, 'info');
+      window.EclipseApp?.navigate?.('batch');
+      return;
+    }
+    list.slice(0, 2 - index).forEach((file, offset) => this.readImage(file, index + offset));
   }
 
   cancelScheduledImageScan() {
