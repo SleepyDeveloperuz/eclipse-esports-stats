@@ -5,7 +5,8 @@
   "outputDirectory": "public",
   "git": { "deploymentEnabled": { "main": true, "*": false } },
   "rewrites": [
-    { "source": "/meta-lab", "destination": "/meta-lab.html" }
+    { "source": "/meta-lab", "destination": "/meta-lab.html" },
+    { "source": "/api/telegram", "destination": "/api/submissions?source=telegram" }
   ],
   "functions": {
     "api/ocr.js": {
