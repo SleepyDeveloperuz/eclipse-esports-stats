@@ -527,17 +527,18 @@ function findSubmission(bundle, id) {
   return bundle.submissions.find(item => item.id === cleanId(id)) || null;
 }
 
-function responseList(submissions) {
-  const ordered = [...submissions].sort((a, b) => {
+function responseList(submissions, statusFilter = null) {
+  const counts = submissions.reduce((result, item) => {
+    result[item.status] = (result[item.status] || 0) + 1;
+    result.total += 1;
+    return result;
+  }, { pending: 0, approved: 0, rejected: 0, total: 0 });
+  const filtered = statusFilter ? submissions.filter(item => item.status === statusFilter) : submissions;
+  const ordered = [...filtered].sort((a, b) => {
     const priority = { pending: 0, rejected: 1, approved: 2 };
     const byStatus = (priority[a.status] ?? 3) - (priority[b.status] ?? 3);
     return byStatus || Date.parse(a.createdAt) - Date.parse(b.createdAt);
   });
-  const counts = ordered.reduce((result, item) => {
-    result[item.status] += 1;
-    result.total += 1;
-    return result;
-  }, { pending: 0, approved: 0, rejected: 0, total: 0 });
   return { counts, submissions: ordered.map(toPublicSubmission) };
 }
 
@@ -714,7 +715,8 @@ export default async function handler(req, res) {
       const visible = identity.role === 'admin'
         ? bundle.submissions
         : bundle.submissions.filter(item => item.submitter.identityHash === identityHash(identity));
-      return res.status(200).json(responseList(visible));
+      const statusFilter = req.query?.status || null;
+      return res.status(200).json(responseList(visible, statusFilter));
     }
 
     if (req.method === 'POST') {

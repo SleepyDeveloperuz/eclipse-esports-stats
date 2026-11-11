@@ -454,6 +454,24 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: "No data found" });
       }
       const data = normalisePayload(JSON.parse(file.content));
+      const collection = req.query?.collection || null;
+      if (collection === 'roster') {
+        return res.status(200).json({
+          players: data.players || [],
+          revision: data.revision,
+          updatedAt: data.updatedAt
+        });
+      }
+      if (collection === 'matches') {
+        const year = req.query?.year || null;
+        const matches = year ? (data.matches || []).filter(m => m.date && m.date.startsWith(year)) : (data.matches || []);
+        return res.status(200).json({
+          matches,
+          total: data.matches?.length || 0,
+          revision: data.revision,
+          updatedAt: data.updatedAt
+        });
+      }
       return res.status(200).json(data);
     }
 
