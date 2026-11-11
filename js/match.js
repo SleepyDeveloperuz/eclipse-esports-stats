@@ -957,10 +957,10 @@ window.MatchManager = class MatchManager {
       return dateOrder || String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
     });
     const scopeMeta = {
-      team5: ['TEAM 5', 'fa-people-group'],
-      squad: ['PRACTICE LITE · 2–4', 'fa-user-group'],
-      individual: ['PRACTICE LITE · 1', 'fa-user'],
-      unclassified: ['TEKSHIRISH KERAK', 'fa-triangle-exclamation']
+      team5: ['To‘liq tarkib (5)', 'fa-people-group'],
+      squad: ['Guruh (2–4 kishi)', 'fa-user-group'],
+      individual: ['Yakkaxon (1 kishi)', 'fa-user'],
+      unclassified: ['Tekshirish kerak', 'fa-triangle-exclamation']
     };
     const completenessMeta = {
       full: ['TO‘LIQ DATA', 'is-full'],
@@ -1126,7 +1126,7 @@ window.MatchManager = class MatchManager {
     };
     const participants = [...(match.playerStats || []).map(stat => participantMarkup(stat)), ...(match.guestStats || []).map(stat => participantMarkup(stat, true))].join('');
     const subNames = (match.substitutes || []).map(id => players.find(player => player.id === id)?.name).filter(Boolean);
-    const scopeLabel = { team5: 'TEAM 5', squad: 'PRACTICE LITE · 2–4', individual: 'PRACTICE LITE · 1', unclassified: 'TEKSHIRISH KERAK' }[match.scope] || 'SCOPE YO‘Q';
+    const scopeLabel = { team5: 'To‘liq tarkib (5)', squad: 'Guruh (2–4 kishi)', individual: 'Yakkaxon (1 kishi)', unclassified: 'Tekshirish kerak' }[match.scope] || 'Noma’lum';
     const completenessLabel = match.entryMode === 'practice_lite' ? 'LITE DATA' : match.dataCompleteness === 'full' ? 'TO‘LIQ DATA' : 'QISMAN DATA';
     const needsReview = match.verificationStatus === 'needs_review' || match.needsReview === true;
     const isOcrVerified = match.ocrVerified === true || match.dataQuality === 'ocr_verified';

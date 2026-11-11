@@ -215,8 +215,8 @@ window.SubmissionManager = class SubmissionManager {
     return `
       <form id="practiceSubmissionForm" class="submission-form" novalidate>
         <div class="submission-upload-grid">
-          ${this.dropzoneMarkup(0, 'Scoreboard', '1–2 rasm yuklang · avtomatik o‘qiladi', true)}
-          ${this.dropzoneMarkup(1, 'Damage', 'Batafsil statistika · ixtiyoriy', false)}
+          ${this.dropzoneMarkup(0, '1-rasm: Hisob (Scoreboard)', 'Hisob va medallar · majburiy', true)}
+          ${this.dropzoneMarkup(1, '2-rasm: Zarar (Damage)', 'Batafsil statistika · ixtiyoriy', false)}
         </div>
         ${this.auth.isAdmin() ? '<div class="submission-igl-notice"><i class="fa-solid fa-crown"></i> <span><strong>Admin konsoli:</strong> Match natijasini faqat jamoa lideri (IGL / Captain) yuklaydi va saqlaydi.</span></div>' : ''}
         <p class="submission-privacy"><i class="fa-solid fa-shield-halved"></i> Skrinshotlar saytda saqlanmaydi. Natija, raqamlar va qahramonlar avtomatik to‘ldiriladi; faqat kerak bo‘lsa tuzating. Skan vaqti va tuzatilgan maydon nomlari Captain uchun kuzatiladi — bu kuzatuvga rasm va qiymatlar kirmaydi.</p>

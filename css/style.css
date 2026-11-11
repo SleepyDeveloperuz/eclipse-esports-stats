@@ -3778,6 +3778,12 @@ kbd {
   .briefing-rail { position: static; grid-template-columns: minmax(0, 1fr) minmax(15rem, 0.42fr); }
   .briefing-admin__grid { grid-template-columns: 1fr 1fr; }
   .briefing-admin-form:last-child { grid-column: 1 / -1; border-top: 1px solid rgba(255, 255, 255, 0.055); }
+  .analytics-scope-console { grid-template-columns: 1fr; gap: 1rem; padding: 1.15rem; }
+  .analytics-scope-toggle { width: 100%; max-width: 28rem; }
+  .sync-console { grid-template-columns: auto minmax(0, 1fr); gap: 0.85rem; }
+  .sync-console__actions { grid-column: 1 / -1; width: 100%; justify-content: space-between; }
+  .form-signal { grid-template-columns: auto minmax(0, 1fr); }
+  .form-signal__metric { grid-column: 1 / -1; text-align: left; }
 }
 
 @media (max-width: 768px) {
