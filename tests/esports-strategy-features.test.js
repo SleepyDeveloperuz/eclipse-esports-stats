@@ -333,10 +333,11 @@ test('Telegram Bot: normalizes supergroup ID and generates main reply keyboard',
   assert.ok(allTexts.includes('👥 O‘yinchilar tarkibi'));
 });
 
-test('Telegram Bot: formats Meta Lab click-to-copy bans and role picks', () => {
+test('Telegram Bot: formats Meta Lab click-to-copy bans and role picks for Mythical Glory+', () => {
   const metaText = formatMetaLabSummary();
-  assert.ok(metaText.includes('MLBB META LAB'));
-  assert.ok(metaText.includes('<code>Zhuxin, Fanny, Suyou, Nolan, Hayabusa, Mathilda</code>'));
+  assert.ok(metaText.includes('META LAB (MYTHICAL GLORY+)'));
+  assert.ok(metaText.includes('SS-TIER QOIDASI'));
+  assert.ok(metaText.includes('MUST BAN'));
   assert.ok(metaText.includes('Nusxa olish uchun'));
   assert.ok(metaText.includes('EXP Laner'));
   assert.ok(metaText.includes('Jungler'));
