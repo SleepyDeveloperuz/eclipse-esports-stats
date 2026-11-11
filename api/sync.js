@@ -436,13 +436,15 @@ export default async function handler(req, res) {
 
     // Team read can be protected with the optional VIEWER_PASSWORD gate.
     if (req.method === "GET") {
-      if (isViewerGateRequested() && !isViewerAuthConfigured()) {
+      const isBotAuthorized = Boolean(process.env.TELEGRAM_BOT_TOKEN
+        && req.headers['x-telegram-bot-token'] === process.env.TELEGRAM_BOT_TOKEN);
+      if (isViewerGateRequested() && !isViewerAuthConfigured() && !isBotAuthorized) {
         return res.status(503).json({
           code: 'VIEWER_AUTH_MISCONFIGURED',
           error: 'Jamoa kirish himoyasi to‘liq sozlanmagan. SESSION_SECRET ni kiriting.'
         });
       }
-      if (isViewerAuthConfigured() && !await verifySession(bearerToken(req))) {
+      if (isViewerAuthConfigured() && !isBotAuthorized && !await verifySession(bearerToken(req))) {
         return res.status(401).json({
           code: 'VIEWER_AUTH_REQUIRED',
           error: 'Jamoa ma’lumotlarini ko‘rish uchun kirish talab qilinadi'
