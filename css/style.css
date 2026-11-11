@@ -4601,6 +4601,11 @@ kbd {
 .submission-mode-switch .btn { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; padding: 0.65rem 1.15rem; border-radius: 0.8rem; }
 .submission-mode-switch .btn.active { background: rgba(var(--primary-rgb), 0.16); border-color: rgba(var(--primary-rgb), 0.45); color: var(--primary); }
 
+.batch-worker #practiceSubmitBtn,
+.batch-worker .submission-confirm-edits-bar {
+  display: none !important;
+}
+
 @media (max-width: 1440px) {
   .submission-hero { grid-template-columns: 4.8rem minmax(0, 1fr); padding: 1.4rem 1.5rem; gap: 1.25rem; }
   .submission-hero__signal { width: 4.8rem; }

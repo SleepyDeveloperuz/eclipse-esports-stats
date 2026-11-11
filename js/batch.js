@@ -537,13 +537,21 @@ export class BatchUpload {
     worker.clearSavedDraft = () => {};
     worker.draftKey = () => 'eclipse_batch_memory_only';
     worker.readImage = () => { this.status('Rasmni almashtirish uchun yangi batch oching — Battle ID juftligi saqlanadi.'); };
-    worker.submitForm = e => { e.preventDefault(); this.status('Batchdagi tayyor matchlarni yuqoridagi tugma orqali yuboring.'); };
     worker.bindForm();
+    worker.submitForm = e => {
+      e?.preventDefault?.();
+      actionWrap.querySelector('[data-batch-save-item]')?.click();
+    };
     if (typeof document !== 'undefined') document.removeEventListener('paste', worker.pasteHandler);
     const clearDraft = worker.container.querySelector('[data-clear-draft]');
     if (clearDraft) clearDraft.hidden = true;
     const submitBtn = worker.container.querySelector('#practiceSubmitBtn');
-    if (submitBtn) submitBtn.hidden = true;
+    if (submitBtn) {
+      submitBtn.style.display = 'none';
+      submitBtn.hidden = true;
+      submitBtn.remove();
+    }
+    worker.container.querySelector('.submission-confirm-edits-bar')?.remove();
     worker.container.querySelectorAll('input[type=file],[data-remove-index]').forEach(el => el.disabled = true);
     worker.container.querySelectorAll('[data-drop-index]').forEach(el => el.hidden = true);
     worker.images = [images[group.score.index], group.damage ? images[group.damage.index] : null];

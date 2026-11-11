@@ -9,6 +9,8 @@ import {
   formatDailyScrimSummary,
   handleTelegramWebhook
 } from '../lib/telegram-bot.js';
+import { normaliseOcrPayload } from '../api/ocr.js';
+import { normalisePracticeDraft } from '../api/submissions.js';
 
 function getEclipseShareCard() {
   const source = readFileSync(new URL('../js/share-card.js', import.meta.url), 'utf8');
@@ -250,4 +252,60 @@ test('Hero Pool Depth Matrix: calculates resilience and categorizes S/A/Joker ti
   const lowHtml = pm.renderHeroPoolDepthMatrix(lowPool);
   assert.ok(lowHtml.includes('Target Ban xavfi!'));
 });
+
+test('MLBB Highlights: badge 4 detects Maniac, badge 5 detects Savage and inherently sets Maniac', () => {
+  const roster = [{ id: 'p1', name: 'Heavenlyyy' }, { id: 'p2', name: 'Shadow' }];
+  const heroes = [{ id: 1, name: 'Chou' }, { id: 2, name: 'Ling' }];
+
+  // Case 1: Badge "4" in highlightNotes -> maniac: true, savage: null
+  const maniacPayload = {
+    players: [
+      { detectedName: 'Heavenlyyy', matchedPlayerId: 'p1', highlightNotes: ['4', 'mvp'] }
+    ]
+  };
+  const normalizedManiac = normaliseOcrPayload(maniacPayload, roster, heroes);
+  assert.equal(normalizedManiac.players[0].maniac, true);
+  assert.equal(normalizedManiac.players[0].savage, null);
+
+  // Case 2: Badge "5" in highlightNotes -> savage: true AND maniac: true
+  const savagePayload = {
+    players: [
+      { detectedName: 'Shadow', matchedPlayerId: 'p2', highlightNotes: ['5'] }
+    ]
+  };
+  const normalizedSavage = normaliseOcrPayload(savagePayload, roster, heroes);
+  assert.equal(normalizedSavage.players[0].savage, true);
+  assert.equal(normalizedSavage.players[0].maniac, true);
+
+  // Case 3: Explicit savage: true directly from model also inherently sets maniac: true
+  const explicitSavagePayload = {
+    players: [
+      { detectedName: 'Shadow', matchedPlayerId: 'p2', savage: true, maniac: false }
+    ]
+  };
+  const normalizedExplicit = normaliseOcrPayload(explicitSavagePayload, roster, heroes);
+  assert.equal(normalizedExplicit.players[0].savage, true);
+  assert.equal(normalizedExplicit.players[0].maniac, true);
+});
+
+test('Submissions Draft: savage: true automatically enforces maniac: true', () => {
+  const officialData = {
+    players: [{ id: 'p1', name: 'Heavenlyyy' }],
+    heroes: [{ id: 1, name: 'Chou' }]
+  };
+  const draft = {
+    entryMode: 'full',
+    claimedPlayerId: 'p1',
+    date: '2026-11-11',
+    matchType: 'scrim',
+    result: 'win',
+    playerStats: [
+      { playerId: 'p1', heroUsed: 'Chou', rolePlayed: 'EXP Laner', kills: 15, deaths: 0, assists: 5, savage: true, maniac: false }
+    ]
+  };
+  const normalized = normalisePracticeDraft(draft, officialData);
+  assert.equal(normalized.playerStats[0].savage, true);
+  assert.equal(normalized.playerStats[0].maniac, true);
+});
+
 

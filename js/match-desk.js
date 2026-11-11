@@ -39,9 +39,12 @@
     }
 
     metricMarkup(values = {}) {
+      const isSavage = values.savage === true;
+      const isManiac = values.maniac === true || isSavage;
       return `<details class="match-extra"><summary>Batafsil statistika <small>Ixtiyoriy tahrir</small></summary><div class="match-metrics">
         ${Object.entries(metrics).map(([field, [label, max]]) => `<label><span>${label}</span><input class="form-input" data-field="${field}" type="number" min="0" max="${max}" step="1" value="${this.escape(values[field] ?? '')}"></label>`).join('')}
-        ${['savage', 'maniac'].map(field => `<label><span>${field === 'savage' ? 'Savage' : 'Maniac'}</span><select class="form-select" data-field="${field}"><option value="">Noma’lum</option><option value="true" ${values[field] === true ? 'selected' : ''}>Ha</option><option value="false" ${values[field] === false ? 'selected' : ''}>Yo‘q</option></select></label>`).join('')}
+        <label><span>Savage</span><select class="form-select" data-field="savage"><option value="">Noma’lum</option><option value="true" ${isSavage ? 'selected' : ''}>Ha</option><option value="false" ${values.savage === false ? 'selected' : ''}>Yo‘q</option></select></label>
+        <label><span>Maniac</span><select class="form-select" data-field="maniac"><option value="">Noma’lum</option><option value="true" ${isManiac ? 'selected' : ''}>Ha</option><option value="false" ${values.maniac === false ? 'selected' : ''}>Yo‘q</option></select></label>
         <label><span>AFK belgisi</span><select class="form-select" data-field="afk"><option value="">Noma’lum</option><option value="true" ${values.afk === true ? 'selected' : ''}>Ko‘rinadi</option><option value="false" ${values.afk === false ? 'selected' : ''}>Yo‘q</option></select></label>
         <label><span>Highlight belgilari — kuzatuv, rasmiy nom emas</span><textarea class="form-input" data-field="highlightNotes" maxlength="640" placeholder="Har bir kuzatuv yangi qatorda">${this.escape((Array.isArray(values.highlightNotes) ? values.highlightNotes : []).join('\n'))}</textarea></label>
         <label><span>Yashirilgan belgilar (+N)</span><input class="form-input" data-field="highlightOverflow" type="number" min="0" max="20" step="1" value="${this.escape(values.highlightOverflow ?? '')}"></label>
@@ -82,6 +85,16 @@
       role.closest('label').insertAdjacentHTML('beforeend', '<small data-role-status></small>');
       medal.addEventListener('change', () => { row.dataset.medalSource = 'manual'; this.updateRowProvenance(row); });
       role.addEventListener('change', () => { row.dataset.roleSource = 'manual'; this.updateRowProvenance(row); this.refreshScanSummary(); this.saveDraft(); });
+      const savageSelect = row.querySelector('[data-field="savage"]');
+      const maniacSelect = row.querySelector('[data-field="maniac"]');
+      if (savageSelect && maniacSelect) {
+        savageSelect.addEventListener('change', () => {
+          if (savageSelect.value === 'true') {
+            maniacSelect.value = 'true';
+            this.saveDraft();
+          }
+        });
+      }
       this.updateRowProvenance(row);
       row.querySelector('.submission-row-remove').addEventListener('click', () => this.saveDraft());
     }
@@ -453,10 +466,12 @@
         this.setScanDetailsOpen(true);
       }
       let confirmBar = form.querySelector('.submission-confirm-edits-bar');
-      if (!confirmBar) {
+      if (form.closest('.batch-worker')) {
+        confirmBar?.remove();
+      } else if (!confirmBar) {
         confirmBar = document.createElement('div');
         confirmBar.className = 'submission-confirm-edits-bar';
-        confirmBar.innerHTML = '<button type="button" class="btn btn-sm btn-secondary" data-confirm-edits><i class="fa-solid fa-check"></i> Tahrirni tasdiqlash va saqlash</button>';
+        confirmBar.innerHTML = '<button type="button" class="btn btn-sm btn-secondary" data-confirm-edits><i class="fa-solid fa-compress"></i> Tahrirlashni yakunlash</button>';
         const note = form.querySelector('.submission-note');
         if (note) note.after(confirmBar);
         confirmBar.querySelector('[data-confirm-edits]').onclick = () => {
@@ -482,7 +497,15 @@
       const heading = this.container?.querySelector('#submissionHeading');
       if (heading) heading.textContent = this.editingMatch ? 'Matchni tahrirlash' : this.editingSubmission ? 'Submissionni tuzatish' : 'Match yuborish';
       const button = this.container?.querySelector('#practiceSubmitBtn');
-      if (button) button.textContent = this.editingMatch ? 'Tahrirni saqlash' : this.editingSubmission ? 'Tuzatib tasdiqlash' : this.auth.isAdmin() ? 'Matchni saqlash' : 'Captain navbatiga yuborish';
+      if (button) {
+        if (this.container?.closest?.('.batch-worker') || this.container?.classList?.contains('batch-worker')) {
+          button.style.display = 'none';
+          button.hidden = true;
+          button.remove();
+        } else {
+          button.textContent = this.editingMatch ? 'Tahrirni saqlash' : this.editingSubmission ? 'Tuzatib tasdiqlash' : this.auth.isAdmin() ? 'Matchni saqlash' : 'Captain navbatiga yuborish';
+        }
+      }
     }
     refreshRosterOptions() {
       const form = this.container.querySelector('#practiceSubmissionForm');

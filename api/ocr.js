@@ -179,8 +179,21 @@ export function normaliseOcrPayload(parsedData, rosterPlayers = [], heroList = [
       medal: MEDALS.has(medalValue) ? medalValue : null,
       medalReviewRequired: !MEDALS.has(medalValue),
       ...normaliseAwardEvidence(player),
-      savage: typeof player?.savage === 'boolean' ? player.savage : null,
-      maniac: typeof player?.maniac === 'boolean' ? player.maniac : null,
+      savage: (() => {
+        const rawS = typeof player?.savage === 'boolean' ? player.savage : null;
+        const notes = (Array.isArray(player?.highlightNotes) ? player.highlightNotes : []).map(n => String(n || '').toLowerCase());
+        if (rawS === true || notes.some(n => /\b5\b/.test(n) || n.includes('savage'))) return true;
+        return rawS;
+      })(),
+      maniac: (() => {
+        const rawS = typeof player?.savage === 'boolean' ? player.savage : null;
+        const rawM = typeof player?.maniac === 'boolean' ? player.maniac : null;
+        const notes = (Array.isArray(player?.highlightNotes) ? player.highlightNotes : []).map(n => String(n || '').toLowerCase());
+        // In MLBB, securing a Savage (5 kills) inherently includes securing a Maniac (4 kills)
+        if (rawS === true || notes.some(n => /\b5\b/.test(n) || n.includes('savage'))) return true;
+        if (rawM === true || notes.some(n => /\b4\b/.test(n) || n.includes('maniac'))) return true;
+        return rawM;
+      })(),
       damageDealt: nullableNumber(player?.damageDealt, { min: 0, max: 10_000_000, integer: true }),
       damageReceived: nullableNumber(player?.damageReceived, { min: 0, max: 10_000_000, integer: true }),
       turretDamage: nullableNumber(player?.turretDamage, { min: 0, max: 10_000_000, integer: true }),
@@ -284,8 +297,13 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     'Read K/D/A, goldEarned and inGameScore from the scoreboard; damageDealt, damageReceived, turretDamage and teamfightParticipation from their named Data columns.',
     'Read the actual large medal, never infer it from score. Purple/lavender crystalline Supreme badge without MVP text is supreme. The same Supreme badge with an explicit MVP ribbon is supreme_mvp (including defeat MVP). A normal gold badge with explicit MVP text is mvp. Gold crossed swords without MVP are gold. Round silver/copper single-sword badges are silver/bronze. At most one friendly-team MVP total across mvp and supreme_mvp. An AFK badge obscures the medal: set medal=null, afk=true; do not invent bronze from the score. Uncertainty=null.',
     detailPart ? 'A final supplementary image contains enlarged medal-column strips labelled Image 1/2 detail, taken from the full originals above. They are the same rows, not additional players. Read each medal from the scoreboard strip and match its vertical position to the original screenshot; a Data/Damage strip has no medal evidence. A round silver medallion with a single sword is silver; the brown/copper version is bronze. none means an explicitly absent badge, never a silver or bronze badge. If the strip is not the medal column for this layout, use the full original image.' : '',
-    'savage/maniac require explicit evidence; missing badges do not establish false. Never infer multikills from KDA.',
-    'Small highlights beside the medal are separate from the medal. highlightNotes contains brief literal visual descriptions (shape/color or readable text), not guessed official names or achievements. Use [] when unreadable. highlightOverflow is the visible +N extra-icons counter, otherwise null; +5 is NOT Savage and +4 is NOT Maniac. Do not infer hidden highlights. afk=true only for an explicit AFK badge; otherwise null.',
+    'savage/maniac require explicit evidence; missing badges do not establish false. Never infer multikills solely from total KDA if badges are absent.',
+    'Multikill badges in highlights: Look at the small highlight badges beside/below the medal.',
+    'A badge showing number "4" or a purple/red Maniac icon indicates a Maniac: set maniac=true.',
+    'A badge showing number "5" or a golden/flaming Savage icon indicates a Savage. In MLBB, securing a Savage inherently encompasses a Maniac: set savage=true AND maniac=true.',
+    'When only "4" / Maniac is visible: set maniac=true, savage=null (or false). When "5" / Savage is visible: set both savage=true AND maniac=true.',
+    'highlightNotes contains brief literal visual descriptions of visible badges (e.g. ["4", "maniac", "mvp"]). Use [] when unreadable.',
+    'highlightOverflow is ONLY for an explicit +N counter badge indicating overflowed extra icons (e.g. "+2" more badges), otherwise null. Do not confuse multikill badge numbers 4 or 5 with overflow counters.',
     purpose === 'practice_submission' ? 'Eclipse may have 1–5 roster players here; visible row count does not determine team scope.' : ''
   ];
   const prompt = [

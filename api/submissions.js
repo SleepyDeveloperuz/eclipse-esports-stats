@@ -99,6 +99,7 @@ function extendedStats(row = {}, strict = false) {
   }
   output.savage = typeof row.savage === 'boolean' ? row.savage : null;
   output.maniac = typeof row.maniac === 'boolean' ? row.maniac : null;
+  if (output.savage === true) output.maniac = true;
   return { ...output, ...normaliseAwardEvidence(row) };
 }
 

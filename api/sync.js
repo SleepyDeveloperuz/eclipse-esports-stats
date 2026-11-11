@@ -169,7 +169,7 @@ function normalisePlayerStat(stat) {
     medal,
     ...normaliseAwardEvidence(stat),
     savage: typeof stat?.savage === 'boolean' ? stat.savage : null,
-    maniac: typeof stat?.maniac === 'boolean' ? stat.maniac : null
+    maniac: stat?.savage === true ? true : (typeof stat?.maniac === 'boolean' ? stat.maniac : null)
   };
 }
 
