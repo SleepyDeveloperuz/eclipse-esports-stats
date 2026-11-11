@@ -740,6 +740,39 @@ html:not(.access-locked) .access-bootstrap {
   color: var(--text-secondary);
 }
 
+button.sidebar-status-pill {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.65rem;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+button.sidebar-status-pill:hover,
+button.sidebar-status-pill:focus-visible {
+  background: rgba(228, 196, 110, 0.08);
+  border-color: var(--primary);
+  color: var(--text-primary);
+  outline: none;
+  box-shadow: 0 0 12px rgba(228, 196, 110, 0.15);
+}
+
+.sidebar-status-pill__badge {
+  margin-left: auto;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(228, 196, 110, 0.2);
+  color: var(--primary);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .status-dot {
   width: 7px;
   height: 7px;
@@ -6329,3 +6362,206 @@ kbd {
 .scan-quality dl>div { flex:1 1 180px }
 .weekly-focus :is(textarea,select,button):focus-visible,.scan-quality summary:focus-visible { outline:2px solid #e9c86c; outline-offset:3px }
 @media(max-width:600px) { .weekly-focus-signals { grid-template-columns:1fr; gap:18px } .weekly-focus-actions .btn { width:100% } }
+
+/* ==========================================================================
+   Version Changelog Modal
+   ========================================================================== */
+.changelog-dialog {
+  padding: 0;
+  border: none;
+  background: transparent;
+  max-width: min(640px, 95vw);
+  width: 100%;
+  margin: 6vh auto auto;
+  border-radius: 16px;
+  outline: none;
+}
+
+.changelog-dialog:not([open]) {
+  display: none;
+}
+
+.changelog-dialog[open] {
+  display: block;
+}
+
+.changelog-dialog::backdrop {
+  background: rgba(4, 4, 3, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.changelog-modal {
+  background: #0d0f14;
+  border: 1px solid rgba(228, 196, 110, 0.35);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.95), 0 0 32px rgba(228, 196, 110, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 84vh;
+}
+
+.changelog-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.15rem 1.4rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
+}
+
+.changelog-modal__eyebrow {
+  font-size: 0.68rem;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.08em;
+  color: var(--primary, #e4c46e);
+  margin: 0 0 0.2rem;
+}
+
+.changelog-modal__header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #fff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.changelog-modal__close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.changelog-modal__close kbd {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: #aaa;
+}
+
+.changelog-modal__body {
+  padding: 1.25rem 1.4rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.changelog-release {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.changelog-release:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.changelog-release__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.changelog-release__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.changelog-release__version {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--primary, #e4c46e);
+}
+
+.changelog-release__badge {
+  font-size: 0.68rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(228, 196, 110, 0.15);
+  border: 1px solid rgba(228, 196, 110, 0.3);
+  color: var(--primary, #e4c46e);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.changelog-release__date {
+  font-size: 0.75rem;
+  color: var(--text-muted, #8e8e84);
+}
+
+.changelog-release__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #eee;
+}
+
+.changelog-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+}
+
+.changelog-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.changelog-section__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.changelog-section__tag {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  font-family: var(--font-mono, monospace);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #bbb;
+}
+
+.changelog-section__list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #b5b5ad);
+  line-height: 1.45;
+}
+
+.changelog-modal__footer {
+  padding: 0.75rem 1.4rem;
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.72rem;
+  color: var(--text-muted, #8e8e84);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}

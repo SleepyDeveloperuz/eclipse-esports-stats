@@ -29,8 +29,8 @@ export class BatchUpload {
       <div class="batch-shell">
         <div class="submission-mode-switch" role="group" aria-label="Match kiritish usuli">
           <button type="button" class="btn btn-secondary" data-mode-single><i class="fa-solid fa-camera"></i> Bitta match (AI Skaner)</button>
-          <button type="button" class="btn btn-secondary active"><i class="fa-solid fa-layer-group"></i> Multi-match upload</button>
-          <button type="button" class="btn btn-secondary" data-mode-manual><i class="fa-solid fa-keyboard"></i> Qo‘lda kiritish</button>
+          <button type="button" class="btn btn-secondary active"><i class="fa-solid fa-layer-group"></i> Multi-match upload (3–10 rasm)</button>
+          <button type="button" class="btn btn-secondary" data-mode-manual><i class="fa-solid fa-keyboard"></i> Qo‘lda kiritish (Forma)</button>
         </div>
         <header class="batch-header">
           <div class="batch-header__nav">
@@ -306,6 +306,21 @@ export class BatchUpload {
       `;
     }).join('');
     this.setStep(1);
+  }
+
+  loadFiles(fileList) {
+    const input = this.container?.querySelector('#batchFiles');
+    if (!input || !fileList?.length) return;
+    const validFiles = [...fileList].filter(f => f && (f.type?.startsWith('image/') || /\.(heic|heif)$/i.test(f.name || '')));
+    if (!validFiles.length) return;
+    if (typeof DataTransfer !== 'undefined') {
+      const dt = new DataTransfer();
+      validFiles.slice(0, 10).forEach(f => dt.items.add(f));
+      try {
+        input.files = dt.files;
+      } catch (_) {}
+    }
+    this.onFilesSelected();
   }
 
   setStep(stepNum) {

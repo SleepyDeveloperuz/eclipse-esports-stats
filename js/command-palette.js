@@ -22,8 +22,8 @@
         { id: 'page-progress', label: 'Eclipse Progress', group: 'Sahifalar', icon: 'fa-chart-line', page: 'progress', url: '/#progress' },
         { id: 'page-briefing', label: 'Briefing & Meta tahlil', group: 'Sahifalar', icon: 'fa-newspaper', page: 'briefing', url: '/#briefing' },
         { id: 'page-metalab', label: 'Meta Lab (MLBB Tierlist)', group: 'Sahifalar', icon: 'fa-ranking-star', url: '/meta-lab' },
-        { id: 'page-submissions', label: 'Match yuborish (Skaner)', group: 'Sahifalar', icon: 'fa-satellite-dish', page: 'submissions', url: '/#submissions' },
-        { id: 'page-add-match', label: 'Match qo‘shish (Admin)', group: 'Sahifalar', icon: 'fa-plus', page: 'add-match', url: '/#add-match' },
+        { id: 'page-submissions', label: 'Match kiritish (Hub / Skaner)', group: 'Sahifalar', icon: 'fa-satellite-dish', page: 'submissions', url: '/#submissions' },
+        { id: 'page-add-match', label: 'Qo‘lda kiritish (Admin)', group: 'Sahifalar', icon: 'fa-keyboard', page: 'add-match', url: '/#add-match' },
         { id: 'page-settings', label: 'Sozlamalar', group: 'Sahifalar', icon: 'fa-gear', page: 'settings', url: '/#settings' }
       ];
     }
@@ -33,6 +33,7 @@
         { id: 'act-draft-assistant', label: 'Draft Assistant (Pick & Ban Helper)', group: 'Amallar', icon: 'fa-shield-halved', action: 'draftAssistant' },
         { id: 'act-export-tier', label: 'Meta Tierlistni PNG eksport qilish', group: 'Amallar', icon: 'fa-file-image', action: 'exportTier' },
         { id: 'act-toggle-sfx', label: 'Audio SFX (Ovoz effektlarini yoqish/o‘chirish)', group: 'Amallar', icon: 'fa-volume-high', action: 'toggleSfx' },
+        { id: 'act-changelog', label: 'Versiya yangiliklari (v2.37.0 Changelog)', group: 'Yordam', icon: 'fa-sparkles', action: 'changelog' },
         { id: 'act-hotkeys', label: 'Klaviatura tugmalari yordamchisi (?)', group: 'Yordam', icon: 'fa-keyboard', action: 'hotkeys' },
         { id: 'act-filter-exp', label: 'EXP Lane qahramonlarini ko‘rish', group: 'Layn filtri', icon: 'fa-shield-halved', lane: 'exp' },
         { id: 'act-filter-gold', label: 'Gold Lane qahramonlarini ko‘rish', group: 'Layn filtri', icon: 'fa-coins', lane: 'gold' },
@@ -343,6 +344,10 @@
       if (item.action === 'hotkeys') {
         const dialog = document.getElementById('hotkeysDialog');
         if (dialog?.showModal) dialog.showModal();
+        return;
+      }
+      if (item.action === 'changelog') {
+        window.EclipseApp?.openChangelog?.();
         return;
       }
       if (item.action === 'exportTier') {

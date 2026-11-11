@@ -164,7 +164,7 @@ window.SubmissionManager = class SubmissionManager {
         </div>
         <div class="submission-hero__copy">
           <p class="section-eyebrow">ECLIPSE // ${isAdmin ? 'CAPTAIN CONSOLE' : 'TEAM INPUT'}</p>
-          <h2 id="submissionHeading">Match yuborish</h2>
+          <h2 id="submissionHeading">Match kiritish (Hub)</h2>
           <p>${isAdmin
             ? 'Faqat jamoa lideri (IGL / Captain) match natijalarini to‘liq kiritadi. Kiritilgan matchlar to‘g‘ridan-to‘g‘ri jamoa statistikasiga qo‘shiladi.'
             : '1–5 a’zoning to‘liq natijasini kiriting. Besh a’zo — Team 5, qolganlari — Practice. Jamoadosh yuborgan match Captain tasdiqlagach statistikaga kiradi.'}</p>
@@ -178,8 +178,8 @@ window.SubmissionManager = class SubmissionManager {
 
       <div class="submission-mode-switch" role="group" aria-label="Match kiritish usuli">
         <button type="button" class="btn btn-secondary active" data-mode="single"><i class="fa-solid fa-camera"></i> Bitta match (AI Skaner)</button>
-        <button type="button" class="btn btn-secondary" data-open-batch><i class="fa-solid fa-layer-group"></i> Multi-match upload</button>
-        <button type="button" class="btn btn-secondary" data-open-manual><i class="fa-solid fa-keyboard"></i> Qo‘lda kiritish</button>
+        <button type="button" class="btn btn-secondary" data-open-batch><i class="fa-solid fa-layer-group"></i> Multi-match upload (3–10 rasm)</button>
+        <button type="button" class="btn btn-secondary" data-open-manual><i class="fa-solid fa-keyboard"></i> Qo‘lda kiritish (Forma)</button>
       </div>
       <div class="submission-layout">
         <section class="submission-panel submission-compose" aria-labelledby="submissionFormTitle">
@@ -510,6 +510,14 @@ window.SubmissionManager = class SubmissionManager {
     if (list.length > 2) {
       window.showToast?.(`${list.length} ta skrinshot aniqlandi. Multi-match yuklash oynasiga yo‘naltirilmoqda…`, 'info');
       window.EclipseApp?.navigate?.('batch');
+      const transferToBatch = () => {
+        window.EclipseApp?.batchManager?.loadFiles?.(list);
+      };
+      if (window.EclipseApp?.batchManager) {
+        transferToBatch();
+      } else {
+        setTimeout(transferToBatch, 60);
+      }
       return;
     }
     list.slice(0, 2 - index).forEach((file, offset) => this.readImage(file, index + offset));

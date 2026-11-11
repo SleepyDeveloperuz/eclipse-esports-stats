@@ -720,6 +720,38 @@ window.EclipseApp = {
       });
     }
 
+    // Changelog dialog triggers
+    const changelogDialog = document.getElementById('changelogDialog');
+    const changelogBtn = document.getElementById('versionChangelogBtn');
+    const changelogCloseBtn = document.getElementById('changelogCloseBtn');
+
+    if (changelogBtn && changelogDialog) {
+      changelogBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.eclipseAudio?.play?.('click');
+        this.openChangelog();
+      });
+    }
+
+    if (changelogCloseBtn && changelogDialog) {
+      changelogCloseBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.eclipseAudio?.play?.('close');
+        this.closeChangelog();
+      });
+    }
+
+    if (changelogDialog) {
+      changelogDialog.addEventListener('click', (e) => {
+        if (e.target === changelogDialog) {
+          window.eclipseAudio?.play?.('close');
+          this.closeChangelog();
+        }
+      });
+    }
+
     // Draft Assistant triggers
     document.querySelectorAll('#draftAssistantBtn, .draft-trigger-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -842,6 +874,134 @@ window.EclipseApp = {
     });
   },
 
+  RELEASES: [
+    {
+      version: 'v2.37.0',
+      date: '2026-11-11',
+      badge: 'Hozirgi versiya',
+      title: 'Katta optimallashtirish, arxitektura tozalash va yagona Match Hub',
+      sections: [
+        {
+          title: 'Birlashgan Match Hub',
+          icon: 'fa-layer-group',
+          badge: 'UX',
+          items: [
+            'Match yuborish, batch upload va qo‘lda kiritish yagona markazga (Hub) birlashtirildi.',
+            'Smart drag &amp; drop: 1–2 ta rasm tushganda yakka AI skaner, 3–10 ta rasm tushganda avtomatik ravishda multi-match rejimiga yo‘naltiriladi va fayllar uzatiladi.',
+            'Barcha 3 ta rejim (AI skaner, batch, forma) o‘rtasida bir bosish bilan o‘tish mumkin bo‘lgan rejimlar almashtirgichi qo‘shildi.'
+          ]
+        },
+        {
+          title: 'Mijoz tomonida rasm siqish (Compression)',
+          icon: 'fa-bolt-lightning',
+          badge: 'Speed',
+          items: [
+            'Skrinshotlar brauzerning o‘zidayoq (Canvas WebP) 90–95% gacha siqiladi.',
+            'Serverga 5–8 MB o‘rniga ~300 KB yuboriladi, bu esa yuklanishni 4x barobar tezlashtiradi va Vercel 413 timeout xatolarini bartaraf etadi.'
+          ]
+        },
+        {
+          title: 'Ma’lumotlar bazasi va xotira himoyasi',
+          icon: 'fa-shield-halved',
+          badge: 'Storage',
+          items: [
+            'Bitta ulkan JSON o‘rniga kolleksiyalar arxitekturasi joriy qilindi (/api/sync?collection=roster va ?collection=matches).',
+            'Kutilayotgan arizalar uchun alohida /api/submissions?status=pending filtri kiritildi (tarmoq trafigi 80% tejaldi).',
+            'Redis 3.5 MB chegarasidan oshib ketmasligi uchun eski arizalarni avtomatik tozalash (safe auto-pruning) himoyasi qo‘shildi.'
+          ]
+        },
+        {
+          title: 'CSS va Mobile-First moslashuvchanlik',
+          icon: 'fa-mobile-screen',
+          badge: 'UI',
+          items: [
+            'Eski v221.css, v222.css, v225.css, v227.css fayllari style.css ga to‘liq birlashtirilib, qatlamli override va ziddiyatlar bartaraf etildi.',
+            'Mobil ekranlarda o‘yinchilar statistikasi va jadvallar gorizontal skrollsiz, ixcham kartochkalar holatiga o‘tkazildi.',
+            'Batareyani va CPU/GPU resurslarini tejash maqsadida og‘ir fondagi aylanuvchi animatsiyalar to‘xtatildi.'
+          ]
+        },
+        {
+          title: 'Interaktiv Versiya Yangiliklari (Changelog)',
+          icon: 'fa-sparkles',
+          badge: 'Yangi',
+          items: [
+            'Pastdagi versiya tugmasi ustiga bosilganda o‘zgarishlar va yangiliklar oynasi ochiladi.',
+            'Tezkor buyruqlar qidiruvi (⌘K) orqali ham istalgan vaqtda ko‘rish mumkin.'
+          ]
+        }
+      ]
+    },
+    {
+      version: 'v2.36.0',
+      date: '2026-10-20',
+      badge: 'Oldingi',
+      title: 'AI Coach va Taktik tahlil',
+      sections: [
+        {
+          title: 'AI Coach integratsiyasi',
+          icon: 'fa-robot',
+          badge: 'AI',
+          items: [
+            'Har bir match bo‘yicha individual xatoliklar va tavsiyalar beruvchi AI Coach moduli qo‘shildi.',
+            'Komanda kompozitsiyasi va layn sinergiyasi chuqur tahlili.'
+          ]
+        }
+      ]
+    }
+  ],
+
+  openChangelog() {
+    const dialog = document.getElementById('changelogDialog');
+    if (!dialog) return;
+    this.renderChangelog();
+    if (!dialog.open) {
+      if (typeof dialog.showModal === 'function') {
+        dialog.showModal();
+      } else {
+        dialog.setAttribute('open', '');
+      }
+    }
+  },
+
+  closeChangelog() {
+    const dialog = document.getElementById('changelogDialog');
+    if (!dialog) return;
+    if (typeof dialog.close === 'function') {
+      dialog.close();
+    } else {
+      dialog.removeAttribute('open');
+    }
+  },
+
+  renderChangelog() {
+    const container = document.getElementById('changelogBody');
+    if (!container || !Array.isArray(this.RELEASES)) return;
+    const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    container.innerHTML = this.RELEASES.map((rel, idx) => `
+      <article class="changelog-release">
+        <div class="changelog-release__head">
+          <div class="changelog-release__meta">
+            <span class="changelog-release__version">${esc(rel.version)}</span>
+            <span class="changelog-release__badge">${esc(rel.badge || (idx === 0 ? 'Hozirgi versiya' : 'Oldingi'))}</span>
+          </div>
+          <time class="changelog-release__date">${esc(rel.date)}</time>
+        </div>
+        <h4 class="changelog-release__title">${esc(rel.title)}</h4>
+        ${(rel.sections || []).map(sec => `
+          <div class="changelog-section">
+            <div class="changelog-section__head">
+              <span class="changelog-section__title"><i class="fa-solid ${esc(sec.icon || 'fa-bolt')}" style="color:var(--primary);"></i> ${esc(sec.title)}</span>
+              <span class="changelog-section__tag">${esc(sec.badge || 'Update')}</span>
+            </div>
+            <ul class="changelog-section__list">
+              ${(sec.items || []).map(item => `<li>${item}</li>`).join('')}
+            </ul>
+          </div>
+        `).join('')}
+      </article>
+    `).join('');
+  },
+
   navigate(pageId) {
     // The old hand-maintained hero page is retired; Hero Dossier now lives
     // inside the canonical, automatically synced Meta Lab.
@@ -881,9 +1041,9 @@ window.EclipseApp = {
     const pageTitleEl = document.getElementById('pageTitle');
     const titles = {
       'dashboard': 'Bosh sahifa',
-      'add-match': 'Match qo‘shish',
+      'add-match': 'Qo‘lda kiritish (Admin)',
       'match-history': 'Matchlar',
-      'submissions': 'Match yuborish',
+      'submissions': 'Match kiritish (Hub)',
       'players': 'Jamoa',
       'player-profile': 'O‘yinchi profili',
       'statistics': 'Tahlil',

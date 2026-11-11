@@ -1122,3 +1122,53 @@ domTest('Admin upload shows IGL notice and submission-hero collapses telemetry o
 
   dom.window.close();
 });
+
+domTest('version status pill opens changelog modal with release notes', () => {
+  const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(indexHtml, /id="versionChangelogBtn"/, 'index.html has versionChangelogBtn');
+  assert.match(indexHtml, /id="changelogDialog"/, 'index.html has changelogDialog');
+  assert.match(indexHtml, /id="changelogCloseBtn"/, 'index.html has changelogCloseBtn');
+  assert.match(indexHtml, /v2\.37\.0/, 'index.html displays v2.37.0');
+
+  const dom = new JSDOM(`
+    <!DOCTYPE html>
+    <html>
+      <body>
+        <button id="versionChangelogBtn"></button>
+        <dialog id="changelogDialog">
+          <div id="changelogBody"></div>
+          <button id="changelogCloseBtn"></button>
+        </dialog>
+      </body>
+    </html>
+  `, { runScripts: 'outside-only' });
+  const { window } = dom;
+
+  window.eval(readFileSync(new URL('../js/date-utils.js', import.meta.url), 'utf8'));
+  window.eval(readFileSync(new URL('../js/app.js', import.meta.url), 'utf8'));
+
+  const app = window.EclipseApp;
+  assert.ok(Array.isArray(app.RELEASES), 'app has RELEASES array');
+  assert.equal(app.RELEASES[0].version, 'v2.37.0', 'latest release is v2.37.0');
+
+  app.bindQolControls();
+
+  let showModalCalled = false;
+  let closeCalled = false;
+  const dialog = window.document.getElementById('changelogDialog');
+  dialog.showModal = () => { showModalCalled = true; dialog.open = true; };
+  dialog.close = () => { closeCalled = true; dialog.open = false; };
+
+  // Click version pill opens modal
+  const btn = window.document.getElementById('versionChangelogBtn');
+  btn.click();
+  assert.ok(showModalCalled, 'clicking version pill calls showModal()');
+  assert.match(window.document.getElementById('changelogBody').innerHTML, /v2\.37\.0/, 'changelog body is rendered');
+
+  // Click close button closes modal
+  const closeBtn = window.document.getElementById('changelogCloseBtn');
+  closeBtn.click();
+  assert.ok(closeCalled, 'clicking closeBtn calls close()');
+
+  dom.window.close();
+});

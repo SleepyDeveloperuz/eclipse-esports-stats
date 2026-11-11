@@ -64,11 +64,11 @@
                 <a href="#" class="nav-item" data-page="meta-lab"><i class="fa-solid fa-ranking-star" aria-hidden="true"></i> Meta Lab</a>
                 <div class="nav-team-input" aria-label="Jamoa yuborish vositalari">
                     <p class="nav-group-label">Team input</p>
-                    <a href="#" class="nav-item nav-item--submission" data-page="submissions"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> Match yuborish <span class="nav-count" id="submissionPendingBadge" hidden>0</span><kbd>S</kbd></a>
+                    <a href="#" class="nav-item nav-item--submission" data-page="submissions"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> Match kiritish (Hub) <span class="nav-count" id="submissionPendingBadge" hidden>0</span><kbd>S</kbd></a>
                 </div>
                 <div class="admin-only nav-admin-tools" aria-label="Admin vositalari">
                     <p class="nav-group-label">Admin vositalari</p>
-                    <a href="#" class="nav-item nav-item--utility" data-page="add-match"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-add"></use></svg> Match qo‘shish <kbd>N</kbd></a>
+                    <a href="#" class="nav-item nav-item--utility" data-page="add-match"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-add"></use></svg> Qo‘lda kiritish (Admin) <kbd>N</kbd></a>
                     <a href="#" class="nav-item nav-item--utility" data-page="settings"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-settings"></use></svg> Sozlamalar</a>
                 </div>
             </nav>
@@ -76,10 +76,11 @@
                 <button type="button" class="sidebar-footer-close-btn" id="sidebarFooterCloseBtn" aria-label="Menyuni yopish">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i> <span>Menyuni yopish</span>
                 </button>
-                <div class="sidebar-status-pill">
+                <button type="button" class="sidebar-status-pill" id="versionChangelogBtn" aria-label="Versiya yangiliklari (v2.37.0)" title="Versiya yangiliklari (v2.37.0) — o‘zgarishlarni ko‘rish">
                     <span class="status-dot"></span>
                     <span>Eclipse Live System v2.37.0</span>
-                </div>
+                    <span class="sidebar-status-pill__badge">Yangiliklar</span>
+                </button>
                 <p class="sidebar-shortcuts-hint"><kbd>Esc</kbd> Yopish &middot; <kbd>S</kbd> Practice</p>
                 <p id="foregroundSyncStatus" class="sidebar-shortcuts-hint" role="status">Ma’lumot tekshirilmoqda…</p>
                 <button type="button" class="btn btn-secondary" data-pwa-install>Ilovani o‘rnatish</button>
@@ -168,8 +169,8 @@
                 </div>
                 <div class="submission-mode-switch" role="group" aria-label="Match kiritish usuli">
                     <button type="button" class="btn btn-secondary" onclick="window.EclipseApp.navigate('submissions')"><i class="fa-solid fa-camera"></i> Bitta match (AI Skaner)</button>
-                    <button type="button" class="btn btn-secondary" onclick="window.EclipseApp.navigate('batch')"><i class="fa-solid fa-layer-group"></i> Multi-match upload</button>
-                    <button type="button" class="btn btn-secondary active"><i class="fa-solid fa-keyboard"></i> Qo‘lda kiritish</button>
+                    <button type="button" class="btn btn-secondary" onclick="window.EclipseApp.navigate('batch')"><i class="fa-solid fa-layer-group"></i> Multi-match upload (3–10 rasm)</button>
+                    <button type="button" class="btn btn-secondary active"><i class="fa-solid fa-keyboard"></i> Qo‘lda kiritish (Forma)</button>
                 </div>
                 <div id="matchFormContainer"></div>
             </section>
@@ -440,6 +441,82 @@
             </div>
             <footer class="hotkeys-modal__footer">
                 <span>Eclipse Esports · Professional MLBB Analytics Center</span>
+            </footer>
+        </div>
+    </dialog>
+
+    <!-- Version Changelog Dialog -->
+    <dialog class="changelog-dialog" id="changelogDialog" aria-labelledby="changelogTitle">
+        <div class="changelog-modal">
+            <header class="changelog-modal__header">
+                <div>
+                    <p class="changelog-modal__eyebrow">ECLIPSE LIVE // RELEASE NOTES</p>
+                    <h3 id="changelogTitle"><i class="fa-solid fa-sparkles" style="color:var(--primary);"></i> Versiya yangiliklari</h3>
+                </div>
+                <button type="button" class="changelog-modal__close" id="changelogCloseBtn" aria-label="Yopish"><kbd>Esc</kbd></button>
+            </header>
+            <div class="changelog-modal__body" id="changelogBody">
+                <article class="changelog-release">
+                    <div class="changelog-release__head">
+                        <div class="changelog-release__meta">
+                            <span class="changelog-release__version">v2.37.0</span>
+                            <span class="changelog-release__badge">Hozirgi versiya</span>
+                        </div>
+                        <time class="changelog-release__date">2026-11-11</time>
+                    </div>
+                    <h4 class="changelog-release__title">Katta optimallashtirish, arxitektura tozalash va yagona Match Hub</h4>
+                    
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-layer-group" style="color:var(--primary);"></i> Birlashgan Match Hub</span>
+                            <span class="changelog-section__tag">UX</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Match yuborish, batch upload va qo‘lda kiritish yagona markazga (Hub) birlashtirildi.</li>
+                            <li>Smart drag &amp; drop: 1–2 ta rasm tushganda yakka AI skaner, 3–10 ta rasm tushganda avtomatik ravishda multi-match rejimiga yo‘naltiriladi va fayllar uzatiladi.</li>
+                            <li>Barcha 3 ta rejim (AI skaner, batch, forma) o‘rtasida bir bosish bilan o‘tish mumkin bo‘lgan rejimlar almashtirgichi qo‘shildi.</li>
+                        </ul>
+                    </div>
+
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-bolt-lightning" style="color:var(--primary);"></i> Mijoz tomonida rasm siqish (Compression)</span>
+                            <span class="changelog-section__tag">Speed</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Skrinshotlar brauzerning o‘zidayoq (Canvas WebP) 90–95% gacha siqiladi.</li>
+                            <li>Serverga 5–8 MB o‘rniga ~300 KB yuboriladi, bu esa yuklanishni 4x barobar tezlashtiradi va Vercel 413 timeout xatolarini bartaraf etadi.</li>
+                        </ul>
+                    </div>
+
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-shield-halved" style="color:var(--primary);"></i> Ma’lumotlar bazasi va xotira himoyasi</span>
+                            <span class="changelog-section__tag">Storage</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Bitta ulkan JSON o‘rniga kolleksiyalar arxitekturasi joriy qilindi (/api/sync?collection=roster va ?collection=matches).</li>
+                            <li>Kutilayotgan arizalar uchun alohida /api/submissions?status=pending filtri kiritildi (tarmoq trafigi 80% tejaldi).</li>
+                            <li>Redis 3.5 MB chegarasidan oshib ketmasligi uchun eski arizalarni avtomatik tozalash (safe auto-pruning) himoyasi qo‘shildi.</li>
+                        </ul>
+                    </div>
+
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-mobile-screen" style="color:var(--primary);"></i> CSS va Mobile-First moslashuvchanlik</span>
+                            <span class="changelog-section__tag">UI</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Eski v221.css, v222.css, v225.css, v227.css fayllari style.css ga to‘liq birlashtirilib, qatlamli override va ziddiyatlar bartaraf etildi.</li>
+                            <li>Mobil ekranlarda o‘yinchilar statistikasi va jadvallar gorizontal skrollsiz, ixcham kartochkalar holatiga o‘tkazildi.</li>
+                            <li>Batareyani va CPU/GPU resurslarini tejash maqsadida og‘ir fondagi aylanuvchi animatsiyalar to‘xtatildi.</li>
+                        </ul>
+                    </div>
+                </article>
+            </div>
+            <footer class="changelog-modal__footer">
+                <span>Eclipse Esports · Professional MLBB Analytics Center</span>
+                <span>v2.37.0 Live</span>
             </footer>
         </div>
     </dialog>
