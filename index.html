@@ -20,7 +20,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     
     <link rel="stylesheet" href="css/style.css?v=2.36.1">
-    <link rel="stylesheet" href="css/v227.css?v=2.36.1">
     <link rel="stylesheet" href="css/coach.css?v=2.36.0">
     <link rel="stylesheet" href="css/public-meta.css?v=2.30.1">
     <link rel="stylesheet" href="css/meta-explore.css?v=2.36.1">
@@ -166,6 +165,11 @@
                         <i class="fa-solid fa-crown" aria-hidden="true"></i>
                         <span><strong>Jamoa qoidasi:</strong> Match natijalarini faqat jamoa lideri (IGL / Captain) yuklaydi va tasdiqlaydi.</span>
                     </div>
+                </div>
+                <div class="submission-mode-switch" role="group" aria-label="Match kiritish usuli">
+                    <button type="button" class="btn btn-secondary" onclick="window.EclipseApp.navigate('submissions')"><i class="fa-solid fa-camera"></i> Bitta match (AI Skaner)</button>
+                    <button type="button" class="btn btn-secondary" onclick="window.EclipseApp.navigate('batch')"><i class="fa-solid fa-layer-group"></i> Multi-match upload</button>
+                    <button type="button" class="btn btn-secondary active"><i class="fa-solid fa-keyboard"></i> Qo‘lda kiritish</button>
                 </div>
                 <div id="matchFormContainer"></div>
             </section>

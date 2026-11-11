@@ -27,6 +27,11 @@ export class BatchUpload {
 
     this.container.innerHTML = `
       <div class="batch-shell">
+        <div class="submission-mode-switch" role="group" aria-label="Match kiritish usuli">
+          <button type="button" class="btn btn-secondary" data-mode-single><i class="fa-solid fa-camera"></i> Bitta match (AI Skaner)</button>
+          <button type="button" class="btn btn-secondary active"><i class="fa-solid fa-layer-group"></i> Multi-match upload</button>
+          <button type="button" class="btn btn-secondary" data-mode-manual><i class="fa-solid fa-keyboard"></i> Qo‘lda kiritish</button>
+        </div>
         <header class="batch-header">
           <div class="batch-header__nav">
             <button type="button" class="btn btn-secondary batch-back-btn" data-batch-back>
@@ -189,8 +194,14 @@ export class BatchUpload {
     `;
 
     this.container.querySelectorAll('[data-batch]').forEach(b => b.onclick = () => this.run(b.dataset.batch));
+    this.container.querySelector('[data-mode-single]')?.addEventListener('click', () => {
+      window.EclipseApp?.navigate?.('submissions');
+    });
+    this.container.querySelector('[data-mode-manual]')?.addEventListener('click', () => {
+      window.EclipseApp?.navigate?.('add-match');
+    });
     this.container.querySelector('[data-batch-back]')?.addEventListener('click', () => {
-      window.EclipseApp?.navigate?.('practice');
+      window.EclipseApp?.navigate?.('submissions');
     });
 
     this.bindDropzone();

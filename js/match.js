@@ -1296,8 +1296,14 @@ window.MatchManager = class MatchManager {
         return;
       }
       const reader = new FileReader();
-      reader.onload = (e) => {
-        this.ocrImages[slotIndex] = e.target.result;
+      reader.onload = async (e) => {
+        let dataUrl = e.target.result;
+        if (window.EclipseImageUpload?.compressScreenshot) {
+          try {
+            dataUrl = await window.EclipseImageUpload.compressScreenshot(dataUrl);
+          } catch (_) {}
+        }
+        this.ocrImages[slotIndex] = dataUrl;
         updateSlotDisplay(slotIndex);
         if (window.showToast) {
           window.showToast(`📸 ${slotIndex + 1}-Skrinshot muvaffaqiyatli yuklandi!`, 'info');
