@@ -496,7 +496,7 @@ export class BatchUpload {
         ${[group.score, group.damage].filter(Boolean).map((f, idx) => `
           <div class="batch-preview-card">
             <span class="batch-preview-tag">${idx === 0 ? 'Scoreboard' : 'Damage'}</span>
-            <img src="${images[f.index]}" alt="${esc(files[f.index]?.name || 'Skrinshot')}">
+            <img src="${images[f.index]}" alt="${esc(files[f.index]?.name || 'Skrinshot')}" loading="lazy" decoding="async">
           </div>
         `).join('')}
       </div>

@@ -295,7 +295,7 @@
         return `
           <div class="draft-slot draft-slot--filled" data-team="${team}" data-index="${index}">
             <div class="draft-slot__media">
-              ${portrait ? `<img src="${portrait}" alt="${hero.name}" class="draft-slot__img">` : `<div class="draft-slot__fallback">${hero.name.slice(0, 2)}</div>`}
+              ${portrait ? `<img src="${portrait}" alt="${hero.name}" class="draft-slot__img" loading="lazy" decoding="async">` : `<div class="draft-slot__fallback">${hero.name.slice(0, 2)}</div>`}
               <button type="button" class="draft-slot__remove" data-remove-team="${team}" data-remove-index="${index}" title="Olib tashlash">✕</button>
             </div>
             <div class="draft-slot__info">
@@ -363,7 +363,7 @@
         return `
           <button type="button" class="draft-picker-item" data-hero-id="${heroId}" data-hero-name="${this.escape(h.name)}">
             <div class="draft-picker-item__media">
-              ${portrait ? `<img src="${this.escape(portrait)}" alt="${this.escape(h.name)}">` : `<span>${this.escape(h.name.slice(0, 2))}</span>`}
+              ${portrait ? `<img src="${this.escape(portrait)}" alt="${this.escape(h.name)}" loading="lazy" decoding="async">` : `<span>${this.escape(h.name.slice(0, 2))}</span>`}
             </div>
             <div class="draft-picker-item__info">
               <strong>${this.escape(h.name)}</strong>
@@ -506,7 +506,7 @@
                 return `
                   <div class="draft-rec-item" data-pick-suggest="${heroId}" data-hero-name="${this.escape(h.name)}">
                     <div class="draft-rec-avatar">
-                      ${portrait ? `<img src="${this.escape(portrait)}" alt="${this.escape(h.name)}">` : `<span>${this.escape(h.name.slice(0, 2))}</span>`}
+                      ${portrait ? `<img src="${this.escape(portrait)}" alt="${this.escape(h.name)}" loading="lazy" decoding="async">` : `<span>${this.escape(h.name.slice(0, 2))}</span>`}
                       <span class="draft-rec-tier is-${this.escape(cs.tier.toLowerCase())}">${this.escape(cs.tier)}</span>
                     </div>
                     <div>

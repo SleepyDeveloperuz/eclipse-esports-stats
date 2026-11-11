@@ -165,7 +165,7 @@
     heroPreview(row) {
       const hero = this.heroDb.resolve?.(this.formValue(row, 'heroUsed'));
       const image = hero?.images?.portrait || hero?.image || '';
-      row.querySelector('[data-hero-preview]').innerHTML = `${image ? `<img src="${this.escape(image)}" alt="${this.escape(hero.name)}">` : ''}<strong>${this.escape(hero?.name || 'Qahramonni tanlang')}</strong>`;
+      row.querySelector('[data-hero-preview]').innerHTML = `${image ? `<img src="${this.escape(image)}" alt="${this.escape(hero.name)}" loading="lazy" decoding="async">` : ''}<strong>${this.escape(hero?.name || 'Qahramonni tanlang')}</strong>`;
       row.querySelector('[data-hero-status]').textContent = hero ? (row.dataset.heroSource === 'portrait' ? 'Portret orqali avtomatik topildi' : 'Qo‘lda tanlandi') : 'Qahramon aniqlanmadi. Tiniqroq skrinshot yuklang yoki qahramonni tanlang.';
       this.resolveMatchRole(row);
     }
@@ -249,7 +249,7 @@
         for (const { candidate, hero } of candidates) {
           const pick = document.createElement('button'); pick.type = 'button'; pick.className = 'btn btn-secondary';
           const image = hero.images?.portrait || hero.image || candidate.image;
-          pick.innerHTML = `${image ? `<img src="${this.escape(image)}" alt="">` : ''}${this.escape(hero.name)}`;
+          pick.innerHTML = `${image ? `<img src="${this.escape(image)}" alt="" loading="lazy" decoding="async">` : ''}${this.escape(hero.name)}`;
           pick.onclick = () => {
             if (!current()) return;
             row._heroEditVersion = (row._heroEditVersion || 0) + 1;
