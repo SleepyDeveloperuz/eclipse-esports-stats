@@ -7,7 +7,8 @@ import { normaliseAwardEvidence } from '../lib/match-awards.js';
 import { smartMatchRoster } from '../lib/roster-matcher.js';
 import { cleanBattleId } from '../js/batch-model.js';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const rawGeminiKey = process.env.GEMINI_API_KEY || '';
+const GEMINI_API_KEY = rawGeminiKey.trim().replace(/^["']|["']$/g, '').trim();
 const MAX_IMAGES = 2;
 const MAX_IMAGE_DATA_LENGTH = 4 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;

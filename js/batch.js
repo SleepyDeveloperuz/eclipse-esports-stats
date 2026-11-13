@@ -465,32 +465,87 @@ export class BatchUpload {
     }
     this.controller = new AbortController();
     this.status('Battle ID va rasm turi tekshirilmoqda…');
-    const response = await fetch('/api/ocr', {
-      method: 'POST',
-      signal: this.controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.app.authManager.getAccessToken()}` },
-      body: JSON.stringify({ purpose: 'practice_submission', mode: 'batch_index', images })
-    });
-    const result = await response.json();
-    if (generation !== this.generation) return;
-    if (!response.ok || !result.data?.files) throw new Error(result.error || 'Juftlash bajarilmadi.');
-    const grouped = groupBatchFiles(result.data.files);
-
-    // If auto-grouping by exact Battle ID left 0 matches but user uploaded 2 files:
-    // Pair them as 1 match (Scoreboard + Damage) so upload doesn't get blocked.
-    if (grouped.matches.length === 0 && files.length === 2) {
-      const f0 = result.data.files[0], f1 = result.data.files[1];
-      const score = [f0, f1].find(f => f.kind === 'scoreboard') || f0;
-      const damage = [f0, f1].find(f => f.kind === 'damage') || (score === f0 ? f1 : f0);
-      grouped.matches.push({
-        battleId: score.battleId || damage.battleId || null,
-        score,
-        damage: damage === score ? null : damage,
-        date: score.date || damage.date || fallback.value,
-        duration: score.duration || damage.duration || null,
-        result: score.result || damage.result || null
+    let filesIndexed = null;
+    let fallbackNotice = '';
+    try {
+      const response = await fetch('/api/ocr', {
+        method: 'POST',
+        signal: this.controller.signal,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.app.authManager.getAccessToken()}` },
+        body: JSON.stringify({ purpose: 'practice_submission', mode: 'batch_index', images })
       });
-      grouped.unresolved = [];
+      const result = await response.json().catch(() => null);
+      if (generation !== this.generation) return;
+      if (response.ok && result?.data?.files) {
+        filesIndexed = result.data.files;
+      } else {
+        fallbackNotice = result?.error || 'AI xizmati vaqtincha javob bermadi.';
+      }
+    } catch (err) {
+      if (generation !== this.generation) return;
+      fallbackNotice = err.message || 'Tarmoq xatosi yuz berdi.';
+    }
+
+    if (!filesIndexed) {
+      filesIndexed = files.map((file, idx) => {
+        const name = (file?.name || '').toLowerCase();
+        let kind = 'scoreboard';
+        if (name.includes('damage') || name.includes('data') || name.includes('dmg')) {
+          kind = 'damage';
+        } else if (name.includes('score') || name.includes('board') || name.includes('result')) {
+          kind = 'scoreboard';
+        } else {
+          kind = idx % 2 === 0 ? 'scoreboard' : 'damage';
+        }
+        return {
+          index: idx,
+          battleId: null,
+          kind,
+          date: fallback.value,
+          duration: null,
+          result: null
+        };
+      });
+    }
+
+    const grouped = groupBatchFiles(filesIndexed);
+
+    // If auto-grouping by exact Battle ID left 0 matches (e.g. no battle IDs or fallback):
+    if (grouped.matches.length === 0) {
+      if (files.length === 2) {
+        const f0 = filesIndexed[0], f1 = filesIndexed[1];
+        const score = [f0, f1].find(f => f.kind === 'scoreboard') || f0;
+        const damage = [f0, f1].find(f => f.kind === 'damage' && f !== score) || (score === f0 ? f1 : f0);
+        grouped.matches.push({
+          battleId: score.battleId || damage.battleId || null,
+          score,
+          damage: damage === score ? null : damage,
+          date: score.date || damage.date || fallback.value,
+          duration: score.duration || damage.duration || null,
+          result: score.result || damage.result || null
+        });
+        grouped.unresolved = [];
+      } else if (files.length >= 2) {
+        const paired = new Set();
+        for (let i = 0; i < filesIndexed.length - 1; i += 2) {
+          const score = filesIndexed[i];
+          const damage = filesIndexed[i + 1];
+          paired.add(score.index);
+          paired.add(damage.index);
+          grouped.matches.push({
+            battleId: score.battleId || damage.battleId || null,
+            score,
+            damage,
+            date: score.date || damage.date || fallback.value,
+            duration: score.duration || damage.duration || null,
+            result: score.result || damage.result || null
+          });
+        }
+        grouped.unresolved = filesIndexed.filter(f => !paired.has(f.index)).map(f => ({
+          ...f,
+          reason: 'Jufti topilmadi. Qo‘lda birlashtirish orqali qo‘shing.'
+        }));
+      }
     }
 
     const unresolvedContainer = this.container.querySelector('#batchUnresolved');
@@ -510,7 +565,7 @@ export class BatchUpload {
       const pairRemainingBtn = unresolvedContainer.querySelector('#batchPairRemainingBtn');
       if (pairRemainingBtn) {
         pairRemainingBtn.onclick = () => {
-          const unresFiles = grouped.unresolved.map(u => result.data.files[u.index]);
+          const unresFiles = grouped.unresolved.map(u => filesIndexed[u.index]);
           const score = unresFiles.find(f => f.kind === 'scoreboard') || unresFiles[0];
           const damage = unresFiles.find(f => f.kind === 'damage' && f !== score) || (unresFiles.length > 1 ? unresFiles[1] : null);
           this.addItem({
@@ -530,7 +585,8 @@ export class BatchUpload {
     }
     if (grouped.matches.length > 5) throw new Error('Bir batchda ko‘pi bilan 5 match.');
     for (const group of grouped.matches) this.addItem(group, images, files, fallback.value, this.container.querySelector('#batchType').value);
-    this.status(`${this.items.length} match juftlandi.${grouped.unresolved.length ? ` ${grouped.unresolved.length} rasm avtomatik olinmadi.` : ''}`);
+    const fallbackMsg = fallbackNotice ? ` (AI bilan ulanmadi, zaxira usulida navbatga olindi)` : '';
+    this.status(`${this.items.length} match juftlandi.${fallbackMsg}${grouped.unresolved.length ? ` ${grouped.unresolved.length} rasm avtomatik olinmadi.` : ''}`);
     this.setStep(3);
   }
 

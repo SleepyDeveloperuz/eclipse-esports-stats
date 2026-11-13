@@ -737,7 +737,8 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   if (!roster.length) throw new Error('Faol o‘yinchilar tarkibi topilmadi.');
 
   // 3. Perform OCR
-  const apiKey = process.env.GEMINI_API_KEY;
+  const rawApiKey = process.env.GEMINI_API_KEY || '';
+  const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, '').trim();
   if (!apiKey) {
     throw new Error('AI skaner sozlanmagan. Vercel Environment Variables orqali GEMINI_API_KEY ni kiriting.');
   }
