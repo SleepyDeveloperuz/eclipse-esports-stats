@@ -768,7 +768,7 @@ window.SubmissionManager = class SubmissionManager {
     };
     const noiseWords = new Set([
       'im', 'i', 'm', 'as', 'always', 'mlbb', 'the', 'pro', 'mr', 'god',
-      'no', 'is', 'to', 'of', 'and', 'in', 'on', 'at', 'by', 'for'
+      'no', 'is', 'to', 'of', 'and', 'in', 'on', 'at', 'by', 'for', 'hero', 'guest', 'pub'
     ]);
     const extractTokens = str => stripClanPrefix(str)
       .toLocaleLowerCase('uz-UZ')
@@ -814,7 +814,7 @@ window.SubmissionManager = class SubmissionManager {
           }
           const common = pTokens.filter(t => rTokens.includes(t));
           if (common.length >= 2) return r;
-          if (common.length === 1 && common[0].length >= 4) return r;
+          if (common.length === 1 && (common[0].length >= 5 || (r.realName && normalize(r.realName) === common[0]))) return r;
         }
       }
 
@@ -827,8 +827,12 @@ window.SubmissionManager = class SubmissionManager {
       return null;
     };
     const detected = (Array.isArray(data.players) ? data.players.slice(0, 5) : []).map(player => {
-      const byId = roster.find(item => item.id === player.matchedPlayerId);
-      const mapped = byId || matchRoster(player.detectedName);
+      let mapped = null;
+      if (player.detectedName) {
+        mapped = matchRoster(player.detectedName);
+      } else if (player.matchedPlayerId) {
+        mapped = roster.find(item => item.id === player.matchedPlayerId);
+      }
       return mapped ? { ...player, matchedPlayerId: mapped.id } : null;
     }).filter(Boolean);
     const trackedCount = new Set(detected.map(player => player.matchedPlayerId)).size;

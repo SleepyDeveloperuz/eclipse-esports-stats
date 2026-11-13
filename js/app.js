@@ -868,9 +868,46 @@ window.EclipseApp = {
 
   RELEASES: [
     {
+      version: 'v2.40.0',
+      date: '2026-11-14',
+      badge: 'Hozirgi versiya',
+      title: 'Roster & Guest Ajratish, Maniac/Savage Overflow Filtrlash va Bardoshli Batch',
+      sections: [
+        {
+          title: 'Roster & Guest Qatʼiy Ajratish',
+          icon: 'fa-user-shield',
+          badge: 'Roster Matcher',
+          items: [
+            'Tasodifiy/begona (guest) o‘yinchilar endi hech qachon Eclipse asosiy tarkibi bilan adashtirilmaydi.',
+            'Model taxmin qilgan matchedPlayerId tekshirilib, rasmiy rostdagi aʼzoga to‘liq mos kelmasa, qatʼiy null (guest) deb belgilanadi.',
+            'Umumiy so‘zlar ("hero", "pub", "guest") filtrlanib, token mosliklari 5 ta harfdan ortiq yoki haqiqiy ismga asoslanadi.'
+          ]
+        },
+        {
+          title: 'Maniac & Savage Overflow Filtrlash',
+          icon: 'fa-shield-halved',
+          badge: 'Medals & Badges',
+          items: [
+            'MLBB highlight nishonlaridagi +5, +4, +2 kabi qo‘shimcha medal sanagichlari (overflow badges) endi Savage yoki Maniac deb o‘qilmaydi.',
+            'O‘yin qoidasiga ko‘ra kamida 5 ta kill bo‘lmaguncha Savage, kamida 4 ta kill bo‘lmaguncha Maniac berilishi bloklandi.',
+            'Savage va Maniac nishonlari aniq va soxta duplikatsiyalarsiz hisoblanadi.'
+          ]
+        },
+        {
+          title: 'Bardoshli Batch & Yagona Rasm Qabul Qilish',
+          icon: 'fa-layer-group',
+          badge: 'Batch Processing',
+          items: [
+            'Batch rejimida yagona (1 ta) skrinshot yuklanganda ham match avtomatik tarzda yaratiladi va navbatga qo‘shiladi.',
+            'Rasmlarni juftlashda tarmoq xatosi yuz berganda ham zaxira usulida navbatga olinadi va hech qanday rasm yo‘qotilmaydi.'
+          ]
+        }
+      ]
+    },
+    {
       version: 'v2.39.0',
       date: '2026-11-13',
-      badge: 'Hozirgi versiya',
+      badge: 'Oldingi versiya',
       title: 'Gemini 3.5 AI Vision OCR yangilanishi va Bardoshli Batch Juftlash',
       sections: [
         {

@@ -512,7 +512,18 @@ export class BatchUpload {
 
     // If auto-grouping by exact Battle ID left 0 matches (e.g. no battle IDs or fallback):
     if (grouped.matches.length === 0) {
-      if (files.length === 2) {
+      if (files.length === 1) {
+        const f0 = filesIndexed[0];
+        grouped.matches.push({
+          battleId: f0.battleId || null,
+          score: f0,
+          damage: null,
+          date: f0.date || fallback.value,
+          duration: f0.duration || null,
+          result: f0.result || null
+        });
+        grouped.unresolved = [];
+      } else if (files.length === 2) {
         const f0 = filesIndexed[0], f1 = filesIndexed[1];
         const score = [f0, f1].find(f => f.kind === 'scoreboard') || f0;
         const damage = [f0, f1].find(f => f.kind === 'damage' && f !== score) || (score === f0 ? f1 : f0);

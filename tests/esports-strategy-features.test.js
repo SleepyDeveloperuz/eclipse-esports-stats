@@ -308,6 +308,32 @@ test('MLBB Highlights: badge 4 detects Maniac, badge 5 detects Savage and inhere
   const normalizedExplicit = normaliseOcrPayload(explicitSavagePayload, roster, heroes);
   assert.equal(normalizedExplicit.players[0].savage, true);
   assert.equal(normalizedExplicit.players[0].maniac, true);
+
+  // Case 4: Overflow badge "+5" or "+4" must NEVER grant savage or maniac
+  const overflowPayload = {
+    players: [
+      { detectedName: 'Heavenlyyy', matchedPlayerId: 'p1', kills: 2, highlightNotes: ['+5', 'mvp'] },
+      { detectedName: 'Shadow', matchedPlayerId: 'p2', kills: 1, highlightNotes: ['+4'] }
+    ]
+  };
+  const normalizedOverflow = normaliseOcrPayload(overflowPayload, roster, heroes);
+  assert.equal(normalizedOverflow.players[0].savage, null);
+  assert.equal(normalizedOverflow.players[0].maniac, null);
+  assert.equal(normalizedOverflow.players[1].savage, null);
+  assert.equal(normalizedOverflow.players[1].maniac, null);
+
+  // Case 5: Kills constraint: kills < 5 cannot be savage, kills < 4 cannot be maniac
+  const insufficientKillsPayload = {
+    players: [
+      { detectedName: 'Heavenlyyy', matchedPlayerId: 'p1', kills: 3, highlightNotes: ['5'] },
+      { detectedName: 'Shadow', matchedPlayerId: 'p2', kills: 2, highlightNotes: ['4'] }
+    ]
+  };
+  const normalizedInsufficient = normaliseOcrPayload(insufficientKillsPayload, roster, heroes);
+  assert.equal(normalizedInsufficient.players[0].savage, null);
+  assert.equal(normalizedInsufficient.players[0].maniac, null);
+  assert.equal(normalizedInsufficient.players[1].savage, null);
+  assert.equal(normalizedInsufficient.players[1].maniac, null);
 });
 
 test('Submissions Draft: savage: true automatically enforces maniac: true', () => {

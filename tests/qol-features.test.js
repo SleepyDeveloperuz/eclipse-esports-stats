@@ -1091,7 +1091,7 @@ domTest('version status pill opens changelog modal with release notes', () => {
 
   const app = window.EclipseApp;
   assert.ok(Array.isArray(app.RELEASES), 'app has RELEASES array');
-  assert.equal(app.RELEASES[0].version, 'v2.39.0', 'latest release is v2.39.0');
+  assert.equal(app.RELEASES[0].version, 'v2.40.0', 'latest release is v2.40.0');
 
   app.bindQolControls();
 

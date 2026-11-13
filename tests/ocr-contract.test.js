@@ -179,3 +179,17 @@ test('non-numeric JSON values cannot masquerade as zero or one during normalizat
     assert.equal(data.players[0].kills, null);
   }
 });
+
+test('OCR normalisation strictly resets matchedPlayerId to null when detectedName does not match roster', () => {
+  // If the model erroneously guessed or hallucinated matchedPlayerId for a guest player,
+  // normaliseOcrPayload verifies against smartMatchRoster and strictly overrides to null.
+  const payload = {
+    players: [
+      { detectedName: 'RandomGuest99', matchedPlayerId: 'p1', kills: 5 },
+      { detectedName: 'My Pub Hero', matchedPlayerId: 'p2', kills: 4 }
+    ]
+  };
+  const data = normaliseOcrPayload(payload, roster, heroes);
+  assert.equal(data.players[0].matchedPlayerId, null);
+  assert.equal(data.players[1].matchedPlayerId, null);
+});

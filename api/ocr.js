@@ -138,10 +138,13 @@ export function normaliseOcrPayload(parsedData, rosterPlayers = [], heroList = [
       ? cleanId(player.matchedPlayerId)
       : null;
     const detectedName = cleanText(player?.detectedName, 80) || (matchedPlayerId ? rosterMap.get(matchedPlayerId) : '');
-    if (!matchedPlayerId && detectedName) {
+    if (detectedName) {
       const smart = smartMatchRoster(detectedName, rosterPlayers);
       if (smart && rosterMap.has(smart.id)) {
         matchedPlayerId = smart.id;
+      } else if (!smart) {
+        // Detected name explicitly did NOT match any roster player - strictly guest
+        matchedPlayerId = null;
       }
     }
     const participantKey = matchedPlayerId || detectedName.toLocaleLowerCase('uz-UZ');
@@ -189,18 +192,24 @@ export function normaliseOcrPayload(parsedData, rosterPlayers = [], heroList = [
       medalReviewRequired: !MEDALS.has(medalValue),
       ...normaliseAwardEvidence(player),
       savage: (() => {
+        const rawKills = nullableNumber(player?.kills, { min: 0, max: 200, integer: true });
+        if (rawKills !== null && rawKills < 5) return null;
         const rawS = typeof player?.savage === 'boolean' ? player.savage : null;
-        const notes = (Array.isArray(player?.highlightNotes) ? player.highlightNotes : []).map(n => String(n || '').toLowerCase());
-        if (rawS === true || notes.some(n => /\b5\b/.test(n) || n.includes('savage'))) return true;
+        const notes = (Array.isArray(player?.highlightNotes) ? player.highlightNotes : []).map(n => String(n || '').toLowerCase().trim());
+        const isSavageNote = notes.some(n => !n.includes('+') && !n.includes('overflow') && (n === '5' || /(?:^|\s)5(?:\s|$)/.test(n) || n.includes('savage')));
+        if (rawS === true || isSavageNote) return true;
         return rawS;
       })(),
       maniac: (() => {
+        const rawKills = nullableNumber(player?.kills, { min: 0, max: 200, integer: true });
+        if (rawKills !== null && rawKills < 4) return null;
         const rawS = typeof player?.savage === 'boolean' ? player.savage : null;
         const rawM = typeof player?.maniac === 'boolean' ? player.maniac : null;
-        const notes = (Array.isArray(player?.highlightNotes) ? player.highlightNotes : []).map(n => String(n || '').toLowerCase());
-        // In MLBB, securing a Savage (5 kills) inherently includes securing a Maniac (4 kills)
-        if (rawS === true || notes.some(n => /\b5\b/.test(n) || n.includes('savage'))) return true;
-        if (rawM === true || notes.some(n => /\b4\b/.test(n) || n.includes('maniac'))) return true;
+        const notes = (Array.isArray(player?.highlightNotes) ? player.highlightNotes : []).map(n => String(n || '').toLowerCase().trim());
+        const isSavageNote = notes.some(n => !n.includes('+') && !n.includes('overflow') && (n === '5' || /(?:^|\s)5(?:\s|$)/.test(n) || n.includes('savage')));
+        const isManiacNote = notes.some(n => !n.includes('+') && !n.includes('overflow') && (n === '4' || /(?:^|\s)4(?:\s|$)/.test(n) || n.includes('maniac')));
+        if ((rawS === true || isSavageNote) && (rawKills === null || rawKills >= 5)) return true;
+        if (rawM === true || isManiacNote) return true;
         return rawM;
       })(),
       damageDealt: nullableNumber(player?.damageDealt, { min: 0, max: 10_000_000, integer: true }),
@@ -320,11 +329,11 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     detailPart ? 'A final supplementary image contains enlarged medal-column strips labelled Image 1/2 detail, taken from the full originals above. They are the same rows, not additional players. Read each medal from the scoreboard strip and match its vertical position to the original screenshot; a Data/Damage strip has no medal evidence. A round silver medallion with a single sword is silver; the brown/copper version is bronze. none means an explicitly absent badge, never a silver or bronze badge. If the strip is not the medal column for this layout, use the full original image.' : '',
     'savage/maniac require explicit evidence; missing badges do not establish false. Never infer multikills solely from total KDA if badges are absent.',
     'Multikill badges in highlights: Look at the small highlight badges beside/below the medal.',
-    'A badge showing number "4" or a purple/red Maniac icon indicates a Maniac: set maniac=true.',
-    'A badge showing number "5" or a golden/flaming Savage icon indicates a Savage. In MLBB, securing a Savage inherently encompasses a Maniac: set savage=true AND maniac=true.',
-    'When only "4" / Maniac is visible: set maniac=true, savage=null (or false). When "5" / Savage is visible: set both savage=true AND maniac=true.',
-    'highlightNotes contains brief literal visual descriptions of visible badges (e.g. ["4", "maniac", "mvp"]). Use [] when unreadable.',
-    'highlightOverflow is ONLY for an explicit +N counter badge indicating overflowed extra icons (e.g. "+2" more badges), otherwise null. Do not confuse multikill badge numbers 4 or 5 with overflow counters.',
+    'Do NOT confuse overflow counters like +2, +3, +4, +5 with multikill badges. Any badge with a plus (+) sign is an overflow counter, NOT Maniac or Savage. Set highlightOverflow to that number.',
+    'A badge showing standalone number "4" or a purple/red Maniac icon indicates a Maniac: set maniac=true only if player kills >= 4.',
+    'A badge showing standalone number "5" or a golden/flaming Savage icon indicates a Savage: set savage=true AND maniac=true only if player kills >= 5.',
+    'highlightNotes contains brief literal visual descriptions of visible badges (e.g. ["4", "maniac", "mvp"]). Overflow badges like "+5" must NOT be described as "5" or "savage". Use [] when unreadable.',
+    'highlightOverflow is ONLY for an explicit +N counter badge indicating overflowed extra icons (e.g. "+2" more badges), otherwise null. Never confuse multikill badge numbers 4 or 5 with overflow counters.',
     purpose === 'practice_submission' ? 'Eclipse may have 1–5 roster players here; visible row count does not determine team scope.' : ''
   ];
   const prompt = [
