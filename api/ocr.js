@@ -272,10 +272,13 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     goldEarned: nullableMetric(1_000_000)
   };
   const heroNames = [...new Set(heroes.map(hero => hero.name))];
-  const heroProperties = {
+  const heroProperties = heroReview ? {
     heroUsed: nullableChoice(heroNames), heroRecognized: { type: 'boolean' },
     heroCandidates: { type: 'array', maxItems: 3, items: heroNames.length
       ? { type: 'string', enum: heroNames } : { type: 'string' } }
+  } : {
+    heroUsed: { type: ['string', 'null'] }, heroRecognized: { type: 'boolean' },
+    heroCandidates: { type: 'array', maxItems: 3, items: { type: 'string' } }
   };
   const playerProperties = heroReview
     ? { ...identityProperties, ...heroProperties }
@@ -455,7 +458,7 @@ export default async function handler(req, res) {
       if (!provider.success) {
         const hasTimeout = provider.meta?.attempts?.some(attempt => attempt.status === 'timeout');
         const isRateLimited = provider.meta?.attempts?.some(attempt => attempt.status === 429);
-        const isAuthError = provider.meta?.attempts?.some(attempt => attempt.status === 400 || attempt.status === 401 || attempt.status === 403);
+        const isAuthError = provider.meta?.attempts?.some(attempt => attempt.status === 401 || attempt.status === 403);
         return res.status(hasTimeout ? 504 : (isRateLimited ? 503 : (isAuthError ? 400 : 502))).json({
           code: hasTimeout ? 'OCR_PROVIDER_TIMEOUT' : (isRateLimited ? 'OCR_PROVIDER_BUSY' : (isAuthError ? 'OCR_PROVIDER_AUTH_ERROR' : 'OCR_PROVIDER_UNAVAILABLE')),
           retryable: !isAuthError,
@@ -515,7 +518,7 @@ export default async function handler(req, res) {
     if (!provider.success) {
       const hasTimeout = provider.meta.attempts.some(attempt => attempt.status === 'timeout');
       const isRateLimited = provider.meta.attempts.some(attempt => attempt.status === 429);
-      const isAuthError = provider.meta.attempts.some(attempt => attempt.status === 400 || attempt.status === 401 || attempt.status === 403);
+      const isAuthError = provider.meta.attempts.some(attempt => attempt.status === 401 || attempt.status === 403);
       return res.status(hasTimeout ? 504 : (isRateLimited ? 503 : (isAuthError ? 400 : 502))).json({
         code: hasTimeout ? 'OCR_PROVIDER_TIMEOUT' : (isRateLimited ? 'OCR_PROVIDER_BUSY' : (isAuthError ? 'OCR_PROVIDER_AUTH_ERROR' : 'OCR_PROVIDER_UNAVAILABLE')),
         retryable: !isAuthError,
