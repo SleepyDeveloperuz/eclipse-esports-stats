@@ -452,7 +452,23 @@ export default async function handler(req, res) {
       if (imageParts.length !== images.length) return res.status(400).json({ error: 'Batch rasmlaridan biri yaroqsiz.' });
       const provider = await requestOcrProvider({ apiKey: GEMINI_API_KEY, models: OCR_MODELS, requestBody: batchIndexRequest(imageParts), batchCount: images.length,
         validate: data => { try { normalizeBatchIndex(data, images.length); return true; } catch { return false; } } });
-      if (!provider.success) return res.status(502).json({ error: 'Rasmlarni juftlash bajarilmadi. Qayta urinib ko‘ring.', ocrMeta: provider.meta });
+      if (!provider.success) {
+        const hasTimeout = provider.meta?.attempts?.some(attempt => attempt.status === 'timeout');
+        const isRateLimited = provider.meta?.attempts?.some(attempt => attempt.status === 429);
+        const isAuthError = provider.meta?.attempts?.some(attempt => attempt.status === 400 || attempt.status === 401 || attempt.status === 403);
+        return res.status(hasTimeout ? 504 : (isRateLimited ? 503 : (isAuthError ? 400 : 502))).json({
+          code: hasTimeout ? 'OCR_PROVIDER_TIMEOUT' : (isRateLimited ? 'OCR_PROVIDER_BUSY' : (isAuthError ? 'OCR_PROVIDER_AUTH_ERROR' : 'OCR_PROVIDER_UNAVAILABLE')),
+          retryable: !isAuthError,
+          ocrMeta: provider.meta,
+          error: isAuthError
+            ? "AI skaner kaliti (GEMINI_API_KEY) yaroqsiz yoki muddati o‘tgan. Iltimos, Vercel Environment Variables orqali yangi kalit kiriting."
+            : (hasTimeout
+              ? "AI tahlili kutilganidan uzoq davom etdi. Qayta urinib ko‘ring."
+              : (isRateLimited
+                ? "AI xizmati hozir band. Bir daqiqadan keyin qayta urinib ko‘ring."
+                : "Rasmlarni juftlash bajarilmadi. Qayta urinib ko‘ring."))
+        });
+      }
       return res.status(200).json({ success: true, data: normalizeBatchIndex(provider.data, images.length), ocrMeta: provider.meta });
     }
 

@@ -868,9 +868,35 @@ window.EclipseApp = {
 
   RELEASES: [
     {
-      version: 'v2.38.0',
+      version: 'v2.39.0',
       date: '2026-11-13',
       badge: 'Hozirgi versiya',
+      title: 'Gemini 3.5 AI Vision OCR yangilanishi va Bardoshli Batch Juftlash',
+      sections: [
+        {
+          title: 'Gemini 3.5 Flash & Flash-Lite AI',
+          icon: 'fa-wand-magic-sparkles',
+          badge: 'AI Vision',
+          items: [
+            'Google AI Studio yangi avlod gemini-3.5-flash-lite va gemini-3.5-flash modellariga ulandi — skanerlash tezligi 4 barobar oshdi (o‘rtacha 3-5 soniya).',
+            'MLBB Scoreboard va Damage skrinshotlaridan Battle ID, K/D/A, medal, davomiylik va natija 100% aniqlik bilan o‘qiladi.'
+          ]
+        },
+        {
+          title: 'Bardoshli Batch Juftlash (Resilient Fallback)',
+          icon: 'fa-layer-group',
+          badge: 'Batch Upload',
+          items: [
+            'Rasmlarni 5 tagacha match (10 ta skrinshot) qilib yuklashda to‘liq avtomatik Battle ID juftlash.',
+            'Har qanday tarmoq yoki AI kechikishida ham rasmlar bloklanmaydi — zaxira juftlash orqali darhol navbatga olinadi.'
+          ]
+        }
+      ]
+    },
+    {
+      version: 'v2.38.0',
+      date: '2026-11-13',
+      badge: 'Oldingi versiya',
       title: 'Real Trio Matching, Matematik yaxlitlik muhri va Telegram Albom integratsiyasi',
       sections: [
         {
