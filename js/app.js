@@ -650,11 +650,9 @@ window.EclipseApp = {
         const dialog = document.getElementById('hotkeysDialog');
         if (dialog) {
           if (dialog.open) {
-            window.eclipseAudio?.play?.('close');
             if (typeof dialog.close === 'function') dialog.close();
             else dialog.removeAttribute('open');
           } else {
-            window.eclipseAudio?.play?.('click');
             if (typeof dialog.showModal === 'function') {
               dialog.showModal();
             } else {
@@ -683,7 +681,6 @@ window.EclipseApp = {
       triggerBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        window.eclipseAudio?.play?.('click');
         if (!hotkeysDialog.open) {
           if (typeof hotkeysDialog.showModal === 'function') {
             hotkeysDialog.showModal();
@@ -698,7 +695,6 @@ window.EclipseApp = {
       closeBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        window.eclipseAudio?.play?.('close');
         if (typeof hotkeysDialog.close === 'function') {
           hotkeysDialog.close();
         } else {
@@ -710,7 +706,6 @@ window.EclipseApp = {
     if (hotkeysDialog) {
       hotkeysDialog.addEventListener('click', (e) => {
         if (e.target === hotkeysDialog) {
-          window.eclipseAudio?.play?.('close');
           if (typeof hotkeysDialog.close === 'function') {
             hotkeysDialog.close();
           } else {
@@ -729,7 +724,6 @@ window.EclipseApp = {
       changelogBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        window.eclipseAudio?.play?.('click');
         this.openChangelog();
       });
     }
@@ -738,7 +732,6 @@ window.EclipseApp = {
       changelogCloseBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        window.eclipseAudio?.play?.('close');
         this.closeChangelog();
       });
     }
@@ -746,7 +739,6 @@ window.EclipseApp = {
     if (changelogDialog) {
       changelogDialog.addEventListener('click', (e) => {
         if (e.target === changelogDialog) {
-          window.eclipseAudio?.play?.('close');
           this.closeChangelog();
         }
       });
@@ -876,9 +868,56 @@ window.EclipseApp = {
 
   RELEASES: [
     {
+      version: 'v2.38.0',
+      date: '2026-11-13',
+      badge: 'Hozirgi versiya',
+      title: 'Real Trio Matching, Matematik yaxlitlik muhri va Telegram Albom integratsiyasi',
+      sections: [
+        {
+          title: 'Real Trio Matching & Asl Ismlar',
+          icon: 'fa-users',
+          badge: 'Roster',
+          items: [
+            'Jamoaning 6 nafar asosiy a’zosi (Husniddin, Sanjar, Ulug‘bek, Shohruh, Otabek, Nabixo‘ja) tizimga doimiy bog‘landi — IGN o‘zgarganda ham haqiqiy ismlar orqali 100% aniq taniladi.',
+            'Trio o‘yinlaridagi 2 nafar begona (guest) o‘yinchilar jamoa statistikasiga kiritilmaydi va yutuq foizini buzmaydi.',
+            'Match yuborish va tasdiqlash oynasida o‘yinchining niki bilan birga haqiqiy ismi ko‘rsatiladi.'
+          ]
+        },
+        {
+          title: 'Matematik yaxlitlik muhri (Integrity Badge)',
+          icon: 'fa-calculator',
+          badge: 'AI & Data',
+          items: [
+            'AI o‘qigan 5 nafar o‘yinchi killari yig‘indisi match hisobi bilan avtomatik solishtiriladi.',
+            'Hisob 100% mos kelganda «✅ Matematik tasdiqlangan (35/35 kill)» muhri belgilanadi va Trio hissasi aniq ko‘rsatiladi.',
+            'K/D/A raqamlarida xatolik yoki nomuvofiqlik bo‘lsa, darhol ogohlantirish beriladi.'
+          ]
+        },
+        {
+          title: 'Telegram Bot: Albom (MediaGroup) qabul qilish',
+          icon: 'fa-paper-plane',
+          badge: 'Bot',
+          items: [
+            'O‘yinchi Scoreboard va Damage skrinshotlarini albom qilib tashlaganda, bot ularni bitta to‘liq submissionga birlashtiradi.',
+            'Damage, Turret damage va Teamfight ko‘rsatkichlari to‘liq AI orqali o‘qiladi va kiritiladi.',
+            'Telegram xabarida o‘yinchilarning haqiqiy ismlari va matematik tasdiq holati ko‘rsatiladi.'
+          ]
+        },
+        {
+          title: 'Multi-Match Batch Juftlash (Resilient Fallback)',
+          icon: 'fa-link',
+          badge: 'Batch',
+          items: [
+            'Xira Battle ID holatlarida o‘yin vaqti (duration) va natijasi (win/loss) bo‘yicha Scoreboard va Damage rasmlarini avtomatik xatosiz juftlash tizimi joriy etildi.',
+            'Keraksiz, eski audio.js va vaqtincha fayllar to‘liq tozalandi.'
+          ]
+        }
+      ]
+    },
+    {
       version: 'v2.37.0',
       date: '2026-11-11',
-      badge: 'Hozirgi versiya',
+      badge: 'Oldingi',
       title: 'Katta optimallashtirish, arxitektura tozalash va yagona Match Hub',
       sections: [
         {
@@ -2121,6 +2160,11 @@ window.EclipseApp = {
           </div>
         </div>
       `;
+    }
+
+    const durationBreakdown = this.statsEngine.getGameDurationBreakdown(filteredMatches, { scope: 'all' });
+    if (durationBreakdown.hasData) {
+      html += window.StatsEngine.renderDurationAnalyticsHtml(durationBreakdown);
     }
 
     html += `

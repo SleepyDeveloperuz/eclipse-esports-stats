@@ -163,11 +163,11 @@ window.SubmissionManager = class SubmissionManager {
           <span></span><i class="fa-solid fa-satellite-dish"></i>
         </div>
         <div class="submission-hero__copy">
-          <p class="section-eyebrow">ECLIPSE // ${isAdmin ? 'CAPTAIN CONSOLE' : 'TEAM INPUT'}</p>
-          <h2 id="submissionHeading">Match kiritish (Hub)</h2>
+          <p class="section-eyebrow">ECLIPSE // ${isAdmin ? 'CAPTAIN CONSOLE' : 'MATCH SUBMISSION'}</p>
+          <h2 id="submissionHeading">Match natijalarini yuborish</h2>
           <p>${isAdmin
-            ? 'Faqat jamoa lideri (IGL / Captain) match natijalarini to‘liq kiritadi. Kiritilgan matchlar to‘g‘ridan-to‘g‘ri jamoa statistikasiga qo‘shiladi.'
-            : '1–5 a’zoning to‘liq natijasini kiriting. Besh a’zo — Team 5, qolganlari — Practice. Jamoadosh yuborgan match Captain tasdiqlagach statistikaga kiradi.'}</p>
+            ? 'Faqat jamoa lideri (IGL / Captain) match natijalarini to‘liq kiritadi. Scoreboard skrinshotini yuklang — AI barcha ma’lumotlarni avtomatik to‘ldiradi.'
+            : 'MLBB o‘yini tugagach, Scoreboard skrinshotini yuklang. AI ma’lumotlarni o‘zi to‘ldiradi. Yuborilgan arizani kapitan tasdiqlagach, u jamoa statistikasiga qo‘shiladi.'}</p>
         </div>
         <div class="submission-telemetry" aria-label="Submission holati">
           <span><strong>${Number(counts.pending) || 0}</strong><small>Kutilmoqda</small></span>
@@ -211,15 +211,15 @@ window.SubmissionManager = class SubmissionManager {
   formMarkup() {
     const today = window.EclipseDateUtils?.today?.() || new Date().toLocaleDateString('en-CA');
     const playerOptions = (this.availablePlayers?.() || this.db.getActivePlayers?.() || this.db.getPlayers())
-      .map(player => `<option value="${this.escape(player.id)}">${this.escape(player.name)}</option>`).join('');
+      .map(player => `<option value="${this.escape(player.id)}">${this.escape(player.name)}${player.realName ? ` (${this.escape(player.realName)})` : ''}</option>`).join('');
     return `
       <form id="practiceSubmissionForm" class="submission-form" novalidate>
         <div class="submission-upload-grid">
-          ${this.dropzoneMarkup(0, '1-rasm: Hisob (Scoreboard)', 'Hisob va medallar · majburiy', true)}
-          ${this.dropzoneMarkup(1, '2-rasm: Zarar (Damage)', 'Batafsil statistika · ixtiyoriy', false)}
+          ${this.dropzoneMarkup(0, '1-Skrinshot: Scoreboard', 'K/D/A, oltin va medallar oynasi · Majburiy', true)}
+          ${this.dropzoneMarkup(1, '2-Skrinshot: Data / Damage', 'Zarar va minora zarari · Ixtiyoriy', false)}
         </div>
         ${this.auth.isAdmin() ? '<div class="submission-igl-notice"><i class="fa-solid fa-crown"></i> <span><strong>Admin konsoli:</strong> Match natijasini faqat jamoa lideri (IGL / Captain) yuklaydi va saqlaydi.</span></div>' : ''}
-        <p class="submission-privacy"><i class="fa-solid fa-shield-halved"></i> Skrinshotlar saytda saqlanmaydi. Natija, raqamlar va qahramonlar avtomatik to‘ldiriladi; faqat kerak bo‘lsa tuzating. Skan vaqti va tuzatilgan maydon nomlari Captain uchun kuzatiladi — bu kuzatuvga rasm va qiymatlar kirmaydi.</p>
+        <p class="submission-privacy"><i class="fa-solid fa-shield-halved"></i> <strong>Xavfsiz va tezkor:</strong> Skrinshotlar serverda saqlanmaydi. AI barcha raqamlarni avtomatik to‘ldiradi, siz faqat tekshirib tasdiqlaysiz.</p>
         <button type="button" class="btn btn-secondary submission-scan-btn" id="practiceScanBtn" disabled>
           <i class="fa-solid fa-wand-magic-sparkles"></i> Qayta o‘qish
         </button>
@@ -419,7 +419,7 @@ window.SubmissionManager = class SubmissionManager {
     row.dataset.rowId = String(index);
     row.innerHTML = `
       <div class="submission-player-row__index">${String(index).padStart(2, '0')}</div>
-      <label><span>O‘yinchi</span><select class="form-select" data-field="playerId" required><option value="">Tanlang…</option>${players.map(player => `<option value="${this.escape(player.id)}" ${player.id === values.playerId ? 'selected' : ''}>${this.escape(player.name)}</option>`).join('')}</select></label>
+      <label><span>O‘yinchi</span><select class="form-select" data-field="playerId" required><option value="">Tanlang…</option>${players.map(player => `<option value="${this.escape(player.id)}" ${player.id === values.playerId ? 'selected' : ''}>${this.escape(player.name)}${player.realName ? ` (${this.escape(player.realName)})` : ''}</option>`).join('')}</select></label>
       <label><span>Qahramon</span><input class="form-input" data-field="heroUsed" list="practiceHeroes${index}" value="${this.escape(values.heroUsed || '')}" required><datalist id="practiceHeroes${index}">${heroes.map(hero => `<option value="${this.escape(hero.name)}">${this.escape(hero.role || '')}</option>`).join('')}</datalist></label>
       <label><span>Matchdagi rol · ixtiyoriy</span><select class="form-select" data-field="rolePlayed"><option value="">Noma’lum</option>${roles.map(role => `<option value="${role}" ${role === values.rolePlayed ? 'selected' : ''}>${role}</option>`).join('')}</select></label>
       <label class="submission-kda"><span>K / D / A</span><span><input class="form-input" data-field="kills" type="number" min="0" max="200" value="${this.escape(values.kills ?? '')}" required><input class="form-input" data-field="deaths" type="number" min="0" max="200" value="${this.escape(values.deaths ?? '')}" required><input class="form-input" data-field="assists" type="number" min="0" max="500" value="${this.escape(values.assists ?? '')}" required></span></label>
@@ -438,7 +438,7 @@ window.SubmissionManager = class SubmissionManager {
 
   readImage(file, index) {
     if (!file) return;
-    try { window.EclipseImageUpload.validate(file); }
+    try { window.EclipseImageUpload.validate(file, 16 * 1024 * 1024); }
     catch (error) { return window.showToast?.(error.message, 'warning'); }
     const heic = window.EclipseImageUpload.isHeic(file);
     const replacingPrimary = index === 0 && Boolean(this.images[0] || this._imageLoading?.[0]);
@@ -478,8 +478,8 @@ window.SubmissionManager = class SubmissionManager {
         if (!this._manualFormEdits && (this._formEditVersion || 0) === editVersion) this.scheduleImageScan();
         else form.querySelector('#practiceScanStatus').textContent = 'Rasm yuklandi. Kiritgan tuzatishlaringiz saqlandi; yangi rasmni o‘qish uchun “Qayta o‘qish”ni bosing.';
       };
-      if (typeof rawData === 'string' && rawData.length > 900000 && window.EclipseImageUpload?.compressScreenshot) {
-        window.EclipseImageUpload.compressScreenshot(rawData, { maxWidth: 1920, maxHeight: 1080, quality: 0.88 })
+      if (typeof rawData === 'string' && rawData.length > 350000 && window.EclipseImageUpload?.compressScreenshot) {
+        window.EclipseImageUpload.compressScreenshot(rawData, { maxWidth: 1920, maxHeight: 1080, quality: 0.85 })
           .then(finish)
           .catch(() => finish(rawData));
       } else {
@@ -673,15 +673,25 @@ window.SubmissionManager = class SubmissionManager {
       if (!current()) return;
       this.setScanStage('read');
       if (status) status.textContent = 'AI raqamlarni o‘qimoqda. Bu bir daqiqagacha davom etishi mumkin.';
+      // Har safar skan qilishdan oldin live websitedagi eng so'nggi rosterni yangilab olamiz
+      if (this.cloudSync && typeof this.cloudSync.syncDown === 'function') {
+        try { await this.cloudSync.syncDown(); } catch (_) {}
+      }
       const response = await fetch('/api/ocr', {
         method: 'POST',
         signal: controller.signal,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
+          mode: 'smart',
           purpose: 'practice_submission',
           images,
           ...(detailImage ? { detailImage } : {}),
-          rosterPlayers: (this.db.getActivePlayers?.() || this.db.getPlayers()).map(player => ({ id: player.id, name: player.name, role: player.primaryRole || '' })),
+          rosterPlayers: (this.db.getActivePlayers?.() || this.db.getPlayers()).map(player => ({
+            id: player.id,
+            name: player.name,
+            realName: player.realName || '',
+            role: player.primaryRole || ''
+          })),
           heroList: (this.heroDb?.getAll?.() || []).map(hero => ({ id: hero.id, name: hero.name, role: hero.role }))
         })
       });
@@ -704,9 +714,19 @@ window.SubmissionManager = class SubmissionManager {
         this._scanQuality = quality;
       }
       this.setScanStage('ready', ready ? 'done' : 'review');
-      if (status) status.innerHTML = ready
-        ? `<span class="is-success"><i class="fa-solid fa-circle-check"></i> Yuborishga tayyor. Faqat kerak bo‘lsa tahrirlang.${this.ocrExcludedRows ? ` ${this.ocrExcludedRows} ta guest yoki aniqlanmagan qator olinmadi.` : ''}</span>`
-        : '<span class="is-error"><i class="fa-solid fa-triangle-exclamation"></i> O‘qish tugadi. Aniqlanmagan majburiy maydonlar ochiq: tiniqroq skrinshot yuklang yoki yetishmagan ma’lumotni kiriting.</span>';
+      if (status) {
+        let mathBadge = '';
+        if (this._mathReport?.teamKills !== null && this._mathReport?.teamKills !== undefined && this._mathReport?.allKillsSum !== null && this._mathReport?.allKillsSum !== undefined) {
+          if (this._mathReport.valid) {
+            mathBadge = ` <span class="badge" style="background:rgba(16,185,129,0.15);color:#10b981;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-left:6px;"><i class="fa-solid fa-check-double"></i> Matematik tasdiqlangan: ${this._mathReport.allKillsSum}/${this._mathReport.teamKills} kill</span>`;
+          } else {
+            mathBadge = ` <span class="badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-left:6px;"><i class="fa-solid fa-triangle-exclamation"></i> Killlar yig‘indisi (${this._mathReport.allKillsSum}) match hisobiga (${this._mathReport.teamKills}) mos kelmadi</span>`;
+          }
+        }
+        status.innerHTML = ready
+          ? `<span class="is-success"><i class="fa-solid fa-circle-check"></i> Yuborishga tayyor. Faqat kerak bo‘lsa tahrirlang.${this.ocrExcludedRows ? ` ${this.ocrExcludedRows} ta guest yoki aniqlanmagan qator olinmadi.` : ''}${mathBadge}</span>`
+          : `<span class="is-error"><i class="fa-solid fa-triangle-exclamation"></i> O‘qish tugadi. Aniqlanmagan majburiy maydonlar ochiq: tiniqroq skrinshot yuklang yoki yetishmagan ma’lumotni kiriting.${mathBadge}</span>`;
+      }
       this.renderOcrMeta(status, this.ocrMeta);
     } catch (error) {
       if (!current()) return;
@@ -739,10 +759,76 @@ window.SubmissionManager = class SubmissionManager {
     const roster = this.db.getActivePlayers?.() || this.db.getPlayers();
     const roles = ['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'];
     const normalize = value => String(value || '').toLocaleLowerCase('uz-UZ').replace(/[^a-z0-9]/g, '');
+    const stripClanPrefix = str => {
+      if (!str) return '';
+      let clean = String(str).replace(/[\[\(\<].*?[\]\)\>]/g, ' ');
+      clean = clean.replace(/[◆々亗★•†|~_.:\-]/g, ' ');
+      clean = clean.replace(/^(?:i['’]?m\s+|[a-z0-9]{2,4}\s+)/i, '');
+      return clean.trim();
+    };
+    const noiseWords = new Set([
+      'im', 'i', 'm', 'as', 'always', 'mlbb', 'the', 'pro', 'mr', 'god',
+      'no', 'is', 'to', 'of', 'and', 'in', 'on', 'at', 'by', 'for'
+    ]);
+    const extractTokens = str => stripClanPrefix(str)
+      .toLocaleLowerCase('uz-UZ')
+      .split(/\s+/)
+      .map(t => t.replace(/[^a-z0-9]/g, ''))
+      .filter(t => t.length >= 3 && !noiseWords.has(t));
+
+    const matchRoster = detectedName => {
+      if (!detectedName) return null;
+      const pNorm = normalize(detectedName);
+      if (!pNorm) return null;
+      const pStripped = normalize(stripClanPrefix(detectedName));
+
+      // 1. Exact match against IGN, realName, or aliases
+      const exact = roster.find(r => {
+        if (normalize(r.name) === pNorm || (pStripped && normalize(r.name) === pStripped)) return true;
+        if (r.realName) {
+          const rnNorm = normalize(r.realName);
+          if (rnNorm === pNorm || (pStripped && rnNorm === pStripped)) return true;
+        }
+        if (Array.isArray(r.aliases) && r.aliases.some(a => {
+          const aNorm = normalize(a);
+          return aNorm === pNorm || (pStripped && aNorm === pStripped);
+        })) return true;
+        return false;
+      });
+      if (exact) return exact;
+
+      // 2. Stripped prefix exact match
+      for (const r of roster) {
+        const rStripped = normalize(stripClanPrefix(r.name));
+        if (pStripped && rStripped && pStripped === rStripped) return r;
+      }
+
+      // 3. Significant distinctive tokens (length >= 4 or >= 2 common tokens)
+      const pTokens = extractTokens(detectedName);
+      if (pTokens.length) {
+        for (const r of roster) {
+          const rTokens = extractTokens(r.name);
+          if (r.realName) {
+            const rn = normalize(r.realName);
+            if (rn.length >= 3 && !noiseWords.has(rn)) rTokens.push(rn);
+          }
+          const common = pTokens.filter(t => rTokens.includes(t));
+          if (common.length >= 2) return r;
+          if (common.length === 1 && common[0].length >= 4) return r;
+        }
+      }
+
+      // 4. Whole phrase containment
+      for (const r of roster) {
+        const rNorm = normalize(r.name);
+        const rStripped = normalize(stripClanPrefix(r.name));
+        if (rNorm.length >= 7 && (pNorm.includes(rNorm) || (rStripped.length >= 5 && pNorm.includes(rStripped)))) return r;
+      }
+      return null;
+    };
     const detected = (Array.isArray(data.players) ? data.players.slice(0, 5) : []).map(player => {
       const byId = roster.find(item => item.id === player.matchedPlayerId);
-      const byName = player.detectedName ? roster.filter(item => normalize(item.name) === normalize(player.detectedName)) : [];
-      const mapped = byId || (byName.length === 1 ? byName[0] : null);
+      const mapped = byId || matchRoster(player.detectedName);
       return mapped ? { ...player, matchedPlayerId: mapped.id } : null;
     }).filter(Boolean);
     const trackedCount = new Set(detected.map(player => player.matchedPlayerId)).size;
@@ -757,17 +843,17 @@ window.SubmissionManager = class SubmissionManager {
     (detected.length ? detected : [{}]).forEach(player => {
       let playerId = roster.some(item => item.id === player.matchedPlayerId) ? player.matchedPlayerId : '';
       if (!playerId && player.detectedName) {
-        const match = roster.find(item => normalize(item.name) === normalize(player.detectedName));
+        const match = matchRoster(player.detectedName);
         playerId = match?.id || '';
       }
       if (used.has(playerId)) return;
       if (playerId) used.add(playerId);
       const detectedRole = roles.includes(player.rolePlayed) ? player.rolePlayed : '';
+      const resolvedHero = this.heroDb?.resolve?.(player.heroUsed);
       this.addParticipantRow({
         ...player,
         playerId,
-        // A catalog-valid name from AI is not visual hero recognition.
-        heroUsed: '',
+        heroUsed: resolvedHero ? resolvedHero.name : '',
         portraitBox: null,
         rolePlayed: detectedRole,
         roleSource: detectedRole ? 'ocr' : 'unknown',
@@ -782,6 +868,27 @@ window.SubmissionManager = class SubmissionManager {
     form.querySelectorAll('input[name="practice-result"]').forEach(input => { input.checked = input.value === data.result; });
     if (data.matchType) form.querySelector('#practiceMatchType').value = data.matchType;
     form.querySelector('#practiceDuration').value = data.durationFormatted || data.duration || '';
+    if (data.battleId) {
+      this._detectedBattleId = data.battleId;
+      const existing = (this.db.getMatches?.() || []).find(m => m.sourceBattleId && m.sourceBattleId === data.battleId);
+      if (existing) {
+        window.showToast?.(`Diqqat: Ushbu match (Battle ID: ${data.battleId}) bazada mavjud!`, 'warning');
+      }
+    }
+    this._detectedTeamKills = Number.isInteger(data.teamKills) ? data.teamKills : null;
+    this._detectedEnemyKills = Number.isInteger(data.enemyKills) ? data.enemyKills : null;
+    const allParsedKills = Array.isArray(data.players)
+      ? data.players.filter(p => Number.isInteger(p.kills)).map(p => p.kills)
+      : [];
+    const allKillsSum = allParsedKills.length === 5 ? allParsedKills.reduce((s, k) => s + k, 0) : null;
+    const eclipseKillsSum = detected.reduce((s, p) => s + (Number.isInteger(p.kills) ? p.kills : 0), 0);
+    this._mathReport = {
+      teamKills: this._detectedTeamKills,
+      enemyKills: this._detectedEnemyKills,
+      allKillsSum,
+      eclipseKillsSum,
+      valid: this._detectedTeamKills !== null && allKillsSum === this._detectedTeamKills
+    };
     const firstMapped = rows.querySelector('[data-field="playerId"]')?.value;
     if (firstMapped) form.querySelector('#practiceSubmitter').value = firstMapped;
   }
@@ -836,6 +943,10 @@ window.SubmissionManager = class SubmissionManager {
         result,
         durationFormatted: form.querySelector('#practiceDuration')?.value.trim() || null,
         notes: form.querySelector('#practiceNotes')?.value.trim() || '',
+        sourceBattleId: this._detectedBattleId || null,
+        teamKills: this._detectedTeamKills ?? null,
+        enemyKills: this._detectedEnemyKills ?? null,
+        mathVerified: this._mathReport?.valid || false,
         playerStats
       }
     };

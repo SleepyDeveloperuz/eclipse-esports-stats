@@ -1307,6 +1307,14 @@ window.MatchManager = class MatchManager {
         if (window.showToast) window.showToast('Iltimos, faqat rasm (skrinshot) faylini tanlang!', 'warning');
         return;
       }
+      try {
+        if (window.EclipseImageUpload?.validate) {
+          window.EclipseImageUpload.validate(file, 16 * 1024 * 1024);
+        }
+      } catch (err) {
+        if (window.showToast) window.showToast(err.message, 'warning');
+        return;
+      }
       const reader = new FileReader();
       reader.onload = async (e) => {
         let dataUrl = e.target.result;
@@ -1513,7 +1521,7 @@ window.MatchManager = class MatchManager {
     this.ocrReviewConfirmed = false;
     const heroList = this.heroDb?.getAll() || [];
     const playerOptions = players.map(player =>
-      `<option value="${this.escape(player.id)}">${this.escape(player.name)}</option>`
+      `<option value="${this.escape(player.id)}">${this.escape(player.name)}${player.realName ? ` (${this.escape(player.realName)})` : ''}</option>`
     ).join('');
     const issueLabels = {
       unknown_result: 'Natija aniqlanmadi — W yoki L ni qo‘lda tanlang.',

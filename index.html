@@ -54,21 +54,22 @@
                 </button>
             </div>
             <nav class="sidebar-nav" aria-label="Sahifalar menyusi">
-                <p class="nav-group-label">Command room</p>
+                <p class="nav-group-label">Asosiy boshqaruv</p>
                 <a href="#" class="nav-item active" data-page="dashboard" aria-current="page"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-dashboard"></use></svg> Bosh sahifa <kbd>1</kbd></a>
                 <a href="#" class="nav-item" data-page="match-history"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-history"></use></svg> Matchlar <kbd>2</kbd></a>
-                <a href="#" class="nav-item" data-page="players"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-players"></use></svg> Jamoa <kbd>3</kbd></a>
-                <a href="#" class="nav-item" data-page="statistics"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-stats"></use></svg> Tahlil <kbd>4</kbd></a>
+                <a href="#" class="nav-item" data-page="players"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-players"></use></svg> Jamoa tarkibi <kbd>3</kbd></a>
+                <a href="#" class="nav-item" data-page="statistics"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-stats"></use></svg> Tahlil va Statistika <kbd>4</kbd></a>
                 <a href="#" class="nav-item" data-page="progress"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Eclipse Progress</a>
-                <a href="#" class="nav-item" data-page="briefing"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-briefing"></use></svg> Briefing <kbd>5</kbd></a>
-                <a href="#" class="nav-item" data-page="scouting"><i class="fa-solid fa-crosshairs" aria-hidden="true"></i> Scouting</a>
-                <a href="#" class="nav-item" data-page="meta-lab"><i class="fa-solid fa-ranking-star" aria-hidden="true"></i> Meta Lab</a>
-                <div class="nav-team-input" aria-label="Jamoa yuborish vositalari">
-                    <p class="nav-group-label">Team input</p>
-                    <a href="#" class="nav-item nav-item--submission" data-page="submissions"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> Match kiritish (Hub) <span class="nav-count" id="submissionPendingBadge" hidden>0</span><kbd>S</kbd></a>
+                <a href="#" class="nav-item" data-page="briefing"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-briefing"></use></svg> Taktik Briefing <kbd>5</kbd></a>
+                <a href="#" class="nav-item" data-page="scouting"><i class="fa-solid fa-crosshairs" aria-hidden="true"></i> Scouting (Raqib)</a>
+                <a href="#" class="nav-item" data-page="meta-lab"><i class="fa-solid fa-ranking-star" aria-hidden="true"></i> MLBB Meta Lab</a>
+                <div class="nav-team-input" aria-label="Match yuborish vositalari">
+                    <p class="nav-group-label">Match yuborish</p>
+                    <a href="#" class="nav-item nav-item--submission" data-page="submissions"><i class="fa-solid fa-camera" aria-hidden="true"></i> Bitta match (AI Scan) <span class="nav-count" id="submissionPendingBadge" hidden>0</span><kbd>S</kbd></a>
+                    <a href="#" class="nav-item nav-item--batch" data-page="batch"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Ko‘p match (Batch) <kbd>B</kbd></a>
                 </div>
                 <div class="admin-only nav-admin-tools" aria-label="Admin vositalari">
-                    <p class="nav-group-label">Admin vositalari</p>
+                    <p class="nav-group-label">Admin konsoli</p>
                     <a href="#" class="nav-item nav-item--utility" data-page="add-match"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-add"></use></svg> Qo‘lda kiritish (Admin) <kbd>N</kbd></a>
                     <a href="#" class="nav-item nav-item--utility" data-page="settings"><svg class="ecl-icon" aria-hidden="true"><use href="assets/eclipse-symbols.svg?v=2.16.0#ecl-settings"></use></svg> Sozlamalar</a>
                 </div>
@@ -77,9 +78,9 @@
                 <button type="button" class="sidebar-footer-close-btn" id="sidebarFooterCloseBtn" aria-label="Menyuni yopish">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i> <span>Menyuni yopish</span>
                 </button>
-                <button type="button" class="sidebar-status-pill" id="versionChangelogBtn" aria-label="Versiya yangiliklari (v2.37.0)" title="Versiya yangiliklari (v2.37.0) — o‘zgarishlarni ko‘rish">
+                <button type="button" class="sidebar-status-pill" id="versionChangelogBtn" aria-label="Versiya yangiliklari (v2.38.0)" title="Versiya yangiliklari (v2.38.0) — o‘zgarishlarni ko‘rish">
                     <span class="status-dot"></span>
-                    <span>Eclipse Live System v2.37.0</span>
+                    <span>Eclipse Live System v2.38.0</span>
                     <span class="sidebar-status-pill__badge">Yangiliklar</span>
                 </button>
                 <p class="sidebar-shortcuts-hint"><kbd>Esc</kbd> Yopish &middot; <kbd>S</kbd> Practice</p>
@@ -179,7 +180,11 @@
             <!-- MATCH HISTORY -->
             <section class="page-section" id="page-match-history" aria-label="Matchlar tarixi" hidden>
                 <div class="section-header">
-                    <div><p class="section-eyebrow">MATCH LEDGER</p><h2>Matchlar</h2><p>Tanlangan tarkib matchlari. Tekshiruv talab qiladigan yozuvlar tarixda qoladi, lekin statistikaga kirmaydi.</p><p class="admin-only text-muted">Tarkibi aniqlanmagan eski yozuvlar tuzatish uchun ikkala tanlovda ham ko‘rinadi.</p></div>
+                    <div>
+                        <p class="section-eyebrow">MATCH TARIXI VA NATIJALAR</p>
+                        <h2>Matchlar</h2>
+                        <p>Jamoaning barcha rasmiy va scrim matchlari. Har bir o‘yin ustiga bosib, K/D/A, zarar va medallarni ko‘rishingiz mumkin.</p>
+                    </div>
                 </div>
                 <div class="filter-bar" id="matchFilterBar">
                     <label><i class="fa-solid fa-filter"></i> Filter</label>
@@ -209,7 +214,7 @@
             <!-- PLAYERS -->
             <section class="page-section" id="page-players" aria-label="Jamoa tarkibi va o‘yinchilar tahlili" hidden>
                 <div class="section-header">
-                    <div><p class="section-eyebrow">ACTIVE UNIT</p><h2>Jamoa</h2><p>Faol tarkib, rollar va har bir o‘yinchining individual rivojlanishi.</p></div>
+                    <div><p class="section-eyebrow">ECLIPSE ESPORTS // ROSTER</p><h2>Jamoa tarkibi</h2><p>Faol o‘yinchilar, ularning rollari va individual ko‘rsatkichlari.</p></div>
                 </div>
 
                 <!-- SUBVIEW 1: TEAM ROSTER -->
@@ -228,7 +233,7 @@
             <!-- STATISTICS -->
             <section class="page-section" id="page-statistics" aria-label="Jamoa tahlili" hidden>
                 <div class="section-header">
-                    <div><p class="section-eyebrow">ANALYTICS VA HALL OF FAME</p><h2>Tahlil</h2><p>Davr statistikasi, forma yo‘nalishi va barcha rekordlar bitta joyda.</p></div>
+                    <div><p class="section-eyebrow">ANALYTICS VA STATISTIKA</p><h2>Tahlil va Statistika</h2><p>Davr statistikasi, g‘alabalar foizi (Win Rate) va jamoa rekordlari.</p></div>
                 </div>
                 <section class="analytics-scope-console" id="analyticsScopeConsole" data-mode="team5" aria-labelledby="analyticsScopeTitle">
                     <div class="analytics-scope-console__copy">
@@ -465,8 +470,66 @@
                 <article class="changelog-release">
                     <div class="changelog-release__head">
                         <div class="changelog-release__meta">
-                            <span class="changelog-release__version">v2.37.0</span>
+                            <span class="changelog-release__version">v2.38.0</span>
                             <span class="changelog-release__badge">Hozirgi versiya</span>
+                        </div>
+                        <time class="changelog-release__date">2026-11-13</time>
+                    </div>
+                    <h4 class="changelog-release__title">Real Trio Matching, Matematik yaxlitlik muhri va Telegram Albom integratsiyasi</h4>
+                    
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-users" style="color:var(--primary);"></i> Real Trio Matching &amp; Asl Ismlar</span>
+                            <span class="changelog-section__tag">Roster</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Jamoaning 6 nafar asosiy a’zosi (Husniddin, Sanjar, Ulug‘bek, Shohruh, Otabek, Nabixo‘ja) tizimga doimiy bog‘landi — IGN o‘zgarganda ham haqiqiy ismlar orqali 100% aniq taniladi.</li>
+                            <li>Trio o‘yinlaridagi 2 nafar begona (guest) o‘yinchilar jamoa statistikasiga kiritilmaydi va yutuq foizini buzmaydi.</li>
+                            <li>Match yuborish va tasdiqlash oynasida o‘yinchining niki bilan birga haqiqiy ismi ko‘rsatiladi.</li>
+                        </ul>
+                    </div>
+
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-calculator" style="color:var(--primary);"></i> Matematik yaxlitlik muhri (Integrity Badge)</span>
+                            <span class="changelog-section__tag">AI &amp; Data</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>AI o‘qigan 5 nafar o‘yinchi killari yig‘indisi match hisobi bilan avtomatik solishtiriladi.</li>
+                            <li>Hisob 100% mos kelganda &laquo;✅ Matematik tasdiqlangan (35/35 kill)&raquo; muhri belgilanadi va Trio hissasi aniq ko‘rsatiladi.</li>
+                            <li>K/D/A raqamlarida xatolik yoki nomuvofiqlik bo‘lsa, darhol ogohlantirish beriladi.</li>
+                        </ul>
+                    </div>
+
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-brands fa-telegram" style="color:var(--primary);"></i> Telegram Bot: Albom (MediaGroup) qabul qilish</span>
+                            <span class="changelog-section__tag">Bot</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>O‘yinchi Scoreboard va Damage skrinshotlarini albom qilib tashlaganda, bot ularni bitta to‘liq submissionga birlashtiradi.</li>
+                            <li>Damage, Turret damage va Teamfight ko‘rsatkichlari to‘liq AI orqali o‘qiladi va kiritiladi.</li>
+                            <li>Telegram xabarida o‘yinchilarning haqiqiy ismlari va matematik tasdiq holati ko‘rsatiladi.</li>
+                        </ul>
+                    </div>
+
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-link" style="color:var(--primary);"></i> Multi-Match Batch Juftlash (Resilient Fallback)</span>
+                            <span class="changelog-section__tag">Batch</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Xira Battle ID holatlarida o‘yin vaqti (duration) va natijasi (win/loss) bo‘yicha Scoreboard va Damage rasmlarini avtomatik xatosiz juftlash tizimi joriy etildi.</li>
+                            <li>Keraksiz, eski audio.js va vaqtincha fayllar to‘liq tozalandi.</li>
+                        </ul>
+                    </div>
+                </article>
+
+                <article class="changelog-release">
+                    <div class="changelog-release__head">
+                        <div class="changelog-release__meta">
+                            <span class="changelog-release__version">v2.37.0</span>
+                            <span class="changelog-release__badge">Oldingi versiya</span>
                         </div>
                         <time class="changelog-release__date">2026-11-11</time>
                     </div>
@@ -522,7 +585,7 @@
             </div>
             <footer class="changelog-modal__footer">
                 <span>Eclipse Esports · Professional MLBB Analytics Center</span>
-                <span>v2.37.0 Live</span>
+                <span>v2.38.0 Live</span>
             </footer>
         </div>
     </dialog>

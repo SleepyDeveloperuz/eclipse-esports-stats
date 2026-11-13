@@ -15,6 +15,9 @@ import {
 } from './auth.js';
 import { normalisePayload } from './sync.js';
 import { normaliseAwardEvidence } from '../lib/match-awards.js';
+import { configuredOcrModels, requestOcrProvider } from '../lib/ocr-provider.js';
+import { buildOcrRequest, normaliseOcrPayload } from './ocr.js';
+import { smartMatchRoster } from '../lib/roster-matcher.js';
 import {
   notifySubmissionCreated,
   isTelegramConfigured,
@@ -708,6 +711,181 @@ async function deleteSubmission(id) {
   return submission;
 }
 
+export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, caption, sender }) {
+  const submitterName = sender
+    ? `${sender.first_name || ''} ${sender.last_name || ''}`.trim() || sender.username || 'Telegram User'
+    : 'Telegram Bot';
+
+  const urls = Array.isArray(fileUrls) && fileUrls.length > 0 ? fileUrls : [fileUrl].filter(Boolean);
+  if (!urls.length) throw new Error('Telegramdan skrinshotni yuklab bo‘lmadi.');
+
+  // 1. Download image(s) from Telegram
+  const imageParts = [];
+  for (const url of urls) {
+    const photoRes = await fetch(url);
+    if (!photoRes.ok) continue;
+    const photoBuffer = Buffer.from(await photoRes.arrayBuffer());
+    const mimeType = photoRes.headers.get('content-type') || 'image/jpeg';
+    imageParts.push({ inline_data: { mime_type: mimeType, data: photoBuffer.toString('base64') } });
+  }
+  if (!imageParts.length) throw new Error('Telegramdan skrinshotni yuklab bo‘lmadi.');
+
+  // 2. Read bundle for roster and hero catalog
+  const bundle = await readBundle({ withCatalog: true });
+  const roster = bundle.officialData?.players || [];
+  const heroes = bundle.officialData?.heroes || [];
+  if (!roster.length) throw new Error('Faol o‘yinchilar tarkibi topilmadi.');
+
+  // 3. Perform OCR
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('AI skaner sozlanmagan. Vercel Environment Variables orqali GEMINI_API_KEY ni kiriting.');
+  }
+
+  const safeRoster = roster.map(p => ({
+    id: p.id,
+    name: p.name,
+    realName: p.realName || '',
+    role: p.primaryRole || p.role || ''
+  }));
+  const safeHeroes = heroes.map(h => ({ id: h.id, name: h.name, role: h.role || '' }));
+  const ocrMode = imageParts.length > 1 ? 'full' : 'smart';
+
+  const requestBody = buildOcrRequest({
+    mode: ocrMode,
+    purpose: 'practice_submission',
+    roster: safeRoster,
+    heroes: safeHeroes,
+    imageParts
+  });
+
+  const ocrModels = configuredOcrModels(process.env.GEMINI_OCR_MODELS);
+  const provider = await requestOcrProvider({
+    apiKey,
+    requestBody,
+    models: ocrModels,
+    validate: parsed => normaliseOcrPayload(parsed, safeRoster, safeHeroes, { mode: ocrMode }).players.length > 0
+  });
+
+  if (!provider.success) {
+    throw new Error('AI skrinshotni to‘liq o‘qiy olmadi. Iltimos, tiniqroq Scoreboard skrinshotini yuboring.');
+  }
+
+  const ocrData = normaliseOcrPayload(provider.data, safeRoster, safeHeroes, { mode: ocrMode });
+
+  // 4. Resolve match properties
+  let matchType = 'scrim';
+  const capLower = String(caption || '').toLowerCase();
+  if (capLower.includes('#rank') || capLower.includes('ranked')) matchType = 'ranked';
+  else if (capLower.includes('#turnir') || capLower.includes('#tour') || capLower.includes('tournament')) matchType = 'tournament';
+  else if (capLower.includes('#oddiy') || capLower.includes('#casual')) matchType = 'casual';
+  else if (ocrData.matchType && MATCH_TYPES.has(ocrData.matchType)) {
+    matchType = ocrData.matchType;
+  }
+
+  const result = (ocrData.result && MATCH_RESULTS.has(ocrData.result)) ? ocrData.result : 'win';
+  const durationSeconds = ocrData.durationSeconds || 900;
+  const durationFormatted = ocrData.durationFormatted || '15:00';
+
+  // 5. Match players with roster (Trio / Squad / Team5)
+  const matchedStats = [];
+  const usedPlayerIds = new Set();
+
+  for (const p of ocrData.players) {
+    let matched = null;
+    if (p.matchedPlayerId) {
+      matched = roster.find(r => r.id === p.matchedPlayerId);
+    }
+    if (!matched && p.detectedName) {
+      matched = smartMatchRoster(p.detectedName, roster);
+    }
+
+    const heroName = p.heroUsed || 'Miya';
+    const heroRef = heroes.find(h => String(h.name).toLowerCase() === heroName.toLowerCase())
+      || heroes[0] || { id: 1, name: 'Miya' };
+
+    if (matched && !usedPlayerIds.has(matched.id)) {
+      usedPlayerIds.add(matched.id);
+      matchedStats.push({
+        playerId: matched.id,
+        playerName: matched.name,
+        heroId: heroRef.id,
+        heroNameSnapshot: heroRef.name,
+        heroUsed: heroRef.name,
+        heroResolution: 'canonical',
+        rolePlayed: p.rolePlayed || matched.primaryRole || 'Mid Laner',
+        roleSource: p.rolePlayed ? 'ocr' : 'roster',
+        kills: p.kills ?? 0,
+        deaths: p.deaths ?? 0,
+        assists: p.assists ?? 0,
+        inGameScore: p.inGameScore ?? 5.0,
+        medal: p.medal || null,
+        damageDealt: p.damageDealt,
+        damageReceived: p.damageReceived,
+        turretDamage: p.turretDamage,
+        teamfightParticipation: p.teamfightParticipation,
+        goldEarned: p.goldEarned
+      });
+    }
+  }
+
+  // If no players matched automatically, fall back to active roster player
+  if (!matchedStats.length && roster.length) {
+    const p = ocrData.players[0] || {};
+    const heroName = p.heroUsed || 'Miya';
+    const heroRef = heroes.find(h => String(h.name).toLowerCase() === heroName.toLowerCase())
+      || heroes[0] || { id: 1, name: 'Miya' };
+    const fallbackPlayer = roster[0];
+    matchedStats.push({
+      playerId: fallbackPlayer.id,
+      playerName: fallbackPlayer.name,
+      heroId: heroRef.id,
+      heroNameSnapshot: heroRef.name,
+      heroUsed: heroRef.name,
+      heroResolution: 'canonical',
+      rolePlayed: p.rolePlayed || fallbackPlayer.primaryRole || 'Mid Laner',
+      roleSource: 'roster',
+      kills: p.kills ?? 0,
+      deaths: p.deaths ?? 0,
+      assists: p.assists ?? 0,
+      inGameScore: p.inGameScore ?? 5.0,
+      medal: p.medal || null
+    });
+  }
+
+  // 6. Create official submission
+  const matchScope = matchedStats.length === 5 ? 'team5' : 'squad';
+  const simulatedReq = {
+    body: {
+      claimedPlayerId: matchedStats[0]?.playerId || 'admin',
+      submitter: {
+        name: submitterName,
+        telegramId: sender?.id
+      },
+      draft: {
+        source: 'telegram',
+        entryMode: 'practice_lite',
+        scope: matchScope,
+        sourceBattleId: ocrData.battleId || null,
+        teamKills: ocrData.teamKills ?? null,
+        enemyKills: ocrData.enemyKills ?? null,
+        mathVerified: ocrData.teamKills !== null && Array.isArray(ocrData.players) && ocrData.players.filter(p => Number.isInteger(p.kills)).reduce((s, p) => s + p.kills, 0) === ocrData.teamKills,
+        date: new Date().toISOString().slice(0, 10),
+        matchType,
+        result,
+        durationSeconds,
+        durationFormatted,
+        notes: caption ? `Telegram: ${caption}` : `Telegram skrinshot (${matchedStats.length} kishi / ${matchScope})`,
+        playerStats: matchedStats
+      }
+    }
+  };
+
+  const identity = { role: 'admin', user: 'telegram_bot' };
+  const submission = await createSubmission(simulatedReq, identity);
+  return { submission };
+}
+
 export async function handleTelegramRoute(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
@@ -779,29 +957,7 @@ export async function handleTelegramRoute(req, res) {
           return [];
         }
       },
-      createSubmissionFromPhoto: async ({ fileUrl, caption, sender }) => {
-        const submitterName = sender ? `${sender.first_name || ''} ${sender.last_name || ''}`.trim() || sender.username || 'Telegram User' : 'Telegram Bot';
-        const simulatedReq = {
-          body: {
-            submitter: {
-              name: submitterName,
-              telegramId: sender?.id
-            },
-            draft: {
-              source: 'telegram',
-              date: new Date().toISOString().slice(0, 10),
-              type: 'scrim',
-              result: 'win',
-              note: caption || 'Telegram orqali yuborilgan skrinshot',
-              photoUrl: fileUrl,
-              participants: []
-            }
-          }
-        };
-        const identity = { role: 'admin', user: 'telegram_bot' };
-        const submission = await createSubmission(simulatedReq, identity);
-        return { submission };
-      }
+      createSubmissionFromPhoto: createSubmissionFromTelegramPhoto
     });
 
     return res.status(200).json(result);

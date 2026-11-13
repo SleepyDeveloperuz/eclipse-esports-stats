@@ -102,7 +102,7 @@ export class BatchUpload {
         </div>
 
         <p class="progress-note batch-privacy-note">
-          <i class="fa-solid fa-shield-halved"></i> Rasmlar faqat shu tab xotirasida saqlanadi va serverda qolmaydi. AI limiti odatdagidek: juftlash uchun 1 so‘rov, har match uchun 1 scan. Natijalarni yuborishdan oldin tahrirlash imkoniyati mavjud.
+          <i class="fa-solid fa-shield-halved"></i> <strong>Avtomatik va xavfsiz:</strong> Bir sessiyadagi Scoreboard va Data rasmlari avtomatik birlashtiriladi. Agar biron rasm avtomatik olinmasa, "Birlashtirish" tugmasi orqali istalgan payt match hosil qilishingiz mumkin.
         </p>
         ${this.admin ? '<div class="batch-admin-notice"><i class="fa-solid fa-crown"></i> <strong>Admin konsoli:</strong> Multi-match natijalarini faqat jamoa lideri (IGL / Captain) yuklaydi va tasdiqlaydi.</div>' : ''}
 
@@ -247,20 +247,17 @@ export class BatchUpload {
           input.files = dt.files;
         }
         this.onFilesSelected();
-        window.eclipseAudio?.playClick?.();
       }
     });
 
     input.addEventListener('change', () => {
       this.onFilesSelected();
-      window.eclipseAudio?.playClick?.();
     });
 
     this.container.querySelector('#batchClearFilesBtn')?.addEventListener('click', (e) => {
       e.stopPropagation();
       input.value = '';
       this.onFilesSelected();
-      window.eclipseAudio?.playClick?.();
     });
 
     this.pasteHandler = (e) => {
@@ -271,7 +268,6 @@ export class BatchUpload {
         [...input.files, ...files].slice(0, 10).forEach(f => dt.items.add(f));
         input.files = dt.files;
         this.onFilesSelected();
-        window.eclipseAudio?.playClick?.();
       }
     };
     document.addEventListener('paste', this.pasteHandler);
@@ -426,8 +422,8 @@ export class BatchUpload {
     this.updateControls();
   }
 
-  async imageData(file, width = 1600) {
-    window.EclipseImageUpload.validate(file, 8 * 1024 * 1024);
+  async imageData(file, width = 1400, quality = 0.84) {
+    window.EclipseImageUpload.validate(file, 16 * 1024 * 1024);
     if (window.EclipseImageUpload.isHeic(file)) file = await window.EclipseImageUpload.toJpeg(file, { signal: this.controller?.signal });
     const url = URL.createObjectURL(file);
     try {
@@ -440,7 +436,7 @@ export class BatchUpload {
       canvas.width = Math.round(img.width * scale);
       canvas.height = Math.round(img.height * scale);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/jpeg', .88);
+      return canvas.toDataURL('image/jpeg', quality);
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -454,14 +450,19 @@ export class BatchUpload {
     if (!fallback.checkValidity() || !fallback.value) throw new Error('Sana tanlang.');
     this.controller = new AbortController();
     this.setStep(2);
-    window.eclipseAudio?.playWhoosh?.();
     this.status('Rasmlar tayyorlanmoqda (HEIC bo‘lsa JPEG’ga aylantiriladi)…');
     const images = [];
     for (const file of files) {
       images.push(await this.imageData(file));
       if (generation !== this.generation) return;
     }
-    if (JSON.stringify(images).length > 3700000) throw new Error('Rasmlar umumiy hajmi katta. Bu batchga kamroq rasm tanlang.');
+    if (JSON.stringify(images).length > 3600000) {
+      this.status('Rasmlar hajmi moslashtirilmoqda…');
+      for (let i = 0; i < files.length; i++) {
+        images[i] = await this.imageData(files[i], 1100, 0.75);
+        if (generation !== this.generation) return;
+      }
+    }
     this.controller = new AbortController();
     this.status('Battle ID va rasm turi tekshirilmoqda…');
     const response = await fetch('/api/ocr', {
@@ -474,13 +475,62 @@ export class BatchUpload {
     if (generation !== this.generation) return;
     if (!response.ok || !result.data?.files) throw new Error(result.error || 'Juftlash bajarilmadi.');
     const grouped = groupBatchFiles(result.data.files);
-    this.container.querySelector('#batchUnresolved').innerHTML = grouped.unresolved.map(f =>
-      `<p class="progress-note"><i class="fa-solid fa-triangle-exclamation"></i> <strong>${esc(files[f.index]?.name)}</strong>: ${esc(f.reason)}</p>`
-    ).join('');
+
+    // If auto-grouping by exact Battle ID left 0 matches but user uploaded 2 files:
+    // Pair them as 1 match (Scoreboard + Damage) so upload doesn't get blocked.
+    if (grouped.matches.length === 0 && files.length === 2) {
+      const f0 = result.data.files[0], f1 = result.data.files[1];
+      const score = [f0, f1].find(f => f.kind === 'scoreboard') || f0;
+      const damage = [f0, f1].find(f => f.kind === 'damage') || (score === f0 ? f1 : f0);
+      grouped.matches.push({
+        battleId: score.battleId || damage.battleId || null,
+        score,
+        damage: damage === score ? null : damage,
+        date: score.date || damage.date || fallback.value,
+        duration: score.duration || damage.duration || null,
+        result: score.result || damage.result || null
+      });
+      grouped.unresolved = [];
+    }
+
+    const unresolvedContainer = this.container.querySelector('#batchUnresolved');
+    if (unresolvedContainer) {
+      let unresolvedHtml = grouped.unresolved.map(f =>
+        `<p class="progress-note"><i class="fa-solid fa-triangle-exclamation"></i> <strong>${esc(files[f.index]?.name)}</strong>: ${esc(f.reason)}</p>`
+      ).join('');
+      if (grouped.unresolved.length >= 2) {
+        unresolvedHtml += `
+          <div style="margin-top:0.75rem;">
+            <button type="button" class="btn btn-secondary btn-sm" id="batchPairRemainingBtn" style="gap:0.4rem;">
+              <i class="fa-solid fa-link"></i> Qolgan ${grouped.unresolved.length} ta rasmni match sifatida birlashtirish
+            </button>
+          </div>`;
+      }
+      unresolvedContainer.innerHTML = unresolvedHtml;
+      const pairRemainingBtn = unresolvedContainer.querySelector('#batchPairRemainingBtn');
+      if (pairRemainingBtn) {
+        pairRemainingBtn.onclick = () => {
+          const unresFiles = grouped.unresolved.map(u => result.data.files[u.index]);
+          const score = unresFiles.find(f => f.kind === 'scoreboard') || unresFiles[0];
+          const damage = unresFiles.find(f => f.kind === 'damage' && f !== score) || (unresFiles.length > 1 ? unresFiles[1] : null);
+          this.addItem({
+            battleId: score.battleId || damage?.battleId || null,
+            score,
+            damage,
+            date: score.date || damage?.date || fallback.value,
+            duration: score.duration || damage?.duration || null,
+            result: score.result || damage?.result || null
+          }, images, files, fallback.value, this.container.querySelector('#batchType').value);
+          grouped.unresolved = [];
+          unresolvedContainer.innerHTML = '';
+          this.status(`${this.items.length} match navbatda.`);
+          this.updateControls();
+        };
+      }
+    }
     if (grouped.matches.length > 5) throw new Error('Bir batchda ko‘pi bilan 5 match.');
     for (const group of grouped.matches) this.addItem(group, images, files, fallback.value, this.container.querySelector('#batchType').value);
-    this.status(`${this.items.length} match juftlandi. ${grouped.unresolved.length} rasm avtomatik olinmadi.`);
-    window.eclipseAudio?.playSuccess?.();
+    this.status(`${this.items.length} match juftlandi.${grouped.unresolved.length ? ` ${grouped.unresolved.length} rasm avtomatik olinmadi.` : ''}`);
     this.setStep(3);
   }
 
@@ -584,7 +634,6 @@ export class BatchUpload {
         worker.container.hidden = true;
         root.querySelector('[data-edit]').classList.remove('active');
         this.updateControls();
-        window.eclipseAudio?.playSuccess?.();
         window.showToast?.(`Match #${matchNumber} ma’lumotlari muvaffaqiyatli saqlandi.`, 'success');
       } catch (err) {
         window.showToast?.(err.message, 'error');
@@ -599,13 +648,11 @@ export class BatchUpload {
     actionWrap.querySelector('[data-batch-cancel-item]').onclick = () => {
       worker.container.hidden = true;
       root.querySelector('[data-edit]').classList.remove('active');
-      window.eclipseAudio?.playClick?.();
     };
 
     root.querySelector('[data-edit]').onclick = () => {
       worker.container.hidden = !worker.container.hidden;
       root.querySelector('[data-edit]').classList.toggle('active', !worker.container.hidden);
-      window.eclipseAudio?.playClick?.();
     };
 
     const markReview = () => {
@@ -662,7 +709,6 @@ export class BatchUpload {
     }
     if (generation === this.generation) {
       this.status('O‘qish tugadi. Tayyor matchlarni bitta tugma bilan yuboring; faqat kerak bo‘lsa tahrirlang.');
-      window.eclipseAudio?.playSuccess?.();
       this.updateControls();
     }
   }
@@ -711,7 +757,6 @@ export class BatchUpload {
     if (sent) await this.app.cloudSync.syncDown();
     if (generation === this.generation) {
       this.status(`${sent} match yuborildi. Yuborilganlar qayta yuborilmaydi.`);
-      window.eclipseAudio?.playSuccess?.();
       this.updateControls();
     }
   }

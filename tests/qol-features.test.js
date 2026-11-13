@@ -150,33 +150,6 @@ domTest('sidebar close buttons and escape handler close open sidebar', () => {
   dom.window.close();
 });
 
-domTest('EclipseAudio initializes, toggles mute state, and saves to localStorage', () => {
-  const dom = new JSDOM('<!DOCTYPE html><html><body><button class="sfx-toggle-btn"></button></body></html>', {
-    url: 'https://eclipseesports.vercel.app',
-    runScripts: 'outside-only'
-  });
-  const { window } = dom;
-
-  window.eval(readFileSync(new URL('../js/audio.js', import.meta.url), 'utf8'));
-
-  const audio = window.eclipseAudio;
-  assert.ok(audio, 'EclipseAudio instance exists');
-  assert.equal(audio.enabled, false, 'Default is muted/disabled');
-
-  // Toggle on
-  const newState = audio.toggle();
-  assert.equal(newState, true, 'Toggled on');
-  assert.equal(audio.enabled, true);
-  assert.equal(window.localStorage.getItem('eclipse:sfx:enabled'), 'true');
-
-  // Toggle off
-  audio.toggle();
-  assert.equal(audio.enabled, false);
-  assert.equal(window.localStorage.getItem('eclipse:sfx:enabled'), 'false');
-
-  dom.window.close();
-});
-
 domTest('EclipseApp.filterHistoryMatches filters by result, scope, and query', () => {
   const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', { runScripts: 'outside-only' });
   const { window } = dom;
@@ -450,37 +423,6 @@ domTest('ThemeManager toggles cyber accent themes and persists to localStorage',
   assert.equal(tm.currentTheme, 'crimson');
   assert.equal(window.document.documentElement.getAttribute('data-theme'), 'crimson');
   assert.equal(window.localStorage.getItem('eclipse:theme'), 'crimson');
-
-  dom.window.close();
-});
-
-domTest('EclipseAudio supports sound packs (cyber, arena, arcade) and pack persistence', () => {
-  const dom = new JSDOM('<!DOCTYPE html><html><body><button class="sfx-toggle-btn"></button></body></html>', {
-    runScripts: 'outside-only',
-    url: 'https://eclipse-esports.uz/'
-  });
-  const { window } = dom;
-
-  // Mock AudioContext
-  window.AudioContext = class MockAudioContext {
-    constructor() { this.state = 'running'; }
-    createGain() { return { gain: { value: 1, setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} }, connect: () => {} }; }
-    createOscillator() { return { type: 'sine', frequency: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} }, connect: () => {}, start: () => {}, stop: () => {} }; }
-    get currentTime() { return 0; }
-  };
-
-  window.eval(readFileSync(new URL('../js/audio.js', import.meta.url), 'utf8'));
-
-  assert.ok(window.EclipseAudio, 'EclipseAudio is defined');
-  assert.equal(window.EclipseAudio.getSoundPack(), 'cyber', 'Default sound pack is cyber');
-
-  window.EclipseAudio.setSoundPack('arena');
-  assert.equal(window.EclipseAudio.getSoundPack(), 'arena');
-  assert.equal(window.localStorage.getItem('eclipse:sfx:pack'), 'arena');
-
-  window.EclipseAudio.setSoundPack('arcade');
-  assert.equal(window.EclipseAudio.getSoundPack(), 'arcade');
-  assert.equal(window.localStorage.getItem('eclipse:sfx:pack'), 'arcade');
 
   dom.window.close();
 });
@@ -1149,7 +1091,7 @@ domTest('version status pill opens changelog modal with release notes', () => {
 
   const app = window.EclipseApp;
   assert.ok(Array.isArray(app.RELEASES), 'app has RELEASES array');
-  assert.equal(app.RELEASES[0].version, 'v2.37.0', 'latest release is v2.37.0');
+  assert.equal(app.RELEASES[0].version, 'v2.38.0', 'latest release is v2.38.0');
 
   app.bindQolControls();
 
@@ -1163,7 +1105,7 @@ domTest('version status pill opens changelog modal with release notes', () => {
   const btn = window.document.getElementById('versionChangelogBtn');
   btn.click();
   assert.ok(showModalCalled, 'clicking version pill calls showModal()');
-  assert.match(window.document.getElementById('changelogBody').innerHTML, /v2\.37\.0/, 'changelog body is rendered');
+  assert.match(window.document.getElementById('changelogBody').innerHTML, /v2\.38\.0/, 'changelog body is rendered');
 
   // Click close button closes modal
   const closeBtn = window.document.getElementById('changelogCloseBtn');

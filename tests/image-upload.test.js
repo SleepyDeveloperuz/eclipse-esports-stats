@@ -25,6 +25,8 @@ test('HEIC detection handles MIME and empty-MIME extensions with bounded input',
   assert.throws(() => api.validate({ type: 'image/heic', size: 9 * 1024 * 1024 }), /8 MB/);
   assert.throws(() => api.validate({ type: 'text/plain', size: 100 }), /rasm tanlang/);
   assert.throws(() => api.validate({ type: 'image/png', size: 4 * 1024 * 1024 }), /3 MB/);
+  // Custom limit supports high-resolution mobile screenshots (e.g. 6 MB PNG)
+  assert.doesNotThrow(() => api.validate({ type: 'image/png', size: 6 * 1024 * 1024 }, 16 * 1024 * 1024));
   assert.equal(api.isHeic({ name: 'IMG.HEIC', type: 'image/jpeg' }), false);
 });
 test('ordinary images skip decoder; HEIC uses a same-origin worker and returns JPEG', async () => {

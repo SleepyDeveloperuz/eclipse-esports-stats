@@ -1,51 +1,103 @@
-# Personal Mac backups
+# Eclipse Esports — Private Mac Backup & Recovery Runbook
 
-Status: scripts implemented and restore behavior tested with an in-memory repository. **Daily scheduling and the first live export are not activated yet.** No production data has been restored or changed.
+This runbook outlines procedures for creating atomic offline backups and executing emergency restorations of the **Eclipse Esports** production database (Upstash Redis) using macOS command-line utilities.
 
-Use Node 22+ and a private environment file outside this repository. Required keys:
+---
 
-```
-GIST_ID=
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
-```
+## 1. Prerequisites & Environment Setup
 
-`GIST_ID` identifies the existing Redis namespace; these scripts never import the old Gist. An environment file must not be committed, pasted into chat, or included in the website upload. Make its parent directory private and its mode `0600`. A read-only Redis REST token can be used for backup where available; restoration requires a separately authorized writable credential.
+Backups and restorations run locally on macOS using **Node.js 22+** (recommended: Node.js 24).
 
-## Backup
-
-From this project directory, replace `/private/path/backup.env` with the actual private credential file:
+Create a private environment file outside the Git workspace (e.g. at `~/.config/eclipse/production.env`) with owner-only permissions (`chmod 0600`):
 
 ```sh
-node --env-file=/private/path/backup.env scripts/team-backup-daily.mjs
+mkdir -p ~/.config/eclipse
+chmod 0700 ~/.config/eclipse
+touch ~/.config/eclipse/production.env
+chmod 0600 ~/.config/eclipse/production.env
 ```
 
-Default destination: `Eclipse Backups` in the current Mac user's home directory. You may pass another private destination as the last argument. Each run creates a unique timestamped file and SHA-256 sidecar, with owner-only file permissions. The destination must be a dedicated owner-only directory (`0700`), not a root, home or project folder.
+Populate `~/.config/eclipse/production.env` with the following keys:
 
-**Retention, as requested: keep only the latest verified automatic backup for this team.** The new JSON and checksum are written, flushed to disk, read back, checked and schema-validated before any older backup is removed. Failure before verification preserves the previous copy. Concurrent runs are excluded by a lock; a crashed run's remaining `.eclipse-daily-backup.lock` must be inspected and removed manually only after confirming no backup is running. A new snapshot older than an existing verified revision stops retention.
+```ini
+# Production Redis Namespace Identifier
+GIST_ID=YOUR_TEAM_NAMESPACE_ID
 
-Only regular files with this script's exact timestamp/revision filename, a valid matching checksum, and the same team namespace are eligible for permanent deletion. Manual exports, pre-restore backups, other teams, symlinks and unverifiable files are left alone. Deletion failures are reported and may temporarily leave more than one copy; a later successful run retries eligible old pairs. This policy intentionally removes historical rollback points: a logically mistaken but structurally valid new snapshot can replace the last good one.
+# Upstash Redis REST Credentials
+UPSTASH_REDIS_REST_URL=https://YOUR_CLUSTER.upstash.io
+UPSTASH_REDIS_REST_TOKEN=YOUR_UPSTASH_REST_TOKEN
+```
 
-The backup exports core data, Briefing, submissions and vote sidecars from one existing atomic snapshot. It refuses to manufacture an empty backup or seed a missing database. The project source-code archives are unrelated and are never retention targets.
+> [!IMPORTANT]
+> Never commit this file or paste production credentials into chat or public pull requests. A read-only token is sufficient for running backups; database restorations require a read-write credential.
 
-A schedule should only be activated after a successful first export. The Mac must be available at run time; a Mac-only copy cannot protect against loss of that same Mac. Keep an occasional encrypted copy on another device. Local lineup presets and unsent browser drafts are not server data and are not included.
+---
 
-## Restore (operator only)
+## 2. Backup Scope & Data Structure
 
-Stop team writes, including old deployment URLs. Check the backup's checksum and confirm the right team. Read the current `_storageRevision` from a fresh backup. Use `-1` only when the live database is confirmed missing.
+Each backup exports a single atomic snapshot containing all team state:
+- **Core Team Data (`eclipse_data.json`):**
+  - Roster players with permanent real names (`realName`: Husniddin, Sanjar, Ulug'bek, Shohruh, Otabek, Nabixo'ja).
+  - Match history across all scopes (`squad` for Trio matches, `team5` for 5-man tournament games).
+  - Filtered guest player statistics (`guestStats`) isolated from team records.
+  - 18-digit Battle IDs and mathematical verification records.
+- **Captain Briefings & Announcements:** Private squad directives and pins.
+- **Submission Queue:** Pending screenshot submissions, Telegram bot approvals, and audit states.
+- **Weekly Focus & Progress:** Up to 104 weeks of focus tasks, baselines, and evaluation verdicts.
+- **AI Usage Ledger:** Operational scan durations and modification tallies.
+
+---
+
+## 3. Daily Automatic Backup
+
+To run the backup script:
 
 ```sh
-node --env-file=/private/path/restore.env scripts/team-restore.mjs /private/path/backup.json CURRENT_REVISION
+node --env-file=~/.config/eclipse/production.env scripts/team-backup-daily.mjs
 ```
 
-This is a **dry-run**. It validates format, namespace, JSON files, IDs, revision and size, without writing anything.
+### Destination & File Security
+- **Default Directory:** `~/Eclipse Backups/` (created automatically with `0700` permissions if missing).
+- **Naming Pattern:** `eclipse-backup-<TIMESTAMP>-rev<REVISION>.json` accompanied by a `.sha256` checksum sidecar.
+- **File Permissions:** Created strictly with `0600` (readable and writable only by the current Mac user).
+- **Concurrency Lock:** Uses `.eclipse-daily-backup.lock` to prevent overlapping or duplicate runs.
 
-Only after reviewing the dry-run and explicitly authorizing a restore:
+### Retention & Integrity Policy
+- **Latest Verified Policy:** Keeps only the latest verified automatic backup for the team namespace.
+- **Two-Phase Commit Verification:** The new backup file is written, flushed to disk, re-read, SHA-256 checksummed, and schema-validated **before** any older backup file is removed.
+- If verification fails at any stage, the existing older backup is retained untouched.
+
+---
+
+## 4. Emergency Database Restoration (Operator Only)
+
+Restoration is a two-step procedure that requires explicit authorization and an automatic pre-restore safety dump.
+
+### Step 1: Pre-Flight Dry Run
+Verify backup integrity, schema compliance, and revision compatibility without modifying the remote database:
 
 ```sh
-node --env-file=/private/path/restore.env scripts/team-restore.mjs /private/path/backup.json CURRENT_REVISION --apply --save-before=/private/path/before-restore.json
+node --env-file=~/.config/eclipse/production.env scripts/team-restore.mjs \
+  ~/Eclipse\ Backups/eclipse-backup-2026-11-13-rev142.json \
+  CURRENT_REVISION
 ```
 
-The destination for `--save-before` must not already exist and its parent directory must be owner-only (`0700`), owned by the current user, and not a symlink. The pre-image is created exclusively with `0600` permissions, flushed to disk, read back exactly, and its directory is flushed before the remote CAS. Any failure aborts the restore. A concurrent update also aborts it. Legacy cores without a public revision are treated as revision zero; explicitly malformed revisions still fail. Storage and public revisions are increased, not rolled back; Redis keeps its recent rollback snapshots too. No HTTP endpoint permits restoration. A missing-database restore records the absence rather than inventing a previous state.
+- Replace `CURRENT_REVISION` with the active storage revision from the live database (or `-1` if restoring into an empty database).
+- The dry run verifies file format, team namespace match, JSON syntax, ID integrity, and CAS revision sequence.
 
-After restoration, verify counts, approvals and Briefing before resuming writes. Reconcile unsent local browser changes explicitly; do not allow an old pending snapshot to silently reintroduce removed data. If the live database was missing, old browser revisions may be higher than the restored revision and need a supervised reset after preserving any unsent work.
+### Step 2: Authorized Live Apply
+Only after the dry run succeeds and team writes are paused:
+
+```sh
+node --env-file=~/.config/eclipse/production.env scripts/team-restore.mjs \
+  ~/Eclipse\ Backups/eclipse-backup-2026-11-13-rev142.json \
+  CURRENT_REVISION \
+  --apply \
+  --save-before=~/.config/eclipse/before-restore-snapshot.json
+```
+
+### Safety Guarantees During Apply
+1. **Mandatory `--save-before`:** The script immediately dumps the active live state to disk and verifies it before touching the remote Redis keys.
+2. **CAS Revision Check:** Restores fail immediately if another client updated the database concurrently.
+3. **No HTTP Exposure:** Restoration cannot be triggered via any web endpoint or API route; it requires physical operator terminal execution.
+4. **Post-Restore Validation:** After restore, verify match counts, roster names, and captain briefings on [eclipseesports.vercel.app](https://eclipseesports.vercel.app).

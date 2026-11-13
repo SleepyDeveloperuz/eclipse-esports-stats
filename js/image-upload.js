@@ -5,12 +5,12 @@
   const isHeic = file => !['image/jpeg', 'image/png', 'image/webp'].includes(file?.type) && (/^image\/hei[cf](?:-sequence)?$/i.test(file?.type || '') || /\.hei[cf]$/i.test(file?.name || ''));
   const validate = (file, limit = 3 * 1024 * 1024) => {
     if (!isHeic(file) && !['image/jpeg', 'image/png', 'image/webp'].includes(file?.type)) throw new Error('JPEG, PNG, WEBP yoki HEIC / HEIF rasm tanlang.');
-    const max = isHeic(file) ? 8 * 1024 * 1024 : limit;
+    const max = isHeic(file) ? Math.max(8 * 1024 * 1024, limit) : limit;
     if (!file.size || file.size > max) throw new Error(`Rasm ${max / 1024 / 1024} MB dan kichik bo‘lishi kerak.`);
   };
   const aborted = () => new DOMException('Bekor qilindi.', 'AbortError');
-  async function toJpeg(file, { signal } = {}) {
-    validate(file);
+  async function toJpeg(file, { signal, maxBytes = 3 * 1024 * 1024 } = {}) {
+    validate(file, Math.max(8 * 1024 * 1024, maxBytes));
     if (signal?.aborted) throw aborted();
     if (!isHeic(file)) return file;
     const buffer = await file.arrayBuffer();
@@ -33,14 +33,16 @@
     try {
       source.width = decoded.width; source.height = decoded.height;
       source.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(decoded.pixels), decoded.width, decoded.height), 0, 0);
-      const scale = Math.min(1, 2560 / Math.max(decoded.width, decoded.height));
-      canvas.width = Math.max(1, Math.round(decoded.width * scale)); canvas.height = Math.max(1, Math.round(decoded.height * scale));
-      const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
-      for (const quality of [.94, .86, .76]) {
-        const jpeg = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
-        if (signal?.aborted) throw aborted();
-        if (jpeg?.type === 'image/jpeg' && jpeg.size && jpeg.size <= 3 * 1024 * 1024) return jpeg;
+      for (const scaleFactor of [1, 0.75, 0.5]) {
+        const scale = Math.min(1, (2560 * scaleFactor) / Math.max(decoded.width, decoded.height));
+        canvas.width = Math.max(1, Math.round(decoded.width * scale)); canvas.height = Math.max(1, Math.round(decoded.height * scale));
+        const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+        for (const quality of [.94, .86, .76, .65]) {
+          const jpeg = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+          if (signal?.aborted) throw aborted();
+          if (jpeg?.type === 'image/jpeg' && jpeg.size && jpeg.size <= maxBytes) return jpeg;
+        }
       }
       throw new Error('Aylantirilgan rasm hajmi katta. Kichikroq skrinshot yuboring.');
     } finally { source.width = source.height = canvas.width = canvas.height = 1; }
@@ -85,6 +87,14 @@
 
       if (!compressed) {
         compressed = canvas.toDataURL('image/jpeg', quality);
+      }
+
+      // If compressed output is still large (> 1.2 MB base64), progressively lower quality
+      if (compressed && compressed.length > 1600000) {
+        compressed = canvas.toDataURL('image/jpeg', 0.76);
+      }
+      if (compressed && compressed.length > 1600000) {
+        compressed = canvas.toDataURL('image/jpeg', 0.65);
       }
 
       return compressed || fileOrDataUrl;

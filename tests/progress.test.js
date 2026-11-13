@@ -52,7 +52,20 @@ test('Batch joins shuffled screenshots only by exact string Battle IDs and refus
   assert.equal(groupBatchFiles([...data, { ...data[2], index: 3 }]).unresolved.length, 3);
   assert.equal(groupBatchFiles([{ ...data[0], date: '2026-09-14' }, { ...data[2], date: '2026-09-15' }]).matches.length, 0);
   assert.equal(cleanBattleId(Number(id)), null); assert.equal(cleanBattleId(id), id);
+  assert.equal(cleanBattleId(`Battle ID: ${id}`), id);
+  assert.equal(cleanBattleId(`  ${id}  `), id);
+  assert.equal(cleanBattleId('BattleID 958 494 160 887 065 787'), '958494160887065787');
   assert.equal(groupBatchFiles([{ ...data[1], battleId: null }]).matches.length, 0);
+
+  // Unambiguous pair without battleId pairs safely by matching duration and result
+  const unassignedPair = [
+    { index: 0, kind: 'scoreboard', battleId: null, duration: '16:14', result: 'win' },
+    { index: 1, kind: 'damage', battleId: null, duration: '16:14', result: 'win' }
+  ];
+  const paired = groupBatchFiles(unassignedPair);
+  assert.equal(paired.matches.length, 1);
+  assert.equal(paired.unresolved.length, 0);
+  assert.equal(paired.matches[0].duration, '16:14');
 });
 test('Batch index requires one distinct in-range entry per input; dates must really exist', () => {
   assert.throws(() => normalizeBatchIndex({ files: [{ index: 0 }, { index: 0 }] }, 2));

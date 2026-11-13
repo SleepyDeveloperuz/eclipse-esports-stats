@@ -34,8 +34,7 @@
         { id: 'act-daily-scrim', label: 'Kunlik Scrim Hisoboti (Telegram / Discord / HD Rasm)', group: 'Amallar', icon: 'fa-file-invoice', action: 'dailyScrim' },
         { id: 'act-draft-assistant', label: 'Draft Assistant (Pick & Ban Helper)', group: 'Amallar', icon: 'fa-shield-halved', action: 'draftAssistant' },
         { id: 'act-export-tier', label: 'Meta Tierlistni PNG eksport qilish', group: 'Amallar', icon: 'fa-file-image', action: 'exportTier' },
-        { id: 'act-toggle-sfx', label: 'Audio SFX (Ovoz effektlarini yoqish/o‘chirish)', group: 'Amallar', icon: 'fa-volume-high', action: 'toggleSfx' },
-        { id: 'act-changelog', label: 'Versiya yangiliklari (v2.37.0 Changelog)', group: 'Yordam', icon: 'fa-sparkles', action: 'changelog' },
+        { id: 'act-changelog', label: 'Versiya yangiliklari (v2.38.0 Changelog)', group: 'Yordam', icon: 'fa-sparkles', action: 'changelog' },
         { id: 'act-hotkeys', label: 'Klaviatura tugmalari yordamchisi (?)', group: 'Yordam', icon: 'fa-keyboard', action: 'hotkeys' },
         { id: 'act-filter-exp', label: 'EXP Lane qahramonlarini ko‘rish', group: 'Layn filtri', icon: 'fa-shield-halved', lane: 'exp' },
         { id: 'act-filter-gold', label: 'Gold Lane qahramonlarini ko‘rish', group: 'Layn filtri', icon: 'fa-coins', lane: 'gold' },
@@ -343,10 +342,6 @@
       }
       if (item.action === 'draftAssistant') {
         window.draftAssistant?.open();
-        return;
-      }
-      if (item.action === 'toggleSfx') {
-        window.eclipseAudio?.toggle();
         return;
       }
       if (item.action === 'hotkeys') {

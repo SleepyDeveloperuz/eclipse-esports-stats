@@ -4,6 +4,8 @@ import { configuredOcrModels, requestOcrProvider } from '../lib/ocr-provider.js'
 import { extractWithRecheck } from '../lib/ocr-recheck.js';
 import { batchIndexRequest, normalizeBatchIndex } from '../lib/batch-index.js';
 import { normaliseAwardEvidence } from '../lib/match-awards.js';
+import { smartMatchRoster } from '../lib/roster-matcher.js';
+import { cleanBattleId } from '../js/batch-model.js';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const MAX_IMAGES = 2;
@@ -131,10 +133,16 @@ export function normaliseOcrPayload(parsedData, rosterPlayers = [], heroList = [
   });
   const normalizedPlayers = [];
   rawPlayers.forEach(player => {
-    const matchedPlayerId = rosterMap.has(cleanId(player?.matchedPlayerId))
+    let matchedPlayerId = rosterMap.has(cleanId(player?.matchedPlayerId))
       ? cleanId(player.matchedPlayerId)
       : null;
     const detectedName = cleanText(player?.detectedName, 80) || (matchedPlayerId ? rosterMap.get(matchedPlayerId) : '');
+    if (!matchedPlayerId && detectedName) {
+      const smart = smartMatchRoster(detectedName, rosterPlayers);
+      if (smart && rosterMap.has(smart.id)) {
+        matchedPlayerId = smart.id;
+      }
+    }
     const participantKey = matchedPlayerId || detectedName.toLocaleLowerCase('uz-UZ');
     if (!participantKey) {
       issues.push('unidentified_participant');
@@ -211,6 +219,9 @@ export function normaliseOcrPayload(parsedData, rosterPlayers = [], heroList = [
   return {
     result,
     matchType,
+    battleId: cleanBattleId(parsedData?.battleId) || null,
+    teamKills: nullableNumber(parsedData?.teamKills, { min: 0, max: 200, integer: true }),
+    enemyKills: nullableNumber(parsedData?.enemyKills, { min: 0, max: 200, integer: true }),
     duration: duration.duration,
     durationSeconds: duration.durationSeconds,
     durationFormatted: duration.durationFormatted,
@@ -241,6 +252,7 @@ export function parseDetailImage(value) {
 
 export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], heroes = [], imageParts = [], detailPart = null } = {}) {
   const heroReview = mode === 'hero_review';
+  const smartMode = mode === 'smart' || mode === 'full';
   const identityProperties = {
     matchedPlayerId: nullableChoice(roster.map(player => player.id)),
     detectedName: { type: 'string' }
@@ -264,11 +276,16 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     heroCandidates: { type: 'array', maxItems: 3, items: heroNames.length
       ? { type: 'string', enum: heroNames } : { type: 'string' } }
   };
-  const playerProperties = { ...identityProperties, ...(heroReview ? heroProperties : numericProperties) };
+  const playerProperties = heroReview
+    ? { ...identityProperties, ...heroProperties }
+    : smartMode
+      ? { ...identityProperties, ...numericProperties, ...heroProperties }
+      : { ...identityProperties, ...numericProperties };
   const properties = {
     ...(heroReview ? {} : {
       result: nullableChoice(['win', 'loss']), duration: { type: ['string', 'null'] },
       matchType: nullableChoice(['ranked', 'scrim', 'tournament', 'casual']),
+      ...(smartMode ? { battleId: { type: ['string', 'null'] }, teamKills: nullableMetric(200), enemyKills: nullableMetric(200) } : {}),
       teamTurtles: nullableMetric(10), teamLords: nullableMetric(10), teamTurrets: nullableMetric(9)
     }),
     notes: { type: 'string' },
@@ -444,6 +461,7 @@ export default async function handler(req, res) {
       .map(player => ({
         id: cleanId(player?.id),
         name: cleanText(player?.name, 80),
+        realName: cleanText(player?.realName, 80),
         role: ROLES.has(player?.role) ? player.role : ''
       }))
       .filter(player => {
@@ -461,9 +479,10 @@ export default async function handler(req, res) {
         seenHeroes.add(key);
         return true;
       });
-    const mode = req.body?.mode === 'hero_review' ? 'hero_review' : 'scoreboard';
+    const requestedMode = req.body?.mode;
+    const mode = requestedMode === 'hero_review' ? 'hero_review' : (requestedMode === 'smart' || requestedMode === 'full') ? 'smart' : 'scoreboard';
     let detailPart = null;
-    try { detailPart = mode === 'scoreboard' ? parseDetailImage(req.body?.detailImage) : null; }
+    try { detailPart = (mode === 'scoreboard' || mode === 'smart') ? parseDetailImage(req.body?.detailImage) : null; }
     catch { return res.status(400).json({ error: 'AI uchun ajratilgan rasm yaroqsiz. Skrinshotlarni qayta yuklang.' }); }
     const requestBody = buildOcrRequest({
       mode, purpose: req.body?.purpose, roster: safeRoster, heroes: safeHeroes, imageParts, detailPart
@@ -473,7 +492,7 @@ export default async function handler(req, res) {
       validate: parsed => (mode !== 'hero_review' || parsed.players.length === 1)
         && normaliseOcrPayload(parsed, safeRoster, safeHeroes, { mode }).players.length > 0
     };
-    const provider = mode === 'scoreboard'
+    const provider = (mode === 'scoreboard' || mode === 'smart')
       ? await extractWithRecheck({ ...providerOptions, normalize: parsed => normaliseOcrPayload(parsed, safeRoster, safeHeroes, { mode }) })
       : await requestOcrProvider(providerOptions);
     if (!provider.success) {

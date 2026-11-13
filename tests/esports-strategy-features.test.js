@@ -138,6 +138,22 @@ test('Telegram Bot: handles webhook slash commands and callbacks', async () => {
   assert.equal(callbackRes.ok, true);
   assert.equal(callbackRes.action, 'approved');
   assert.equal(approvedId, 'sub_target_555');
+
+  // 3. Photo submission handling
+  const photoRes = await handleTelegramWebhook({
+    message: {
+      message_id: 20,
+      chat: { id: 123456, type: 'private' },
+      from: { id: 123456, first_name: 'Test', username: 'tester' },
+      photo: [
+        { file_id: 'thumb_123', width: 320, height: 180 },
+        { file_id: 'large_photo_999', width: 1920, height: 1080 }
+      ],
+      caption: '#ranked Test scrim'
+    }
+  }, mockDeps);
+  assert.equal(photoRes.ok, true);
+  assert.equal(photoRes.photoReceived, true);
 });
 
 test('Daily Scrim Export: calculates dynamics, MVP, and win rate accurately', () => {

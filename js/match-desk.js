@@ -460,7 +460,6 @@
           this.setScanDetailsOpen(!currentlyOpen);
           if (currentlyOpen) {
             window.showToast?.('Tahrirlangan ma’lumotlar saqlandi', 'success');
-            window.eclipseAudio?.playSuccess?.();
           }
         };
         this.setScanDetailsOpen(true);
@@ -477,11 +476,18 @@
         confirmBar.querySelector('[data-confirm-edits]').onclick = () => {
           this.setScanDetailsOpen(false);
           window.showToast?.('Tahrirlangan ma’lumotlar saqlandi', 'success');
-          window.eclipseAudio?.playSuccess?.();
         };
       }
       const matchType = form.querySelector('#practiceMatchType')?.selectedOptions[0]?.textContent || draft.matchType;
-      summary.querySelector('[data-scan-overview]').textContent = `${draft.result === 'win' ? 'Win' : 'Loss'} · ${draft.playerStats.length} o‘yinchi${draft.durationFormatted ? ` · ${draft.durationFormatted}` : ''}. Sana: ${draft.date} · Tur: ${matchType} (formadagi tanlov). Faqat kerak bo‘lsa tahrirlang.`;
+      let mathBadgeText = '';
+      if (this._mathReport?.teamKills !== null && this._mathReport?.teamKills !== undefined) {
+        if (this._mathReport.valid) {
+          mathBadgeText = ` · ✅ Matematik tekshiruv: ${this._mathReport.allKillsSum}/${this._mathReport.teamKills} kill to‘liq tasdiqlandi`;
+        } else if (this._mathReport.allKillsSum !== null && this._mathReport.allKillsSum !== undefined) {
+          mathBadgeText = ` · ⚠️ Matematik tekshiruv: ${this._mathReport.allKillsSum} vs ${this._mathReport.teamKills} kill`;
+        }
+      }
+      summary.querySelector('[data-scan-overview]').textContent = `${draft.result === 'win' ? 'Win' : 'Loss'} · ${draft.playerStats.length} o‘yinchi${draft.durationFormatted ? ` · ${draft.durationFormatted}` : ''}. Sana: ${draft.date} · Tur: ${matchType} (formadagi tanlov)${mathBadgeText}. Faqat kerak bo‘lsa tahrirlang.`;
       const roster = this.availablePlayers();
       const rows = [...form.querySelectorAll('.submission-player-row')];
       summary.querySelector('[data-scan-players]').replaceChildren(...draft.playerStats.map((player, index) => {
@@ -510,7 +516,7 @@
     refreshRosterOptions() {
       const form = this.container.querySelector('#practiceSubmissionForm');
       const players = this.availablePlayers();
-      const options = players.map(player => `<option value="${this.escape(player.id)}">${this.escape(player.name)}</option>`).join('');
+      const options = players.map(player => `<option value="${this.escape(player.id)}">${this.escape(player.name)}${player.realName ? ` (${this.escape(player.realName)})` : ''}</option>`).join('');
       const submitter = form.querySelector('#practiceSubmitter');
       const claimedPlayerId = submitter.value;
       submitter.innerHTML = (this.auth.isAdmin() ? '<option value="admin">Jamoa lideri (IGL / Captain) nomidan</option>' : '<option value="">Rosterdan tanlang…</option>') + options;

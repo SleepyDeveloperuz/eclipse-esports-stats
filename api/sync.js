@@ -131,6 +131,7 @@ function normalisePlayer(player) {
   return {
     id,
     name,
+    realName: cleanText(player?.realName, 80) || null,
     active: player?.active !== false,
     primaryRole: ROLES.has(player?.primaryRole) ? player.primaryRole : null,
     secondaryRole: ROLES.has(player?.secondaryRole) ? player.secondaryRole : null,

@@ -183,6 +183,7 @@ class DataStore {
     return {
       id: this.cleanId(source.id) || this.generateId(),
       name: this.cleanText(source.name, 80) || 'Nomsiz o‘yinchi',
+      realName: this.cleanText(source.realName, 80) || null,
       active,
       primaryRole: DataStore.ROLES.has(source.primaryRole) ? source.primaryRole : null,
       secondaryRole: DataStore.ROLES.has(source.secondaryRole) ? source.secondaryRole : null,

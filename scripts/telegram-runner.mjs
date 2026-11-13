@@ -11,7 +11,8 @@ import {
   readBundle,
   approveSubmission,
   rejectSubmission,
-  createSubmission
+  createSubmission,
+  createSubmissionFromTelegramPhoto
 } from '../api/submissions.js';
 
 // Load .env.local if present
@@ -96,31 +97,7 @@ async function startPolling() {
                   return [];
                 }
               },
-              createSubmissionFromPhoto: async ({ fileUrl, caption, sender }) => {
-                const submitterName = sender
-                  ? `${sender.first_name || ''} ${sender.last_name || ''}`.trim() || sender.username || 'Telegram User'
-                  : 'Telegram Bot';
-                const simulatedReq = {
-                  body: {
-                    submitter: {
-                      name: submitterName,
-                      telegramId: sender?.id
-                    },
-                    draft: {
-                      source: 'telegram',
-                      date: new Date().toISOString().slice(0, 10),
-                      type: 'scrim',
-                      result: 'win',
-                      note: caption || 'Telegram orqali yuborilgan skrinshot',
-                      photoUrl: fileUrl,
-                      participants: []
-                    }
-                  }
-                };
-                const identity = { role: 'admin', user: 'telegram_bot' };
-                const submission = await createSubmission(simulatedReq, identity);
-                return { submission };
-              }
+              createSubmissionFromPhoto: createSubmissionFromTelegramPhoto
             });
           } catch (handlerErr) {
             console.error('Update ishlashda xatolik:', handlerErr.message);

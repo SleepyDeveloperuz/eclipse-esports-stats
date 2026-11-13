@@ -223,7 +223,6 @@
       link.remove();
 
       window.showToast?.(`📸 ${name} statistikasi PNG rasm ko‘rinishida yuklandi!`);
-      window.eclipseAudio?.playSuccess?.();
     }
 
     static async downloadDailyScrimCard(reportData) {
@@ -435,7 +434,6 @@
       link.remove();
 
       window.showToast?.(`📸 ${date} kunlik scrim hisoboti HD rasm sifatida yuklandi!`, 'success');
-      window.eclipseAudio?.playSuccess?.();
     }
 
     static calculateDailyScrimData(matches = [], targetDate = null) {

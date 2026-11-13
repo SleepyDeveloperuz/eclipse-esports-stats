@@ -320,7 +320,10 @@ window.PlayerManager = class PlayerManager {
               </div>
               <div class="player-info">
                 <p class="player-kicker">${isCaptain ? 'TEAM COMMANDER' : 'ECLIPSE OPERATIVE'}</p>
-                <div class="player-name">${safePlayerName}</div>
+                <div class="player-name">
+                  ${safePlayerName}
+                  ${p.realName ? `<span class="player-real-name" style="display:inline-block; margin-left:0.35rem; font-size:0.82em; color:var(--text-muted); font-weight:normal;">(${this.escapeHtml(p.realName)})</span>` : ''}
+                </div>
                 <div class="player-role">
                   <span class="role-signal" style="--role-color:${bestRoleColor};"></span>${roleLabel}
                 </div>
@@ -959,7 +962,7 @@ window.PlayerManager = class PlayerManager {
               <span class="player-form-status ${trendMeta.className}"><i class="fa-solid ${trendMeta.icon}"></i> ${trendMeta.label}</span>
             </div>
             <div class="player-profile-hero__name-row">
-              <h2>${safePlayerName}</h2>
+              <h2>${safePlayerName}${player.realName ? ` <small style="font-size:0.55em; color:var(--text-muted); font-weight:normal;">(${this.escapeHtml(player.realName)})</small>` : ''}</h2>
               ${titleBadge}
             </div>
             <div class="roster-player-tags">${player.primaryRole ? `<span>Asosiy layn: ${this.escapeHtml(player.primaryRole)}</span>` : ''}${(player.tags || []).map(tag => `<span>${this.escapeHtml(tag)}</span>`).join('')}</div>
@@ -1136,7 +1139,6 @@ window.PlayerManager = class PlayerManager {
             recentResults: recent,
             topHero: signatureHero !== '—' && signatureHero !== 'Ma’lumot kutilmoqda' ? signatureHero : 'MLBB Hero'
           });
-          window.eclipseAudio?.playSuccess?.();
         } else {
           throw new Error('EclipseShareCard moduli topilmadi.');
         }
@@ -1166,7 +1168,8 @@ window.PlayerManager = class PlayerManager {
     dialog.setAttribute('aria-labelledby', 'rosterEditTitle');
     const roles = ['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'];
     dialog.innerHTML = `<form><h3 id="rosterEditTitle">O‘yinchi profili</h3>
-      <label>IGN<input class="form-input" name="name" maxlength="80" required value="${this.escapeHtml(player.name)}"></label>
+      <label>IGN (O‘yindagi taxallus)<input class="form-input" name="name" maxlength="80" required value="${this.escapeHtml(player.name)}"></label>
+      <label>Haqiqiy ism (Real name)<input class="form-input" name="realName" maxlength="80" value="${this.escapeHtml(player.realName || '')}" placeholder="Masalan: Husniddin"></label>
       <label>Asosiy layn<select class="form-select" name="primaryRole"><option value="">Belgilanmagan</option>${roles.map(role => `<option ${player.primaryRole === role ? 'selected' : ''}>${role}</option>`).join('')}</select></label>
       <label>Ikkinchi layn<select class="form-select" name="secondaryRole"><option value="">Belgilanmagan</option>${roles.map(role => `<option ${player.secondaryRole === role ? 'selected' : ''}>${role}</option>`).join('')}</select></label>
       <label><input type="checkbox" name="captain" ${player.captain ? 'checked' : ''}> Captain belgisi (admin huquqini bermaydi)</label>
@@ -1187,6 +1190,7 @@ window.PlayerManager = class PlayerManager {
       if (!window.EclipseApp.authManager?.isAdmin()) { dialog.close(); return; }
       const form = event.currentTarget, status = dialog.querySelector('[data-roster-status]');
       const name = form.elements.name.value.trim();
+      const realName = form.elements.realName.value.trim() || null;
       const tags = form.elements.tags.value.split(',').map(tag => tag.trim()).filter(Boolean);
       if (!name || tags.length > 5 || tags.some(tag => tag.length > 24)) { status.textContent = 'Ism va teglar chegarasini tekshiring.'; return; }
       const heroPool = [], poolIds = new Set();
@@ -1200,7 +1204,7 @@ window.PlayerManager = class PlayerManager {
         }
       }
       const save = form.querySelector('[type="submit"]'); if (save.disabled) return; save.disabled = true;
-      this.db.updatePlayer(playerId, { name, primaryRole: form.elements.primaryRole.value || null, secondaryRole: form.elements.secondaryRole.value || null, captain: form.elements.captain.checked, tags, heroPool });
+      this.db.updatePlayer(playerId, { name, realName, primaryRole: form.elements.primaryRole.value || null, secondaryRole: form.elements.secondaryRole.value || null, captain: form.elements.captain.checked, tags, heroPool });
       try {
         const cloud = window.EclipseApp.cloudSync;
         if (cloud?.isConfigured() && await cloud.syncUp() === false) throw new Error('Cloud sync failed');

@@ -10,7 +10,7 @@
       this.enemyBans = [null, null, null, null, null];
       this.isTournamentMode = false;
       this.selectedBlueprint = null;
-      this.blueprints = [
+      this.defaultBlueprints = [
         {
           id: 'bp-snowball',
           name: '🚀 Snowball Fast Push',
@@ -20,6 +20,28 @@
           ifThenRules: [
             { trigger: 'Fanny', counter: 'Darhol Khufra yoki Moskov javobini oling (Knockup & Anti-dash)' },
             { trigger: 'Claude', counter: '12-daqiqagacha push qilib o‘yinni yopish (Late scaling oldini olish)' }
+          ]
+        },
+        {
+          id: 'bp-fanny-counter',
+          name: '🎯 Anti-Fanny / Khufra + Moskov',
+          roleFocus: 'Raqib Fanny olganda darhol Moskov va Khufra bilan javob berish (Knockup & Wall stun)',
+          recommendedBans: ['Fanny', 'Diggie'],
+          recommendedPicks: ['Khufra', 'Moskov', 'Paquito', 'Pharsa', 'Fredrinn'],
+          ifThenRules: [
+            { trigger: 'Fanny', counter: 'Darhol Moskov va Khufra oling (Havo nazorati, anti-dash va devorga qadash)' },
+            { trigger: 'Saber', counter: 'Dreadnought Armor erta sotib oling va Khufra orqasida turing' }
+          ]
+        },
+        {
+          id: 'bp-angela-ling',
+          name: '🌪️ Anti-Ling + Angela Combo',
+          roleFocus: 'Raqib Angela + Ling kombinatsiyasiga qarshi 1-daqiqada Baxia va Ruby bilan ko‘k buffni bosish',
+          recommendedBans: ['Ling', 'Mathilda'],
+          recommendedPicks: ['Baxia', 'Ruby', 'Claude', 'Valentina', 'Terizla'],
+          ifThenRules: [
+            { trigger: 'Ling', counter: 'Baxia jungler bilan 1-daqiqadayoq ko‘k buffga invayt uyushtiring' },
+            { trigger: 'Angela', counter: 'Ruby yoki Khufra bilan Ling sakragan zahoti ikkalasini birga ushlang' }
           ]
         },
         {
@@ -57,10 +79,41 @@
           ]
         }
       ];
+      this.blueprints = [...this.defaultBlueprints, ...this.loadCustomBlueprints()];
       this.activeSlot = null; // { team: 'ally' | 'enemy' | 'ally_ban' | 'enemy_ban', index: 0..4 }
       this.dialog = null;
       this.container = null;
       this.init();
+    }
+
+    loadCustomBlueprints() {
+      try {
+        const raw = localStorage.getItem('eclipse:custom_blueprints');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (_) {}
+      return [];
+    }
+
+    saveCustomBlueprint(blueprint) {
+      const customs = this.loadCustomBlueprints();
+      customs.push(blueprint);
+      try {
+        localStorage.setItem('eclipse:custom_blueprints', JSON.stringify(customs));
+      } catch (_) {}
+      this.blueprints.push(blueprint);
+      const sel = this.dialog?.querySelector('#draftBlueprintSelect');
+      if (sel) {
+        const opt = document.createElement('option');
+        opt.value = blueprint.id;
+        opt.textContent = blueprint.name;
+        sel.appendChild(opt);
+        sel.value = blueprint.id;
+        this.selectedBlueprint = blueprint.id;
+        this.renderAnalysis();
+      }
     }
 
     escape(value) {
@@ -159,9 +212,33 @@
                 <option value="">Draft Blueprint tanlang…</option>
                 ${this.blueprints.map(bp => `<option value="${bp.id}">${bp.name}</option>`).join('')}
               </select>
+              <button type="button" class="btn btn-sm btn-secondary" id="draftNewBlueprintBtn" title="Yangi Draft Blueprint (Ssenariy) yaratish" style="font-size:0.75rem;">
+                <i class="fa-solid fa-plus"></i> Ssenariy
+              </button>
             </div>
             <button type="button" class="draft-modal__close" id="draftCloseBtn" aria-label="Yopish"><kbd>Esc</kbd></button>
           </header>
+
+          <!-- Custom Blueprint Creator Panel -->
+          <div class="draft-custom-bp-panel" id="draftCustomBlueprintPanel" hidden style="background: rgba(13, 15, 20, 0.95); border-bottom: 1px solid var(--border-light); padding: 0.85rem 1.25rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+              <strong style="color:var(--primary); font-size:0.85rem;"><i class="fa-solid fa-wand-magic-sparkles"></i> Yangi Draft Blueprint (Taktik Ssenariy)</strong>
+              <button type="button" class="btn btn-sm btn-secondary" id="draftCancelCustomBpBtn" style="font-size:0.7rem; padding:0.15rem 0.4rem;">✕</button>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; margin-bottom:0.5rem;">
+              <input type="text" class="form-input" id="customBpName" placeholder="Ssenariy nomi (masalan: Anti-Ling + Angela)" style="font-size:0.8rem; padding:0.35rem 0.6rem;">
+              <input type="text" class="form-input" id="customBpRoleFocus" placeholder="Taktik fokus (masalan: 1-daqiqada ko‘k buffni invayt qilish)" style="font-size:0.8rem; padding:0.35rem 0.6rem;">
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 2fr; gap:0.5rem; margin-bottom:0.5rem;">
+              <input type="text" class="form-input" id="customBpTrigger" placeholder="Agar raqib olsa (masalan: Fanny yoki Ling)" style="font-size:0.8rem; padding:0.35rem 0.6rem;">
+              <input type="text" class="form-input" id="customBpCounter" placeholder="Bizning javobimiz (masalan: Darhol Khufra va Moskov oling)" style="font-size:0.8rem; padding:0.35rem 0.6rem;">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+              <button type="button" class="btn btn-sm btn-primary" id="draftSaveCustomBpBtn" style="font-size:0.75rem; padding:0.3rem 0.8rem;">
+                <i class="fa-solid fa-floppy-disk"></i> Ssenariyni saqlash
+              </button>
+            </div>
+          </div>
 
           <!-- 10-Ban Tournament Panel -->
           <div class="draft-bans-panel" id="draftBansPanel" hidden>
@@ -250,13 +327,54 @@
         if (panel) panel.hidden = !this.isTournamentMode;
         if (btn) btn.classList.toggle('btn-primary', this.isTournamentMode);
         this.renderSlots();
-        window.eclipseAudio?.playClick?.();
       });
 
       dialog.querySelector('#draftBlueprintSelect')?.addEventListener('change', (e) => {
         this.selectedBlueprint = e.target.value || null;
         this.renderAnalysis();
-        window.eclipseAudio?.playSuccess?.();
+      });
+
+      const customBpPanel = dialog.querySelector('#draftCustomBlueprintPanel');
+      dialog.querySelector('#draftNewBlueprintBtn')?.addEventListener('click', () => {
+        if (customBpPanel) {
+          customBpPanel.hidden = !customBpPanel.hidden;
+          if (!customBpPanel.hidden) {
+            dialog.querySelector('#customBpName')?.focus();
+          }
+        }
+      });
+
+      dialog.querySelector('#draftCancelCustomBpBtn')?.addEventListener('click', () => {
+        if (customBpPanel) customBpPanel.hidden = true;
+      });
+
+      dialog.querySelector('#draftSaveCustomBpBtn')?.addEventListener('click', () => {
+        const name = dialog.querySelector('#customBpName')?.value?.trim();
+        const roleFocus = dialog.querySelector('#customBpRoleFocus')?.value?.trim();
+        const trigger = dialog.querySelector('#customBpTrigger')?.value?.trim();
+        const counter = dialog.querySelector('#customBpCounter')?.value?.trim();
+
+        if (!name) {
+          window.showToast?.('Blueprint nomini kiriting.', 'warning');
+          return;
+        }
+
+        const newBp = {
+          id: `bp-custom-${Date.now()}`,
+          name: `⚡ ${name}`,
+          roleFocus: roleFocus || 'Kapitan tomonidan tuzilgan maxsus taktik ssenariy',
+          recommendedBans: [],
+          recommendedPicks: [],
+          ifThenRules: trigger && counter ? [{ trigger, counter }] : []
+        };
+
+        this.saveCustomBlueprint(newBp);
+        if (customBpPanel) customBpPanel.hidden = true;
+        dialog.querySelector('#customBpName').value = '';
+        dialog.querySelector('#customBpRoleFocus').value = '';
+        dialog.querySelector('#customBpTrigger').value = '';
+        dialog.querySelector('#customBpCounter').value = '';
+        window.showToast?.('Yangi Draft Blueprint saqlandi!', 'success');
       });
 
       // Search and lane filter inside picker
@@ -290,7 +408,6 @@
       } else {
         this.dialog.setAttribute('open', '');
       }
-      window.eclipseAudio?.playWhoosh?.();
     }
 
     close() {
@@ -311,7 +428,6 @@
       this.closePicker();
       this.renderSlots();
       this.renderAnalysis();
-      window.eclipseAudio?.playClick?.();
       window.showToast?.('Draft tozalandi.');
     }
 
@@ -355,7 +471,6 @@
       this.closePicker();
       this.renderSlots();
       this.renderAnalysis();
-      window.eclipseAudio?.playSuccess?.();
     }
 
     removeHero(team, index, event) {
@@ -371,7 +486,6 @@
       }
       this.renderSlots();
       this.renderAnalysis();
-      window.eclipseAudio?.playClick?.();
     }
 
     renderSlots() {
@@ -697,7 +811,6 @@
             this.allyPicks[firstEmptyAlly] = hero;
             this.renderSlots();
             this.renderAnalysis();
-            window.eclipseAudio?.playSuccess?.();
           }
         });
       });
@@ -726,7 +839,6 @@
           e.preventDefault();
           const dialog = document.getElementById('hotkeysDialog');
           if (dialog && !dialog.open) {
-            window.eclipseAudio?.play?.('click');
             if (typeof dialog.showModal === 'function') {
               dialog.showModal();
             } else {
@@ -741,7 +853,6 @@
           e.preventDefault();
           const dialog = document.getElementById('hotkeysDialog');
           if (dialog) {
-            window.eclipseAudio?.play?.('close');
             if (typeof dialog.close === 'function') dialog.close();
             else dialog.removeAttribute('open');
           }
@@ -750,7 +861,6 @@
 
         const hotkeysDialog = document.getElementById('hotkeysDialog');
         if (hotkeysDialog && e.target === hotkeysDialog) {
-          window.eclipseAudio?.play?.('close');
           if (typeof hotkeysDialog.close === 'function') hotkeysDialog.close();
           else hotkeysDialog.removeAttribute('open');
         }
@@ -767,11 +877,9 @@
           const dialog = document.getElementById('hotkeysDialog');
           if (dialog) {
             if (dialog.open) {
-              window.eclipseAudio?.play?.('close');
               if (typeof dialog.close === 'function') dialog.close();
               else dialog.removeAttribute('open');
             } else {
-              window.eclipseAudio?.play?.('click');
               if (typeof dialog.showModal === 'function') {
                 dialog.showModal();
               } else {
