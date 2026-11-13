@@ -9,12 +9,12 @@ const payload = (overrides = {}) => ({
   ...overrides
 });
 const ok = value => ({ ok: true, status: 200, json: async () => value });
-const models = ['gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+const models = ['gemini-3.5-flash-lite', 'gemini-3.5-flash'];
 
 test('OCR model allow-list retains pinned defaults and strips paths, duplicates and overflow', () => {
   assert.deepEqual(configuredOcrModels(''), DEFAULT_OCR_MODELS);
   assert.deepEqual(configuredOcrModels('../../secrets,not-a-model'), DEFAULT_OCR_MODELS);
-  assert.deepEqual(configuredOcrModels('gemini-3.5-flash-lite,gemini-3.5-flash-lite,gemini-2.5-flash'), models);
+  assert.deepEqual(configuredOcrModels('gemini-3.5-flash-lite,gemini-3.5-flash-lite,gemini-3.5-flash'), models);
   assert.equal(configuredOcrModels('gemini-a,gemini-b,gemini-c,gemini-d').length, 3);
 });
 
