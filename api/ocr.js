@@ -286,9 +286,9 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     heroCandidates: { type: 'array', maxItems: 3, items: heroNames.length
       ? { type: 'string', enum: heroNames } : { type: 'string' } }
   } : {
-    heroUsed: smartMode && heroNames.length ? nullableChoice(heroNames) : { type: ['string', 'null'] },
+    heroUsed: { type: ['string', 'null'] },
     heroRecognized: { type: 'boolean' },
-    heroCandidates: { type: 'array', maxItems: 3, items: heroNames.length ? { type: 'string', enum: heroNames } : { type: 'string' } }
+    heroCandidates: { type: 'array', maxItems: 3, items: { type: 'string' } }
   };
   const playerProperties = heroReview
     ? { ...identityProperties, ...heroProperties }
@@ -318,7 +318,7 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
   ] : [
     'Extract visible player IGNs, match statistics, result and medal badges from MLBB post-match screenshots.',
     smartMode
-      ? 'Identify each friendly player\'s hero from their portrait icon on the left of each row. heroUsed must be an exact match from the canonical hero list (e.g. Benedetta, Beatrix, Franco, Julian, etc.). Set heroRecognized=true when recognized. Canonical hero names: ' + JSON.stringify(heroNames)
+      ? 'Identify each friendly player\'s hero from their circular portrait icon on the far left of each row. Look carefully at facial appearance, hair color and style (e.g. streaks/bangs), headgear/helmets, and weapons to determine the hero. heroUsed must be an exact match from the canonical hero list (e.g. Benedetta, Melissa, Franco, Julian, Saber, etc.). Set heroRecognized=true when recognized. If uncertain, provide up to 3 plausible candidates in heroCandidates. Canonical hero names: ' + JSON.stringify(heroNames)
       : 'Hero identification is performed separately by a local icon matcher. Do not identify heroes, infer lanes, or return portrait boxes.',
     'Return the friendly left-hand team only, in its original top-to-bottom order. Never mix in the opposing right-hand team.',
     'sourceRow is the original vertical row number: top=1, then 2,3,4, bottom=5. Each sourceRow is unique. Never renumber when a row is missing or unreadable.',

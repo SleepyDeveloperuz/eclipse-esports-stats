@@ -856,28 +856,8 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
     }
   }
 
-  // If no players matched automatically, fall back to active roster player
-  if (!matchedStats.length && roster.length) {
-    const p = ocrData.players[0] || {};
-    const heroName = p.heroUsed || 'Miya';
-    const heroRef = heroes.find(h => String(h.name).toLowerCase() === heroName.toLowerCase())
-      || heroes[0] || { id: 1, name: 'Miya' };
-    const fallbackPlayer = roster[0];
-    matchedStats.push({
-      playerId: fallbackPlayer.id,
-      playerName: fallbackPlayer.name,
-      heroId: heroRef.id,
-      heroNameSnapshot: heroRef.name,
-      heroUsed: heroRef.name,
-      heroResolution: 'canonical',
-      rolePlayed: p.rolePlayed || fallbackPlayer.primaryRole || 'Mid Laner',
-      roleSource: 'roster',
-      kills: p.kills ?? 0,
-      deaths: p.deaths ?? 0,
-      assists: p.assists ?? 0,
-      inGameScore: p.inGameScore ?? 5.0,
-      medal: p.medal || null
-    });
+  if (!matchedStats.length) {
+    throw new Error('Skrinshotda Eclipse jamoasining birorta ham faol a‘zosi topilmadi. Faqat jamoa a‘zolari qatnashgan matchlarni yuboring.');
   }
 
   // 6. Create official submission
