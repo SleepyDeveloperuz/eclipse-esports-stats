@@ -147,7 +147,7 @@ function fail(message, code = 'INVALID_SUBMISSION', status = 400) {
   throw error;
 }
 
-function queueMutation(callback) {
+export function queueMutation(callback) {
   const execute = () => withTeamTransaction(callback);
   const run = mutationQueue.then(execute, execute);
   mutationQueue = run.catch(() => undefined);
@@ -966,8 +966,8 @@ export async function handleTelegramRoute(req, res) {
     }
 
     const result = await handleTelegramWebhook(update, {
-      approveSubmission,
-      rejectSubmission,
+      approveSubmission: (id) => queueMutation(() => approveSubmission(id)),
+      rejectSubmission: (id, reason) => queueMutation(() => rejectSubmission(id, reason)),
       getMatches: async () => {
         try {
           const bundle = await readBundle();

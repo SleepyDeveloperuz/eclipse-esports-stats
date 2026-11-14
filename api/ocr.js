@@ -286,8 +286,9 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     heroCandidates: { type: 'array', maxItems: 3, items: heroNames.length
       ? { type: 'string', enum: heroNames } : { type: 'string' } }
   } : {
-    heroUsed: { type: ['string', 'null'] }, heroRecognized: { type: 'boolean' },
-    heroCandidates: { type: 'array', maxItems: 3, items: { type: 'string' } }
+    heroUsed: smartMode && heroNames.length ? nullableChoice(heroNames) : { type: ['string', 'null'] },
+    heroRecognized: { type: 'boolean' },
+    heroCandidates: { type: 'array', maxItems: 3, items: heroNames.length ? { type: 'string', enum: heroNames } : { type: 'string' } }
   };
   const playerProperties = heroReview
     ? { ...identityProperties, ...heroProperties }
@@ -316,7 +317,9 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     'Canonical hero names: ' + JSON.stringify(heroNames)
   ] : [
     'Extract visible player IGNs, match statistics, result and medal badges from MLBB post-match screenshots.',
-    'Hero identification is performed separately by a local icon matcher. Do not identify heroes, infer lanes, or return portrait boxes.',
+    smartMode
+      ? 'Identify each friendly player\'s hero from their portrait icon on the left of each row. heroUsed must be an exact match from the canonical hero list (e.g. Benedetta, Beatrix, Franco, Julian, etc.). Set heroRecognized=true when recognized. Canonical hero names: ' + JSON.stringify(heroNames)
+      : 'Hero identification is performed separately by a local icon matcher. Do not identify heroes, infer lanes, or return portrait boxes.',
     'Return the friendly left-hand team only, in its original top-to-bottom order. Never mix in the opposing right-hand team.',
     'sourceRow is the original vertical row number: top=1, then 2,3,4, bottom=5. Each sourceRow is unique. Never renumber when a row is missing or unreadable.',
     'Images may be scoreboard and Data/Damage screens in either order. Match rows by IGN and sourceRow; never assume absent information exists.',
@@ -324,7 +327,9 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     'Unknown, obscured or absent values must be null, not zero, false or a guessed value.',
     'result is win for visible Victory and loss for visible Defeat. Never infer it from kills. duration is the visible MM:SS match duration, not the clock or date.',
     'matchType and teamTurtles/teamLords/teamTurrets must be null unless explicitly visible. Never infer destroyed turrets from turret damage.',
-    'Read K/D/A, goldEarned and inGameScore from the scoreboard; damageDealt, damageReceived, turretDamage and teamfightParticipation from their named Data columns.',
+    'On the Scoreboard screen, each row displays: hero portrait, level, player IGN, three K/D/A numbers (kills, deaths, assists in exact order), gold earned, and medal badge with inGameScore.',
+    'CRITICAL: Read kills, deaths, assists strictly from the three K/D/A numbers in that exact order (first is kills, second is deaths, third is assists). Never swap or confuse with inGameScore or gold.',
+    'Read damageDealt, damageReceived, turretDamage and teamfightParticipation from their named Data columns.',
     'Read the actual large medal, never infer it from score. Purple/lavender crystalline Supreme badge without MVP text is supreme. The same Supreme badge with an explicit MVP ribbon is supreme_mvp (including defeat MVP). A normal gold badge with explicit MVP text is mvp. Gold crossed swords without MVP are gold. Round silver/copper single-sword badges are silver/bronze. At most one friendly-team MVP total across mvp and supreme_mvp. An AFK badge obscures the medal: set medal=null, afk=true; do not invent bronze from the score. Uncertainty=null.',
     detailPart ? 'A final supplementary image contains enlarged medal-column strips labelled Image 1/2 detail, taken from the full originals above. They are the same rows, not additional players. Read each medal from the scoreboard strip and match its vertical position to the original screenshot; a Data/Damage strip has no medal evidence. A round silver medallion with a single sword is silver; the brown/copper version is bronze. none means an explicitly absent badge, never a silver or bronze badge. If the strip is not the medal column for this layout, use the full original image.' : '',
     'savage/maniac require explicit evidence; missing badges do not establish false. Never infer multikills solely from total KDA if badges are absent.',

@@ -12,7 +12,8 @@ import {
   approveSubmission,
   rejectSubmission,
   createSubmission,
-  createSubmissionFromTelegramPhoto
+  createSubmissionFromTelegramPhoto,
+  queueMutation
 } from '../api/submissions.js';
 
 // Load .env.local if present
@@ -79,8 +80,8 @@ async function startPolling() {
           offset = update.update_id + 1;
           try {
             await handleTelegramWebhook(update, {
-              approveSubmission,
-              rejectSubmission,
+              approveSubmission: (id) => queueMutation(() => approveSubmission(id)),
+              rejectSubmission: (id, reason) => queueMutation(() => rejectSubmission(id, reason)),
               getMatches: async () => {
                 try {
                   const bundle = await readBundle();
