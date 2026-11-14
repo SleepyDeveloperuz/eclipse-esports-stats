@@ -725,7 +725,23 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
     const photoRes = await fetch(url);
     if (!photoRes.ok) continue;
     const photoBuffer = Buffer.from(await photoRes.arrayBuffer());
-    const mimeType = photoRes.headers.get('content-type') || 'image/jpeg';
+    if (!photoBuffer.length) continue;
+
+    // Detect valid image MIME type from buffer magic bytes (Telegram often returns application/octet-stream)
+    let mimeType = 'image/jpeg';
+    if (photoBuffer[0] === 0x89 && photoBuffer[1] === 0x50 && photoBuffer[2] === 0x4E && photoBuffer[3] === 0x47) {
+      mimeType = 'image/png';
+    } else if (photoBuffer[0] === 0xFF && photoBuffer[1] === 0xD8) {
+      mimeType = 'image/jpeg';
+    } else if (photoBuffer.length > 12 && photoBuffer.subarray(8, 12).toString('ascii') === 'WEBP') {
+      mimeType = 'image/webp';
+    } else {
+      const headerType = String(photoRes.headers.get('content-type') || '').toLowerCase();
+      if (['image/jpeg', 'image/png', 'image/webp'].includes(headerType)) {
+        mimeType = headerType;
+      }
+    }
+
     imageParts.push({ inline_data: { mime_type: mimeType, data: photoBuffer.toString('base64') } });
   }
   if (!imageParts.length) throw new Error('Telegramdan skrinshotni yuklab bo‘lmadi.');
@@ -769,7 +785,17 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   });
 
   if (!provider.success) {
-    throw new Error('AI skrinshotni to‘liq o‘qiy olmadi. Iltimos, tiniqroq Scoreboard skrinshotini yuboring.');
+    const hasTimeout = provider.meta?.attempts?.some(attempt => attempt.status === 'timeout');
+    const isRateLimited = provider.meta?.attempts?.some(attempt => attempt.status === 429);
+    const isAuthError = provider.meta?.attempts?.some(attempt => attempt.status === 401 || attempt.status === 403);
+    const detail = isAuthError
+      ? 'AI skaner kaliti (GEMINI_API_KEY) yaroqsiz yoki muddati o‘tgan. Iltimos, Vercel Environment Variables orqali yangi kalit kiriting.'
+      : hasTimeout
+        ? 'AI tahlili kutilganidan uzoq davom etdi (timeout). Qayta urinib ko‘ring.'
+        : isRateLimited
+          ? 'AI xizmati hozir band (rate limit). 1 daqiqadan keyin qayta urinib ko‘ring.'
+          : 'AI skrinshotni to‘liq o‘qiy olmadi. Iltimos, tiniqroq Scoreboard skrinshotini yuboring.';
+    throw new Error(detail);
   }
 
   const ocrData = normaliseOcrPayload(provider.data, safeRoster, safeHeroes, { mode: ocrMode });

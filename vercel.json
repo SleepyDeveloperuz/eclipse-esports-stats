@@ -12,6 +12,9 @@
     "api/ocr.js": {
       "maxDuration": 75
     },
+    "api/submissions.js": {
+      "maxDuration": 60
+    },
     "api/mlbb-sync.js": {
       "maxDuration": 60
     },
