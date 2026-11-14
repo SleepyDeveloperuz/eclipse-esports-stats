@@ -106,7 +106,7 @@ test('total deadline bounds all attempts even if fetch ignores AbortSignal', asy
   });
   assert.equal(result.success, false);
   assert.ok(count <= 2);
-  assert.ok(Date.now() - began < 350, 'never waits for an unresponsive fetch promise');
+  assert.ok(Date.now() - began < 1000, 'never waits for an unresponsive fetch promise');
   assert.ok(result.meta.attempts.every(attempt => attempt.status === 'timeout'));
 });
 

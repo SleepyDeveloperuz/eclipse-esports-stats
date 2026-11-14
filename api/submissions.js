@@ -909,7 +909,7 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   };
 
   const identity = { role: 'admin', user: 'telegram_bot' };
-  const submission = await createSubmission(simulatedReq, identity);
+  const submission = await queueMutation(() => createSubmission(simulatedReq, identity));
   return { submission };
 }
 
