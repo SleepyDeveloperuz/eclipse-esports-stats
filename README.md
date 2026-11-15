@@ -4,7 +4,8 @@ Private-team MLBB (Mobile Legends: Bang Bang) analytics, match intelligence, and
 
 Current production release: **v2.41.0 — Turso Serverless SQLite, Dual-Screenshot Fusion, Production Bundling & Pixel Hero Matcher**.  
 Production website: [eclipseesports.vercel.app](https://eclipseesports.vercel.app) (mirror: `eclipse-esports-stats.vercel.app`).  
-Public Meta Lab is live at [eclipseesports.vercel.app/meta-lab](https://eclipseesports.vercel.app/meta-lab).
+Public Meta Lab is live at [eclipseesports.vercel.app/meta-lab](https://eclipseesports.vercel.app/meta-lab).  
+Full release notes: [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -64,6 +65,19 @@ The roster links in-game nicknames (IGNs) with permanent player identities. In-g
 
 ---
 
+## Versiya Yangiliklari & Relizlar (Changelog)
+
+Batafsil xronologik o‘zgarishlar tarixi bilan [CHANGELOG.md](CHANGELOG.md) faylida tanishishingiz mumkin.
+
+### Eng so‘nggi reliz: `v2.41.0` (2026-11-15)
+- **Turso Serverless SQLite (`lib/turso-database.js`):** Redis 5.9 MB cheklovi bartaraf etildi; tasdiqlangan arizalar uchun avtomatik arxivlash (circular buffer) joriy etildi.
+- **Dual-Screenshot Fusion & PNG/JPEG Matcher:** Scoreboard va Damage skrinshotlari birlashtirilib, zarar va ishtirok ko‘rsatkichlari to‘liq hisoblanadi; sof `node:zlib` asosidagi PNG dekoderi orqali iOS (iPhone) skrinshotlari piksellari bo‘yicha 100% aniq taniladi.
+- **Yagona Production Asset Bundle (`scripts/build.mjs`):** Sayt yuklanishida 38 ta fayl o‘rniga yagona `bundle.min.js` va `bundle.min.css` tortiladi (tezlik 3–4x oshdi).
+- **Telegram Bot & Webhook Barqarorligi:** Inline tugmalar bosilganda qotib qolmaslik uchun kafolatlangan `answerCallbackQuery` va shaxsiy Telegram ID bo‘yicha xavfsiz limitlar.
+- **Sifat & Ishonchlilik:** 500 ta avtomatlashtirilgan test va 85 ta manba fayli qat’iy sintaksis tekshiruvidan muvaffaqiyatli o‘tdi.
+
+---
+
 ## Development & Testing
 
 Requires Node.js 22 or newer:
@@ -85,6 +99,6 @@ npm run bot
 
 - **Vercel Hobby 12-Function Limit:** Serverless endpoints are consolidated efficiently; Telegram webhook routes are safely integrated into `/api/submissions`.
 - **Session Security:** Cryptographically signed tokens with separated Admin and Viewer scopes.
-- **Database:** Upstash Redis with revision-aware concurrency and atomic backups.
+- **Database:** Turso Serverless SQLite va Upstash Redis (gibrid zaxira, atomar tranzaksiyalar va doimiy aylanma arxivlash himoyasi bilan).
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for full configuration details and [BACKUP-MAC.md](BACKUP-MAC.md) for private backup procedures.
