@@ -159,9 +159,10 @@ function bearerToken(req) {
 }
 
 function identityHash(identity, secret = SESSION_SECRET) {
-  if (!secret || !identity) return '';
-  const subject = identity.role === 'viewer' ? `viewer:${identity.voterId}` : 'admin';
-  return crypto.createHmac('sha256', secret).update(subject).digest('hex');
+  if (!identity) return '';
+  const secretKey = secret || process.env.SESSION_SECRET || process.env.ADMIN_PASSWORD || process.env.TELEGRAM_BOT_TOKEN || 'eclipse-session-secret-salt-32b';
+  const subject = identity.role === 'viewer' ? `viewer:${identity.voterId}` : `admin:${identity.user || 'admin'}`;
+  return crypto.createHmac('sha256', secretKey).update(subject).digest('hex');
 }
 
 async function requireAccess(req, res) {
@@ -534,7 +535,7 @@ export async function readBundle({ withCatalog = false } = {}) {
 }
 
 async function writeFiles(files) {
-  await writeTeamFiles(files);
+  await withTeamTransaction(() => writeTeamFiles(files));
 }
 
 function findSubmission(bundle, id) {
@@ -800,21 +801,7 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
 
   const ocrData = normaliseOcrPayload(provider.data, safeRoster, safeHeroes, { mode: ocrMode });
 
-  // 4. Resolve match properties
-  let matchType = 'scrim';
-  const capLower = String(caption || '').toLowerCase();
-  if (capLower.includes('#rank') || capLower.includes('ranked')) matchType = 'ranked';
-  else if (capLower.includes('#turnir') || capLower.includes('#tour') || capLower.includes('tournament')) matchType = 'tournament';
-  else if (capLower.includes('#oddiy') || capLower.includes('#casual')) matchType = 'casual';
-  else if (ocrData.matchType && MATCH_TYPES.has(ocrData.matchType)) {
-    matchType = ocrData.matchType;
-  }
-
-  const result = (ocrData.result && MATCH_RESULTS.has(ocrData.result)) ? ocrData.result : 'win';
-  const durationSeconds = ocrData.durationSeconds || 900;
-  const durationFormatted = ocrData.durationFormatted || '15:00';
-
-  // 5. Match players with roster (Trio / Squad / Team5)
+  // 4. Match players with roster (Trio / Squad / Team5 / Solo)
   const matchedStats = [];
   const usedPlayerIds = new Set();
 
@@ -827,19 +814,27 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
       matched = smartMatchRoster(p.detectedName, roster);
     }
 
-    const heroName = p.heroUsed || 'Miya';
-    const heroRef = heroes.find(h => String(h.name).toLowerCase() === heroName.toLowerCase())
-      || heroes[0] || { id: 1, name: 'Miya' };
+    let heroRef = null;
+    if (p.heroUsed) {
+      const cleanHero = String(p.heroUsed).trim().toLowerCase();
+      heroRef = heroes.find(h => String(h.name).trim().toLowerCase() === cleanHero) || null;
+      if (!heroRef) {
+        const normH = cleanHero.replace(/[^a-z0-9]/g, '');
+        heroRef = heroes.find(h => String(h.name).toLowerCase().replace(/[^a-z0-9]/g, '') === normH) || null;
+      }
+    }
+    const finalHeroName = heroRef ? heroRef.name : (p.heroUsed || 'MLBB Hero');
+    const finalHeroId = heroRef ? heroRef.id : null;
 
     if (matched && !usedPlayerIds.has(matched.id)) {
       usedPlayerIds.add(matched.id);
       matchedStats.push({
         playerId: matched.id,
         playerName: matched.name,
-        heroId: heroRef.id,
-        heroNameSnapshot: heroRef.name,
-        heroUsed: heroRef.name,
-        heroResolution: 'canonical',
+        heroId: finalHeroId,
+        heroNameSnapshot: finalHeroName,
+        heroUsed: finalHeroName,
+        heroResolution: finalHeroId ? 'canonical' : 'legacy_name',
         rolePlayed: p.rolePlayed || matched.primaryRole || 'Mid Laner',
         roleSource: p.rolePlayed ? 'ocr' : 'roster',
         kills: p.kills ?? 0,
@@ -847,6 +842,8 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
         assists: p.assists ?? 0,
         inGameScore: p.inGameScore ?? 5.0,
         medal: p.medal || null,
+        savage: p.savage || false,
+        maniac: p.maniac || false,
         damageDealt: p.damageDealt,
         damageReceived: p.damageReceived,
         turretDamage: p.turretDamage,
@@ -860,8 +857,23 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
     throw new Error('Skrinshotda Eclipse jamoasining birorta ham faol a‘zosi topilmadi. Faqat jamoa a‘zolari qatnashgan matchlarni yuboring.');
   }
 
+  // 5. Resolve match properties
+  // Rule as requested: agar ai 5 team rosterni bitta matchda ko'rsa scrim deb, yo'qsa rank matchlari deb bilsin
+  let matchType = matchedStats.length === 5 ? 'scrim' : 'ranked';
+  const capLower = String(caption || '').toLowerCase();
+  if (capLower.includes('#scrim') || capLower.includes('scrim')) matchType = 'scrim';
+  else if (capLower.includes('#rank') || capLower.includes('ranked')) matchType = 'ranked';
+  else if (capLower.includes('#turnir') || capLower.includes('#tour') || capLower.includes('tournament')) matchType = 'tournament';
+  else if (capLower.includes('#oddiy') || capLower.includes('#casual')) matchType = 'casual';
+
+  const result = (ocrData.result && MATCH_RESULTS.has(ocrData.result)) ? ocrData.result : 'win';
+  const durationSeconds = ocrData.durationSeconds || 900;
+  const durationFormatted = ocrData.durationFormatted || '15:00';
+  const matchScope = matchedStats.length === 5 ? 'team5' : matchedStats.length === 1 ? 'individual' : 'squad';
+  const hasDamageStats = matchedStats.some(stat => Number.isInteger(stat.damageDealt));
+  const entryMode = hasDamageStats ? 'full' : 'practice_lite';
+
   // 6. Create official submission
-  const matchScope = matchedStats.length === 5 ? 'team5' : 'squad';
   const simulatedReq = {
     body: {
       claimedPlayerId: matchedStats[0]?.playerId || 'admin',
@@ -871,7 +883,8 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
       },
       draft: {
         source: 'telegram',
-        entryMode: 'practice_lite',
+        entryMode,
+        ...(entryMode === 'full' ? { guestStats: [], substitutes: [] } : {}),
         scope: matchScope,
         sourceBattleId: ocrData.battleId || null,
         teamKills: ocrData.teamKills ?? null,
@@ -946,7 +959,7 @@ export async function handleTelegramRoute(req, res) {
     }
 
     const result = await handleTelegramWebhook(update, {
-      approveSubmission: (id) => queueMutation(() => approveSubmission(id)),
+      approveSubmission: (id) => queueMutation(() => approveSubmission(id, 3, { allowProbableDuplicate: true })),
       rejectSubmission: (id, reason) => queueMutation(() => rejectSubmission(id, reason)),
       getMatches: async () => {
         try {
@@ -976,7 +989,8 @@ export async function handleTelegramRoute(req, res) {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.query?.source === 'telegram' || req.query?.telegram !== undefined || req.url?.startsWith('/api/telegram')) {
+  if (req.query?.source === 'telegram' || req.query?.telegram !== undefined || req.url?.startsWith('/api/telegram')
+    || req.body?.update_id || req.body?.message || req.body?.callback_query) {
     return handleTelegramRoute(req, res);
   }
   try {
