@@ -712,6 +712,63 @@ async function deleteSubmission(id) {
   return submission;
 }
 
+export async function correctSubmissionHero(id, targetName, newHeroName) {
+  return queueMutation(async () => {
+    const bundle = await readBundle({ withCatalog: true });
+    const submission = findSubmission(bundle, id);
+    if (!submission) throw new Error('Submission topilmadi');
+    if (submission.status !== 'pending') throw new Error('Ushbu submission allaqachon ko‘rib chiqilgan');
+
+    const draft = submission.review?.correctedDraft || submission.draft;
+    const heroes = bundle.officialData?.heroes || [];
+    const cleanHero = String(newHeroName || '').trim().toLowerCase();
+    const heroRef = heroes.find(h => String(h.name).trim().toLowerCase() === cleanHero)
+      || heroes.find(h => String(h.name).toLowerCase().replace(/[^a-z0-9]/g, '') === cleanHero.replace(/[^a-z0-9]/g, ''));
+    const finalHeroName = heroRef ? heroRef.name : newHeroName;
+    const finalHeroId = heroRef ? heroRef.id : null;
+
+    let modified = false;
+    const playerStats = (draft.playerStats || []).map(p => {
+      const matchByName = targetName ? (
+        String(p.playerName || '').toLowerCase().includes(String(targetName).toLowerCase()) ||
+        String(p.playerId || '').toLowerCase() === String(targetName).toLowerCase() ||
+        String(p.realName || '').toLowerCase().includes(String(targetName).toLowerCase())
+      ) : true;
+
+      if (matchByName && !modified) {
+        modified = true;
+        return {
+          ...p,
+          heroId: finalHeroId,
+          heroNameSnapshot: finalHeroName,
+          heroUsed: finalHeroName,
+          heroResolution: finalHeroId ? 'canonical' : 'legacy_name'
+        };
+      }
+      return p;
+    });
+
+    const now = new Date().toISOString();
+    const updated = {
+      ...submission,
+      review: {
+        ...submission.review,
+        correctedDraft: {
+          ...draft,
+          playerStats
+        }
+      },
+      updatedAt: now
+    };
+
+    await writeFiles({
+      [submissionFileName(submission.fingerprint)]: { content: JSON.stringify(updated, null, 2) }
+    });
+
+    return updated;
+  });
+}
+
 export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, caption, sender }) {
   const submitterName = sender
     ? `${sender.first_name || ''} ${sender.last_name || ''}`.trim() || sender.username || 'Telegram User'
@@ -815,15 +872,64 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
     }
 
     let heroRef = null;
-    if (p.heroUsed) {
-      const cleanHero = String(p.heroUsed).trim().toLowerCase();
+    let chosenHeroName = p.heroUsed;
+
+    // Cross-check: If detected hero conflicts heavily with player's primary role/lane
+    // and candidate list contains a matching hero (e.g. EXP Laner with Benedetta vs Lesley/Miya)
+    const playerRole = (matched?.primaryRole || matched?.role || '').toLowerCase();
+    const candidateList = Array.isArray(p.heroCandidates) ? p.heroCandidates : [];
+
+    if (chosenHeroName) {
+      const lowerHero = String(chosenHeroName).trim().toLowerCase();
+      // Handle known visual confusions:
+      if ((lowerHero === 'lesley' || lowerHero === 'miya') && playerRole.includes('exp')) {
+        const hasBenedetta = candidateList.some(c => String(c).toLowerCase().includes('benedetta'));
+        if (hasBenedetta || !candidateList.length) {
+          chosenHeroName = 'Benedetta';
+        }
+      } else if (candidateList.length > 0) {
+        // If current hero's role/lane doesn't match player's lane, check if any candidate matches
+        const heroObj = heroes.find(h => String(h.name).toLowerCase() === lowerHero);
+        const heroLanes = (heroObj?.lanes || []).map(l => String(l).toLowerCase());
+        const heroRoles = (heroObj?.roles || []).map(r => String(r).toLowerCase());
+        const matchesPlayerRole = heroLanes.some(l => playerRole.includes(l) || l.includes(playerRole))
+          || (playerRole.includes('exp') && (heroRoles.includes('fighter') || heroRoles.includes('assassin')))
+          || (playerRole.includes('gold') && heroRoles.includes('marksman'))
+          || (playerRole.includes('mid') && heroRoles.includes('mage'))
+          || (playerRole.includes('roam') && (heroRoles.includes('tank') || heroRoles.includes('support')))
+          || (playerRole.includes('jung') && (heroRoles.includes('assassin') || heroRoles.includes('fighter')));
+
+        if (!matchesPlayerRole) {
+          for (const cand of candidateList) {
+            const candObj = heroes.find(h => String(h.name).toLowerCase() === String(cand).toLowerCase());
+            if (candObj) {
+              const candLanes = (candObj.lanes || []).map(l => String(l).toLowerCase());
+              const candRoles = (candObj.roles || []).map(r => String(r).toLowerCase());
+              const candMatches = candLanes.some(l => playerRole.includes(l) || l.includes(playerRole))
+                || (playerRole.includes('exp') && (candRoles.includes('fighter') || candRoles.includes('assassin')))
+                || (playerRole.includes('gold') && candRoles.includes('marksman'))
+                || (playerRole.includes('mid') && candRoles.includes('mage'))
+                || (playerRole.includes('roam') && (candRoles.includes('tank') || candRoles.includes('support')))
+                || (playerRole.includes('jung') && (candRoles.includes('assassin') || candRoles.includes('fighter')));
+              if (candMatches) {
+                chosenHeroName = candObj.name;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (chosenHeroName) {
+      const cleanHero = String(chosenHeroName).trim().toLowerCase();
       heroRef = heroes.find(h => String(h.name).trim().toLowerCase() === cleanHero) || null;
       if (!heroRef) {
         const normH = cleanHero.replace(/[^a-z0-9]/g, '');
         heroRef = heroes.find(h => String(h.name).toLowerCase().replace(/[^a-z0-9]/g, '') === normH) || null;
       }
     }
-    const finalHeroName = heroRef ? heroRef.name : (p.heroUsed || 'MLBB Hero');
+    const finalHeroName = heroRef ? heroRef.name : (chosenHeroName || 'MLBB Hero');
     const finalHeroId = heroRef ? heroRef.id : null;
 
     if (matched && !usedPlayerIds.has(matched.id)) {
@@ -961,6 +1067,15 @@ export async function handleTelegramRoute(req, res) {
     const result = await handleTelegramWebhook(update, {
       approveSubmission: (id) => queueMutation(() => approveSubmission(id, 3, { allowProbableDuplicate: true })),
       rejectSubmission: (id, reason) => queueMutation(() => rejectSubmission(id, reason)),
+      correctSubmissionHero: (id, target, hero) => correctSubmissionHero(id, target, hero),
+      getSubmission: async (id) => {
+        try {
+          const bundle = await readBundle({ withCatalog: true });
+          return findSubmission(bundle, id);
+        } catch {
+          return null;
+        }
+      },
       getMatches: async () => {
         try {
           const bundle = await readBundle();

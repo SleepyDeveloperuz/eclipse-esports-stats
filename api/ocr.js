@@ -318,7 +318,20 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
   ] : [
     'Extract visible player IGNs, match statistics, result and medal badges from MLBB post-match screenshots.',
     smartMode
-      ? 'Identify each friendly player\'s hero from their circular portrait icon on the far left of each row. Look carefully at facial appearance, hair color and style (e.g. streaks/bangs), headgear/helmets, and weapons to determine the hero. heroUsed must be an exact match from the canonical hero list (e.g. Benedetta, Melissa, Franco, Julian, Saber, etc.). Set heroRecognized=true when recognized. If uncertain, provide up to 3 plausible candidates in heroCandidates. Canonical hero names: ' + JSON.stringify(heroNames)
+      ? [
+          'Identify each friendly player\'s hero from their circular portrait icon on the far left of each row.',
+          'CRITICAL HERO PORTRAIT RECOGNITION GUIDE:',
+          '• Benedetta: Young female assassin with dark/black hair featuring a PROMINENT WHITE/SILVER STREAK/fringe on one side, a visible scar across her cheek, high dark collar, intense focused gaze. Assassin / EXP Laner. NEVER confuse Benedetta with Lesley (Lesley has an eyepatch covering one eye and sniper headgear) or Miya (Miya has all-silver/white hair and elf ears).',
+          '• Melissa: Young girl with twin blonde/light pigtails with dark/pink tips, punk dollmaker aesthetic (Marksman).',
+          '• Gatotkaca: Muscular dark-skinned warrior with iron helmet featuring upward wings/horns, prominent mustache/beard, glowing eyes (Tank/Fighter).',
+          '• Franco: Red-bearded chubby Viking warrior with horned iron helmet (Tank/Support).',
+          '• Julian: Rebellious young man with messy short crimson/red hair and red bangs (Fighter/Mage).',
+          '• Baxia: Large warrior with braided black beard and heavy stone/tortoise shield.',
+          '• Claude: Brown messy hair, forehead goggles, small monkey friend.',
+          '• Moskov: Pale spearman with glowing purple eyes and dark horns.',
+          '• Fredrinn: Handsome fighter with short brown hair, facial scar, crystal broadsword.',
+          'heroUsed must be an exact match from the canonical hero list (e.g. Benedetta, Melissa, Franco, Julian, Gatotkaca, etc.). Set heroRecognized=true when recognized. If uncertain, provide up to 3 plausible candidates in heroCandidates. Canonical hero names: ' + JSON.stringify(heroNames)
+        ].join(' ')
       : 'Hero identification is performed separately by a local icon matcher. Do not identify heroes, infer lanes, or return portrait boxes.',
     'Return the friendly left-hand team only, in its original top-to-bottom order. Never mix in the opposing right-hand team.',
     'sourceRow is the original vertical row number: top=1, then 2,3,4, bottom=5. Each sourceRow is unique. Never renumber when a row is missing or unreadable.',
