@@ -868,9 +868,55 @@ window.EclipseApp = {
 
   RELEASES: [
     {
+      version: 'v2.41.0',
+      date: '2026-11-15',
+      badge: 'Hozirgi versiya',
+      title: 'Turso Serverless SQLite, Dual-Screenshot Fusion va Yagona Production Bundle',
+      sections: [
+        {
+          title: 'Turso Serverless SQLite & Baza Himoyasi',
+          icon: 'fa-database',
+          badge: 'Database',
+          items: [
+            'Monolit Redis JSON o‘rniga zamonaviy Turso Serverless SQLite adapteri joriy etildi va 5.9 MB cheklovi bartaraf etildi.',
+            'Tasdiqlangan arizalar uchun avtomatik arxivlash (circular retention) yo‘lga qo‘yildi — baza hajmi aslo to‘lib qolmaydi.',
+            'LocalStorage 5 MB to‘lganida arizalar va zaxira nusxalar o‘chib ketmasligi uchun xavfsiz tozalash kiritildi.'
+          ]
+        },
+        {
+          title: 'Dual-Screenshot Fusion & PNG Hero Matcher',
+          icon: 'fa-images',
+          badge: 'AI & OCR',
+          items: [
+            'Scoreboard va Damage skrinshotlari yuborilganda ikkala rasm birlashtirilib, barcha ko‘rsatkichlar (Hero Damage, Turret, Taken, TF%, KDA) 100% to‘liq yozuvga aylanadi.',
+            'Serverdagi pikselli qahramon tanigichga (Hero Matcher) toza PNG dekoderi qo‘shildi — iPhone (iOS) skrinshotlari ham piksellar bo‘yicha aniq taniladi.',
+            'Gemini OCR modellari rasmiy tezkor <code>gemini-2.5-flash</code> va <code>gemini-2.0-flash</code> talqinlariga yangilandi.'
+          ]
+        },
+        {
+          title: 'Yagona Production Bundle (3–4x Tezlanish)',
+          icon: 'fa-bolt',
+          badge: 'Speed',
+          items: [
+            'Sayt ochilishida 38 ta alohida so‘rov o‘rniga atigi 1 ta siqilgan JS (<code>bundle.min.js</code>) va 1 ta CSS (<code>bundle.min.css</code>) yuklanadi.',
+            'Barcha modullar uchun yagona <code>window.escapeHtml</code> integratsiya qilindi va takrorlanuvchi kodlar tozalandi.'
+          ]
+        },
+        {
+          title: 'Telegram Bot: Qotib qolmaslik va Shaxsiy limit',
+          icon: 'fa-brands fa-telegram',
+          badge: 'Bot',
+          items: [
+            'Inline tugmalar bosilganda Telegram yuklanish aylanmasi (loading spinner) qotib qolishi to‘liq bartaraf etildi.',
+            'Bot limiti umumiy jamoa hisobidan har bir foydalanuvchining shaxsiy Telegram ID siga o‘tkazildi.'
+          ]
+        }
+      ]
+    },
+    {
       version: 'v2.40.0',
       date: '2026-11-14',
-      badge: 'Hozirgi versiya',
+      badge: 'Oldingi versiya',
       title: 'Roster & Guest Ajratish, Maniac/Savage Overflow Filtrlash va Bardoshli Batch',
       sections: [
         {
