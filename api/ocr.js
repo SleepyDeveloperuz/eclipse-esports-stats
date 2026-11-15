@@ -577,6 +577,7 @@ export default async function handler(req, res) {
           if (visual && visual.hero) {
             if (visual.confident || (visual.score && visual.score >= 0.75) || !p.heroUsed) {
               p.heroUsed = visual.hero;
+              p.heroId = visual.heroId || p.heroId;
               p.heroRecognized = true;
             }
             if (Array.isArray(visual.candidates) && visual.candidates.length) {

@@ -790,7 +790,7 @@ export async function upgradePendingSubmission(submissionIdOrFingerprint, fullDr
     const prevDraft = submission.review?.correctedDraft || submission.draft;
     const heroes = bundle.officialData?.heroes || [];
 
-    // Merge player stats (damage, turret, taken, gold, tf%, medals, savage, maniac)
+    // Merge player stats (damage, turret, taken, gold, tf%, medals, savage, maniac, kda)
     const updatedPlayerStats = prevDraft.playerStats.map(prevStat => {
       const fullStat = (fullDraft.playerStats || []).find(s => s.playerId === prevStat.playerId)
         || (fullDraft.playerStats || []).find(s => s.playerName === prevStat.playerName)
@@ -802,6 +802,13 @@ export async function upgradePendingSubmission(submissionIdOrFingerprint, fullDr
         heroNameSnapshot: fullStat.heroNameSnapshot || prevStat.heroNameSnapshot,
         heroUsed: fullStat.heroUsed || prevStat.heroUsed,
         heroResolution: fullStat.heroResolution || prevStat.heroResolution,
+        rolePlayed: fullStat.rolePlayed || prevStat.rolePlayed,
+        roleSource: fullStat.roleSource || prevStat.roleSource,
+        kills: Number.isInteger(fullStat.kills) && (fullStat.kills > 0 || !Number.isInteger(prevStat.kills) || prevStat.kills === 0) ? fullStat.kills : prevStat.kills,
+        deaths: Number.isInteger(fullStat.deaths) && (fullStat.deaths > 0 || !Number.isInteger(prevStat.deaths) || prevStat.deaths === 0) ? fullStat.deaths : prevStat.deaths,
+        assists: Number.isInteger(fullStat.assists) && (fullStat.assists > 0 || !Number.isInteger(prevStat.assists) || prevStat.assists === 0) ? fullStat.assists : prevStat.assists,
+        inGameScore: Number.isFinite(fullStat.inGameScore) && fullStat.inGameScore > 0 ? fullStat.inGameScore : prevStat.inGameScore,
+        medal: fullStat.medal || prevStat.medal,
         damageDealt: Number.isInteger(fullStat.damageDealt) ? fullStat.damageDealt : prevStat.damageDealt,
         damageReceived: Number.isInteger(fullStat.damageReceived) ? fullStat.damageReceived : prevStat.damageReceived,
         turretDamage: Number.isInteger(fullStat.turretDamage) ? fullStat.turretDamage : prevStat.turretDamage,
@@ -811,6 +818,15 @@ export async function upgradePendingSubmission(submissionIdOrFingerprint, fullDr
         maniac: fullStat.maniac || prevStat.maniac
       };
     });
+
+    // Add any players detected in fullDraft that were omitted in prevDraft
+    const existingPlayerIds = new Set(updatedPlayerStats.map(p => p.playerId));
+    for (const fStat of (fullDraft.playerStats || [])) {
+      if (fStat.playerId && !existingPlayerIds.has(fStat.playerId) && updatedPlayerStats.length < 5) {
+        updatedPlayerStats.push(fStat);
+        existingPlayerIds.add(fStat.playerId);
+      }
+    }
 
     const validGuests = (Array.isArray(fullDraft.guestStats) ? fullDraft.guestStats : (prevDraft.guestStats || []))
       .filter(g =>
@@ -823,6 +839,13 @@ export async function upgradePendingSubmission(submissionIdOrFingerprint, fullDr
 
     const mergedDraft = normalisePracticeDraft({
       ...prevDraft,
+      sourceBattleId: cleanBattleId(fullDraft.sourceBattleId) || cleanBattleId(prevDraft.sourceBattleId),
+      teamKills: Number.isInteger(fullDraft.teamKills) ? fullDraft.teamKills : prevDraft.teamKills,
+      enemyKills: Number.isInteger(fullDraft.enemyKills) ? fullDraft.enemyKills : prevDraft.enemyKills,
+      durationSeconds: fullDraft.durationSeconds || prevDraft.durationSeconds,
+      durationFormatted: fullDraft.durationFormatted || prevDraft.durationFormatted,
+      mathVerified: fullDraft.mathVerified ?? prevDraft.mathVerified,
+      scope: updatedPlayerStats.length === 5 ? 'team5' : updatedPlayerStats.length === 1 ? 'individual' : 'squad',
       entryMode: 'full',
       guestStats: validGuests,
       substitutes: prevDraft.substitutes || [],
@@ -1056,7 +1079,20 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   else if (capLower.includes('#turnir') || capLower.includes('#tour') || capLower.includes('tournament')) matchType = 'tournament';
   else if (capLower.includes('#oddiy') || capLower.includes('#casual')) matchType = 'casual';
 
-  const result = (ocrData.result && MATCH_RESULTS.has(ocrData.result)) ? ocrData.result : 'win';
+  let result = (ocrData.result && MATCH_RESULTS.has(ocrData.result)) ? ocrData.result : null;
+  if (!result && existingSubmissionId) {
+    const existing = bundle.submissions?.find(s => s.id === existingSubmissionId);
+    const existingResult = existing?.review?.correctedDraft?.result || existing?.draft?.result;
+    if (MATCH_RESULTS.has(existingResult)) result = existingResult;
+  }
+  if (!result) result = 'win';
+
+  let matchDate;
+  try {
+    matchDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
+  } catch (_) {
+    matchDate = new Date().toISOString().slice(0, 10);
+  }
   const durationSeconds = ocrData.durationSeconds || 900;
   const durationFormatted = ocrData.durationFormatted || '15:00';
   const matchScope = matchedStats.length === 5 ? 'team5' : matchedStats.length === 1 ? 'individual' : 'squad';
@@ -1083,7 +1119,7 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
     teamKills: ocrData.teamKills ?? null,
     enemyKills: ocrData.enemyKills ?? null,
     mathVerified: ocrData.teamKills !== null && Array.isArray(ocrData.players) && ocrData.players.filter(p => Number.isInteger(p.kills)).reduce((s, p) => s + p.kills, 0) === ocrData.teamKills,
-    date: new Date().toISOString().slice(0, 10),
+    date: matchDate,
     matchType,
     result,
     durationSeconds,
