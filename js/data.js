@@ -60,10 +60,19 @@ class DataStore {
     } catch (error) {
       if (error && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED' || error.code === 22)) {
         try {
-          localStorage.removeItem('mlbb-jamoa-dasturi-progress');
-          localStorage.removeItem('eclipse_cloud_pending_write');
-          localStorage.removeItem('eclipse_last_backup');
-          localStorage.removeItem('eclipse_removed_heroes');
+          // Faqat vaqtinchalik qoralamalar va keshni tozalash;
+          // Hech qachon uncommitted write (pending) yoki zaxira (backup) o'chirilmaydi!
+          if (typeof localStorage.length === 'number') {
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+              const k = localStorage.key(i);
+              if (k && (k.startsWith('eclipse_full_match_draft_') || k.startsWith('eclipse_ocr_') || k === 'mlbb-jamoa-dasturi-progress' || k === 'eclipse_removed_heroes')) {
+                localStorage.removeItem(k);
+              }
+            }
+          } else {
+            localStorage.removeItem('mlbb-jamoa-dasturi-progress');
+            localStorage.removeItem('eclipse_removed_heroes');
+          }
           localStorage.setItem(key, value);
           return;
         } catch (_) { /* ignore retry failure */ }

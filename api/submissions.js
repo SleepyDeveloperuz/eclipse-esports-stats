@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { isProgressRequest, progressRequest } from '../lib/progress-api.js';
 import { QUALITY_FILE, qualityEvent, readQuality, recordQuality } from '../lib/scan-quality.js';
 import { cleanBattleId } from '../js/batch-model.js';
+import { cleanText, cleanId, cleanDate, parseDuration, escapeHtml } from '../lib/utils.js';
 import { createSessionSecurity } from '../lib/session-security.js';
 import { readTeamFiles, writeTeamFiles, withTeamTransaction, isTursoConfigured } from '../lib/team-store.js';
 import { createRedisStore, MLBB_KEYS } from '../lib/mlbb/store.js';
@@ -47,30 +48,6 @@ const SUBMISSION_RATE_LIMIT = 20;
 const security = createSessionSecurity();
 let mutationQueue = Promise.resolve();
 
-function cleanText(value, maxLength = 200) {
-  return typeof value === 'string'
-    ? value.replace(/[\u0000-\u001f\u007f<>\"]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength)
-    : '';
-}
-
-function cleanId(value, maxLength = 100) {
-  const id = cleanText(value, maxLength);
-  return /^[a-zA-Z0-9_-]+$/.test(id) ? id : '';
-}
-
-function cleanDate(value) {
-  const text = cleanText(value, 10);
-  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return '';
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(Date.UTC(year, month - 1, day, 12));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
-    ? text
-    : '';
-}
-
 function nullableNumber(value, { min = 0, max = Number.MAX_SAFE_INTEGER, integer = false } = {}) {
   if (value === '' || value === null || value === undefined) return null;
   if (typeof value !== 'number' && typeof value !== 'string') return null;
@@ -92,15 +69,6 @@ function normaliseHeroReference(source = {}) {
     heroUsed,
     heroResolution: heroId ? 'canonical' : heroUsed ? 'legacy_name' : 'unresolved'
   };
-}
-
-function parseDuration(value) {
-  if (value === '' || value === null || value === undefined) return null;
-  if (Number.isInteger(value)) return value >= 1 && value <= 7259 ? value : null;
-  const match = String(value).trim().match(/^(\d{1,3}):([0-5]\d)$/);
-  if (!match) return null;
-  const seconds = (Number(match[1]) * 60) + Number(match[2]);
-  return seconds >= 1 && seconds <= 7259 ? seconds : null;
 }
 
 const EXTENDED_METRICS = { damageDealt: 10000000, damageReceived: 10000000, turretDamage: 10000000, goldEarned: 1000000, teamfightParticipation: 100 };
@@ -701,9 +669,25 @@ export async function approveSubmission(id, attempts = 3, options = {}) {
         review: { ...submission.review, reason: '', reviewedAt: now, officialMatchId },
         updatedAt: now
       };
+
+      // Bounded retention: Keep all pending submissions, but prune old approved submissions beyond 50 entries
+      // to prevent exceeding Redis/database storage size limits (5.9 MB)
+      const approvedSubmissions = bundle.submissions
+        .filter(s => s.status === 'approved' && s.id !== submission.id)
+        .sort((a, b) => (Date.parse(a.updatedAt || a.createdAt) || 0) - (Date.parse(b.updatedAt || b.createdAt) || 0));
+
+      const prunedDeletions = {};
+      if (approvedSubmissions.length >= 50) {
+        const excess = approvedSubmissions.slice(0, approvedSubmissions.length - 49);
+        for (const oldSub of excess) {
+          prunedDeletions[submissionFileName(oldSub.fingerprint)] = null;
+        }
+      }
+
       await writeFiles({
         [DATA_FILE]: { content: JSON.stringify(nextData, null, 2) },
-        [submissionFileName(submission.fingerprint)]: { content: JSON.stringify(approved, null, 2) }
+        [submissionFileName(submission.fingerprint)]: { content: JSON.stringify(approved, null, 2) },
+        ...prunedDeletions
       });
 
       const confirmed = await readBundle();
@@ -902,12 +886,16 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
 
   // 1.5 Local / Server-side Hero Portrait Matcher (same pixel matching technology as web HeroPortraitMatcher)
   let visualMatches = [];
+  let bestVisualScoreSum = 0;
   for (const buf of photoBuffers) {
     try {
       const matches = matchScreenshotHeroes(buf);
-      if (matches && matches.length === 5 && matches.some(m => m.confident)) {
-        visualMatches = matches;
-        break;
+      if (matches && matches.length === 5) {
+        const scoreSum = matches.reduce((sum, m) => sum + (m.score || 0), 0);
+        if (scoreSum > bestVisualScoreSum) {
+          bestVisualScoreSum = scoreSum;
+          visualMatches = matches;
+        }
       }
     } catch (vErr) {
       console.warn('Server hero matcher error:', vErr?.message);
@@ -988,8 +976,8 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
     let heroCandidates = p.heroCandidates || [];
 
     if (visual && visual.hero) {
-      // Prioritize mathematical visual matching over LLM guesswork
-      if (visual.confident || !chosenHeroName) {
+      // Prioritize mathematical pixel visual matching over LLM guesswork
+      if (visual.confident || (visual.score && visual.score >= 0.75) || !chosenHeroName) {
         chosenHeroName = visual.hero;
       }
       if (Array.isArray(visual.candidates) && visual.candidates.length) {
@@ -1073,7 +1061,9 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   const durationFormatted = ocrData.durationFormatted || '15:00';
   const matchScope = matchedStats.length === 5 ? 'team5' : matchedStats.length === 1 ? 'individual' : 'squad';
   const hasDamageStats = matchedStats.some(stat => Number.isInteger(stat.damageDealt));
-  const entryMode = hasDamageStats ? 'full' : 'practice_lite';
+  const hasScoreboardStats = matchedStats.some(stat => Number.isInteger(stat.kills) && (stat.kills > 0 || stat.deaths > 0 || stat.assists > 0))
+    || matchedStats.some(stat => stat.medal && stat.medal !== 'none');
+  const entryMode = (hasDamageStats && (hasScoreboardStats || imageParts.length > 1)) ? 'full' : 'practice_lite';
 
   const validGuestStatsList = guestStatsList.filter(g =>
     g.name &&

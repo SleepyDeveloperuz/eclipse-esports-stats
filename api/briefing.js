@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { cleanText, cleanId } from '../lib/utils.js';
 import { createSessionSecurity } from '../lib/session-security.js';
 import { readTeamFiles, writeTeamFiles, withTeamTransaction, isTursoConfigured } from '../lib/team-store.js';
 import {
@@ -33,11 +34,7 @@ export function createEmptyBriefing() {
   };
 }
 
-function cleanText(value, maxLength) {
-  return typeof value === 'string'
-    ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, maxLength)
-    : '';
-}
+
 
 function cleanUrl(value) {
   const text = cleanText(value, 500);
@@ -48,11 +45,6 @@ function cleanUrl(value) {
   } catch {
     return '';
   }
-}
-
-function cleanId(value) {
-  const id = cleanText(value, 80);
-  return /^[a-zA-Z0-9_-]+$/.test(id) ? id : '';
 }
 
 function safeDate(value) {

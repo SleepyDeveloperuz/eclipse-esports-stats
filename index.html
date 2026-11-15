@@ -78,9 +78,9 @@
                 <button type="button" class="sidebar-footer-close-btn" id="sidebarFooterCloseBtn" aria-label="Menyuni yopish">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i> <span>Menyuni yopish</span>
                 </button>
-                <button type="button" class="sidebar-status-pill" id="versionChangelogBtn" aria-label="Versiya yangiliklari (v2.40.0)" title="Versiya yangiliklari (v2.40.0) — o‘zgarishlarni ko‘rish">
+                <button type="button" class="sidebar-status-pill" id="versionChangelogBtn" aria-label="Versiya yangiliklari (v2.41.0)" title="Versiya yangiliklari (v2.41.0) — o‘zgarishlarni ko‘rish">
                     <span class="status-dot"></span>
-                    <span>Eclipse Live System v2.40.0</span>
+                    <span>Eclipse Live System v2.41.0</span>
                     <span class="sidebar-status-pill__badge">Yangiliklar</span>
                 </button>
                 <p class="sidebar-shortcuts-hint"><kbd>Esc</kbd> Yopish &middot; <kbd>S</kbd> Practice</p>
@@ -470,8 +470,65 @@
                 <article class="changelog-release">
                     <div class="changelog-release__head">
                         <div class="changelog-release__meta">
-                            <span class="changelog-release__version">v2.38.0</span>
+                            <span class="changelog-release__version">v2.41.0</span>
                             <span class="changelog-release__badge">Hozirgi versiya</span>
+                        </div>
+                        <time class="changelog-release__date">2026-11-15</time>
+                    </div>
+                    <h4 class="changelog-release__title">Turso Serverless SQLite, Dual-Screenshot Fusion va Yagona Production Bundle</h4>
+                    
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-database" style="color:var(--primary);"></i> Turso Serverless SQLite &amp; Baza Himoyasi</span>
+                            <span class="changelog-section__tag">Database</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Monolit Redis JSON o‘rniga zamonaviy Turso Serverless SQLite adapteri joriy etildi va 5.9 MB cheklovi bartaraf etildi.</li>
+                            <li>Tasdiqlangan arizalar uchun avtomatik arxivlash (circular retention) yo‘lga qo‘yildi — baza hajmi aslo to‘lib qolmaydi.</li>
+                            <li>LocalStorage 5 MB to‘lganida arizalar va zaxira nusxalar o‘chib ketmasligi uchun xavfsiz tozalash kiritildi.</li>
+                        </ul>
+                    </div>
+
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-images" style="color:var(--primary);"></i> Dual-Screenshot Fusion &amp; PNG Hero Matcher</span>
+                            <span class="changelog-section__tag">AI &amp; OCR</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Scoreboard va Damage skrinshotlari yuborilganda ikkala rasm birlashtirilib, barcha ko‘rsatkichlar (Hero Damage, Turret, Taken, TF%, KDA) 100% to‘liq yozuvga aylanadi.</li>
+                            <li>Serverdagi pikselli qahramon tanigichga (Hero Matcher) toza PNG dekoderi qo‘shildi — iPhone (iOS) skrinshotlari ham piksellar bo‘yicha aniq taniladi.</li>
+                            <li>Gemini OCR modellari rasmiy tezkor <code>gemini-2.5-flash</code> va <code>gemini-2.0-flash</code> talqinlariga yangilandi.</li>
+                        </ul>
+                    </div>
+
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-bolt" style="color:var(--primary);"></i> Yagona Production Bundle (3–4x Tezlanish)</span>
+                            <span class="changelog-section__tag">Speed</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Sayt ochilishida 38 ta alohida so‘rov o‘rniga atigi 1 ta siqilgan JS (<code>bundle.min.js</code>) va 1 ta CSS (<code>bundle.min.css</code>) yuklanadi.</li>
+                            <li>Barcha modullar uchun yagona <code>window.escapeHtml</code> integratsiya qilindi va takrorlanuvchi kodlar tozalandi.</li>
+                        </ul>
+                    </div>
+
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-brands fa-telegram" style="color:var(--primary);"></i> Telegram Bot: Qotib qolmaslik va Shaxsiy limit</span>
+                            <span class="changelog-section__tag">Bot</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Inline tugmalar bosilganda Telegram yuklanish aylanmasi (loading spinner) qotib qolishi to‘liq bartaraf etildi.</li>
+                            <li>Bot limiti umumiy jamoa hisobidan har bir foydalanuvchining shaxsiy Telegram ID siga o‘tkazildi.</li>
+                        </ul>
+                    </div>
+                </article>
+
+                <article class="changelog-release">
+                    <div class="changelog-release__head">
+                        <div class="changelog-release__meta">
+                            <span class="changelog-release__version">v2.38.0</span>
+                            <span class="changelog-release__badge">Oldingi versiya</span>
                         </div>
                         <time class="changelog-release__date">2026-11-13</time>
                     </div>
@@ -585,7 +642,7 @@
             </div>
             <footer class="changelog-modal__footer">
                 <span>Eclipse Esports · Professional MLBB Analytics Center</span>
-                <span>v2.40.0 Live</span>
+                <span>v2.41.0 Live</span>
             </footer>
         </div>
     </dialog>

@@ -83,6 +83,15 @@
       : dateLabel;
   }
 
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   const api = Object.freeze({
     isValidDateOnly,
     parseDateOnly,
@@ -92,8 +101,10 @@
     addDays,
     startOfWeek,
     weekRange,
-    compare
+    compare,
+    escapeHtml
   });
   root.EclipseDateUtils = api;
+  root.escapeHtml = escapeHtml;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

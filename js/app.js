@@ -1669,12 +1669,7 @@ window.EclipseApp = {
   renderMatchInsights(containerId, matches, players) {
     const container = document.getElementById(containerId);
     if (!container) return;
-    const escapeHtml = value => String(value ?? '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#039;');
+    const escapeHtml = window.escapeHtml || (value => this.escapeHtml(value));
 
     if (!matches.length) {
       container.innerHTML = `
@@ -1755,12 +1750,7 @@ window.EclipseApp = {
       return;
     }
 
-    const escapeHtml = value => String(value ?? '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#039;');
+    const escapeHtml = window.escapeHtml || (value => this.escapeHtml(value));
     const topRiser = trends.find(t => t.comparisonAvailable && t.diff > 0);
     const topFaller = [...trends].reverse().find(t => t.comparisonAvailable && t.diff < 0);
 

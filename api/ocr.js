@@ -6,6 +6,8 @@ import { batchIndexRequest, normalizeBatchIndex } from '../lib/batch-index.js';
 import { normaliseAwardEvidence } from '../lib/match-awards.js';
 import { smartMatchRoster } from '../lib/roster-matcher.js';
 import { cleanBattleId } from '../js/batch-model.js';
+import { matchScreenshotHeroes } from '../lib/server-hero-matcher.js';
+import { cleanText, cleanId } from '../lib/utils.js';
 
 const rawGeminiKey = process.env.GEMINI_API_KEY || '';
 const GEMINI_API_KEY = rawGeminiKey.trim().replace(/^["']|["']$/g, '').trim();
@@ -32,18 +34,6 @@ async function checkOcrRate(req, identity) {
   return security.checkAction(req, identity, 'ocr', limit, OCR_RATE_WINDOW_MS);
 }
 
-function cleanText(value, maxLength = 120) {
-  return String(value ?? '')
-    .replace(/[\u0000-\u001f\u007f<>\"]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, maxLength);
-}
-
-function cleanId(value) {
-  const id = cleanText(value, 100);
-  return /^[a-zA-Z0-9_-]{1,100}$/.test(id) ? id : '';
-}
 
 function nullableNumber(value, { min = null, max = null, integer = false } = {}) {
   if (value === '' || value === null || typeof value === 'undefined') return null;
@@ -321,17 +311,9 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     smartMode
       ? [
           'Identify each friendly player\'s hero from their circular portrait icon on the far left of each row.',
-          'CRITICAL HERO PORTRAIT RECOGNITION GUIDE:',
-          '• Benedetta: Young female assassin with dark/black hair featuring a PROMINENT WHITE/SILVER STREAK/fringe on one side, a visible scar across her cheek, high dark collar, intense focused gaze. Assassin / EXP Laner. NEVER confuse Benedetta with Lesley (Lesley has an eyepatch covering one eye and sniper headgear) or Miya (Miya has all-silver/white hair and elf ears).',
-          '• Melissa: Young girl with twin blonde/light pigtails with dark/pink tips, punk dollmaker aesthetic (Marksman).',
-          '• Gatotkaca: Muscular dark-skinned warrior with iron helmet featuring upward wings/horns, prominent mustache/beard, glowing eyes (Tank/Fighter).',
-          '• Franco: Red-bearded chubby Viking warrior with horned iron helmet (Tank/Support).',
-          '• Julian: Rebellious young man with messy short crimson/red hair and red bangs (Fighter/Mage).',
-          '• Baxia: Large warrior with braided black beard and heavy stone/tortoise shield.',
-          '• Claude: Brown messy hair, forehead goggles, small monkey friend.',
-          '• Moskov: Pale spearman with glowing purple eyes and dark horns.',
-          '• Fredrinn: Handsome fighter with short brown hair, facial scar, crystal broadsword.',
-          'heroUsed must be an exact match from the canonical hero list (e.g. Benedetta, Melissa, Franco, Julian, Gatotkaca, etc.). Set heroRecognized=true when recognized. If uncertain, provide up to 3 plausible candidates in heroCandidates. Canonical hero names: ' + JSON.stringify(heroNames)
+          'heroUsed must be an exact match from the canonical hero list, or null if uncertain. Set heroRecognized=true when recognized.',
+          'If uncertain, provide up to 3 plausible candidates in heroCandidates.',
+          'Canonical hero names: ' + JSON.stringify(heroNames)
         ].join(' ')
       : 'Hero identification is performed separately by a local icon matcher. Do not identify heroes, infer lanes, or return portrait boxes.',
     'Return the friendly left-hand team only, in its original top-to-bottom order. Never mix in the opposing right-hand team.',
@@ -567,6 +549,44 @@ export default async function handler(req, res) {
     }
 
     const normalizedData = provider.normalized ? provider.data : normaliseOcrPayload(provider.data, safeRoster, safeHeroes, { mode });
+
+    // Mathematical pixel-level hero matching (same technology as web client)
+    if (mode === 'smart' && Array.isArray(normalizedData?.players) && imageParts.length > 0) {
+      let visualMatches = [];
+      let bestVisualScoreSum = 0;
+      for (const part of imageParts) {
+        try {
+          const rawBase64 = part?.inline_data?.data;
+          if (rawBase64) {
+            const buf = Buffer.from(rawBase64, 'base64');
+            const matches = matchScreenshotHeroes(buf);
+            if (matches && matches.length === 5) {
+              const scoreSum = matches.reduce((sum, m) => sum + (m.score || 0), 0);
+              if (scoreSum > bestVisualScoreSum) {
+                bestVisualScoreSum = scoreSum;
+                visualMatches = matches;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+      if (visualMatches.length > 0) {
+        const visualMap = new Map(visualMatches.map(m => [m.sourceRow, m]));
+        normalizedData.players.forEach(p => {
+          const visual = visualMap.get(p.sourceRow);
+          if (visual && visual.hero) {
+            if (visual.confident || (visual.score && visual.score >= 0.75) || !p.heroUsed) {
+              p.heroUsed = visual.hero;
+              p.heroRecognized = true;
+            }
+            if (Array.isArray(visual.candidates) && visual.candidates.length) {
+              p.heroCandidates = visual.candidates.map(c => c.name);
+            }
+          }
+        });
+      }
+    }
+
     return res.status(200).json({ success: true, data: normalizedData, ocrMeta: provider.meta });
   } catch (error) {
     // Do not log exception text: upstream errors can contain request secrets.

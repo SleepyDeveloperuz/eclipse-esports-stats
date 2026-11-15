@@ -29,34 +29,6 @@ window.PlayerManager = class PlayerManager {
     return meta[status] || meta.stable;
   }
 
-  setupSubTabs() {
-    const tabBtns = document.querySelectorAll('#playerSubTabs .tab-btn');
-    const rosterView = document.getElementById('playerRosterSubView');
-    const compareView = document.getElementById('playerCompareSubView');
-    const synergyView = document.getElementById('playerSynergySubView');
-
-    tabBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        tabBtns.forEach(b => b.classList.remove('active'));
-        const targetBtn = e.currentTarget;
-        targetBtn.classList.add('active');
-        const subtab = targetBtn.dataset.subtab;
-
-        if (rosterView) rosterView.classList.toggle('hidden', subtab !== 'roster');
-        if (compareView) compareView.classList.toggle('hidden', subtab !== 'compare');
-        if (synergyView) synergyView.classList.toggle('hidden', subtab !== 'synergy');
-
-        if (subtab === 'compare') {
-          this.renderComparisonTool('playerCompareContainer');
-        } else if (subtab === 'synergy') {
-          this.renderSynergyMatrix('playerSynergyContainer');
-        } else {
-          this.renderPlayersList('playersListContainer');
-        }
-      });
-    });
-  }
-
   getPlayerRecentForm(matches, playerId, limit = 5) {
     const playerMatches = (matches || [])
       .filter(m => (m.players || []).some(slot => String(slot.playerId || slot.id) === String(playerId)))

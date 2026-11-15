@@ -1,9 +1,9 @@
 // Separate same-origin worker: no blob workers, unsafe-eval or remote conversion.
-import buildLibheif from '../vendor/heic-to-1.5.2/libheif.js';
 
 self.onmessage = async ({ data: buffer }) => {
   let lib, decoder, images;
   try {
+    const { default: buildLibheif } = await import('../vendor/heic-to-1.5.2/libheif.js');
     lib = buildLibheif();
     decoder = new lib.HeifDecoder();
     images = decoder.decode(buffer);

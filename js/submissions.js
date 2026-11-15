@@ -46,7 +46,7 @@ window.SubmissionManager = class SubmissionManager {
     const normalize = value => value === '' || value === undefined || value === null ? null
       : Array.isArray(value) ? value.map(normalize) : typeof value === 'string' && /^\d+(\.\d+)?$/.test(value.trim()) ? Number(value) : value;
     const result = { Natija: normalize(raw.result), Davomiylik: normalize(raw.fields?.practiceDuration), Qatnashchilar: [raw.playerStats?.length || 0, raw.guestStats?.length || 0] };
-    const categories = { 'O‘yinchi': ['playerId'], Hero: ['heroUsed'], Layn: ['rolePlayed'], 'K/D/A': ['kills', 'deaths', 'assists'], Medal: ['medal'], Rating: ['inGameScore'], Damage: ['damageDealt', 'damageTaken', 'turretDamage'], Gold: ['goldEarned'], Teamfight: ['teamfightParticipation'], Highlights: ['savage', 'maniac', 'afk', 'highlightNotes', 'highlightOverflow'] };
+    const categories = { 'O‘yinchi': ['playerId'], Hero: ['heroUsed'], Layn: ['rolePlayed'], 'K/D/A': ['kills', 'deaths', 'assists'], Medal: ['medal'], Rating: ['inGameScore'], Damage: ['damageDealt', 'damageReceived', 'turretDamage'], Gold: ['goldEarned'], Teamfight: ['teamfightParticipation'], Highlights: ['savage', 'maniac', 'afk', 'highlightNotes', 'highlightOverflow'] };
     for (const [category, fields] of Object.entries(categories)) result[category] = [raw.playerStats || [], raw.guestStats || []].map(rows => rows.map(row => fields.map(field => normalize(row[field]))));
     result['Team metrics'] = Object.fromEntries(Object.entries(raw.team || {}).filter(([key]) => key !== 'sessionLabel').sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => [key, normalize(value)]));
     return result;

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { readTeamFiles, writeTeamFiles, withTeamTransaction, isTursoConfigured } from '../lib/team-store.js';
 import { normaliseAwardEvidence } from '../lib/match-awards.js';
+import { cleanText, cleanId, cleanDate, parseDuration } from '../lib/utils.js';
 import {
   isAuthConfigured,
   isViewerAuthConfigured,
@@ -21,16 +22,6 @@ const VERIFICATION_STATUSES = new Set(['verified', 'unverified', 'needs_review']
 const MAX_MATCH_SECONDS = (120 * 60) + 59;
 const MAX_PARTICIPANTS = 5;
 
-function cleanText(value, maxLength = 200) {
-  return typeof value === 'string'
-    ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/[<>\"]/g, '').trim().slice(0, maxLength)
-    : '';
-}
-
-function cleanId(value) {
-  const id = cleanText(value, 100);
-  return /^[a-zA-Z0-9_-]{1,100}$/.test(id) ? id : '';
-}
 
 function cleanOptionalNumber(value, max = 10_000_000, allowDecimals = false) {
   if (value === null || value === undefined || value === '') return null;
@@ -57,35 +48,6 @@ function normaliseHeroReference(stat = {}) {
   };
 }
 
-function cleanDate(value) {
-  const text = cleanText(value, 10);
-  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return '';
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const candidate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-  return candidate.getUTCFullYear() === year
-    && candidate.getUTCMonth() === month - 1
-    && candidate.getUTCDate() === day
-    ? text
-    : '';
-}
-
-function parseDuration(value) {
-  if (value === '' || value === null || value === undefined) return null;
-  if (typeof value === 'number') {
-    return Number.isInteger(value) && value >= 1 && value <= MAX_MATCH_SECONDS ? value : null;
-  }
-  const text = String(value).trim();
-  const clock = text.match(/^(\d{1,3}):([0-5]\d)$/);
-  const legacy = text.match(/^(\d{1,3})m\s([0-5]\d)s$/i);
-  const hourLegacy = text.match(/^(\d{1,2})h\s([0-5]\d)m\s([0-5]\d)s$/i);
-  let total = null;
-  if (clock || legacy) total = (Number((clock || legacy)[1]) * 60) + Number((clock || legacy)[2]);
-  if (hourLegacy) total = (Number(hourLegacy[1]) * 3600) + (Number(hourLegacy[2]) * 60) + Number(hourLegacy[3]);
-  return Number.isInteger(total) && total >= 1 && total <= MAX_MATCH_SECONDS ? total : null;
-}
 
 function normaliseDuration(match) {
   const secondsProvided = match?.durationSeconds !== ''
