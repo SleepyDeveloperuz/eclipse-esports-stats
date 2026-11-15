@@ -770,7 +770,81 @@ export async function correctSubmissionHero(id, targetName, newHeroName) {
   });
 }
 
-export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, caption, sender }) {
+export async function upgradePendingSubmission(submissionIdOrFingerprint, fullDraft) {
+  return queueMutation(async () => {
+    const bundle = await readBundle({ withCatalog: true });
+    const submission = bundle.submissions.find(s =>
+      s.id === submissionIdOrFingerprint ||
+      s.fingerprint === submissionIdOrFingerprint ||
+      (s.status === 'pending' && (
+        matchIdentityFingerprint(s.review?.correctedDraft || s.draft) === matchIdentityFingerprint(fullDraft) ||
+        sameBattleRoster(fullDraft, s.review?.correctedDraft || s.draft)
+      ))
+    );
+    if (!submission) fail('Yangilanadigan submission topilmadi', 'SUBMISSION_NOT_FOUND', 404);
+    if (submission.status !== 'pending') fail('Ushbu submission allaqachon ko‘rib chiqilgan', 'ALREADY_REVIEWED', 409);
+
+    const prevDraft = submission.review?.correctedDraft || submission.draft;
+    const heroes = bundle.officialData?.heroes || [];
+
+    // Merge player stats (damage, turret, taken, gold, tf%, medals, savage, maniac)
+    const updatedPlayerStats = prevDraft.playerStats.map(prevStat => {
+      const fullStat = (fullDraft.playerStats || []).find(s => s.playerId === prevStat.playerId)
+        || (fullDraft.playerStats || []).find(s => s.playerName === prevStat.playerName)
+        || (fullDraft.playerStats || []).find(s => s.heroUsed === prevStat.heroUsed);
+      if (!fullStat) return prevStat;
+      return {
+        ...prevStat,
+        heroId: fullStat.heroId || prevStat.heroId,
+        heroNameSnapshot: fullStat.heroNameSnapshot || prevStat.heroNameSnapshot,
+        heroUsed: fullStat.heroUsed || prevStat.heroUsed,
+        heroResolution: fullStat.heroResolution || prevStat.heroResolution,
+        damageDealt: Number.isInteger(fullStat.damageDealt) ? fullStat.damageDealt : prevStat.damageDealt,
+        damageReceived: Number.isInteger(fullStat.damageReceived) ? fullStat.damageReceived : prevStat.damageReceived,
+        turretDamage: Number.isInteger(fullStat.turretDamage) ? fullStat.turretDamage : prevStat.turretDamage,
+        teamfightParticipation: Number.isInteger(fullStat.teamfightParticipation) ? fullStat.teamfightParticipation : prevStat.teamfightParticipation,
+        goldEarned: Number.isInteger(fullStat.goldEarned) ? fullStat.goldEarned : prevStat.goldEarned,
+        savage: fullStat.savage || prevStat.savage,
+        maniac: fullStat.maniac || prevStat.maniac
+      };
+    });
+
+    const validGuests = (Array.isArray(fullDraft.guestStats) ? fullDraft.guestStats : (prevDraft.guestStats || []))
+      .filter(g =>
+        g.name &&
+        heroes.some(h => String(h.name).trim().toLowerCase() === String(g.heroUsed).trim().toLowerCase()) &&
+        Number.isInteger(g.kills) &&
+        Number.isInteger(g.deaths) &&
+        Number.isInteger(g.assists)
+      );
+
+    const mergedDraft = normalisePracticeDraft({
+      ...prevDraft,
+      entryMode: 'full',
+      guestStats: validGuests,
+      substitutes: prevDraft.substitutes || [],
+      playerStats: updatedPlayerStats
+    }, bundle.officialData, { adminAuthor: true, allowArchived: true });
+
+    const now = new Date().toISOString();
+    const updated = {
+      ...submission,
+      review: {
+        ...submission.review,
+        correctedDraft: mergedDraft
+      },
+      updatedAt: now
+    };
+
+    await writeFiles({
+      [submissionFileName(submission.fingerprint)]: { content: JSON.stringify(updated, null, 2) }
+    });
+
+    return updated;
+  });
+}
+
+export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, caption, sender, existingSubmissionId = null }) {
   const submitterName = sender
     ? `${sender.first_name || ''} ${sender.last_name || ''}`.trim() || sender.username || 'Telegram User'
     : 'Telegram Bot';
@@ -982,7 +1056,52 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   const hasDamageStats = matchedStats.some(stat => Number.isInteger(stat.damageDealt));
   const entryMode = hasDamageStats ? 'full' : 'practice_lite';
 
-  // 6. Create official submission
+  const validGuestStatsList = guestStatsList.filter(g =>
+    g.name &&
+    heroes.some(h => String(h.name).trim().toLowerCase() === String(g.heroUsed).trim().toLowerCase()) &&
+    Number.isInteger(g.kills) &&
+    Number.isInteger(g.deaths) &&
+    Number.isInteger(g.assists)
+  );
+
+  // 6. Create or upgrade official submission
+  const simulatedDraft = {
+    source: 'telegram',
+    entryMode,
+    ...(entryMode === 'full' ? { guestStats: validGuestStatsList, substitutes: [] } : {}),
+    scope: matchScope,
+    sourceBattleId: ocrData.battleId || null,
+    teamKills: ocrData.teamKills ?? null,
+    enemyKills: ocrData.enemyKills ?? null,
+    mathVerified: ocrData.teamKills !== null && Array.isArray(ocrData.players) && ocrData.players.filter(p => Number.isInteger(p.kills)).reduce((s, p) => s + p.kills, 0) === ocrData.teamKills,
+    date: new Date().toISOString().slice(0, 10),
+    matchType,
+    result,
+    durationSeconds,
+    durationFormatted,
+    notes: caption ? `Telegram: ${caption}` : `Telegram skrinshot (${matchedStats.length} kishi / ${matchScope})`,
+    playerStats: matchedStats
+  };
+
+  const identity = { role: 'admin', user: 'telegram_bot' };
+
+  if (existingSubmissionId || hasDamageStats) {
+    const bundle = await readBundle({ withCatalog: true });
+    const pendingSub = bundle.submissions.find(item =>
+      item.status === 'pending' &&
+      (
+        (existingSubmissionId && item.id === existingSubmissionId) ||
+        sameBattleRoster(simulatedDraft, item.review?.correctedDraft || item.draft) ||
+        matchIdentityFingerprint(simulatedDraft) === matchIdentityFingerprint(item.review?.correctedDraft || item.draft)
+      )
+    );
+
+    if (pendingSub && (pendingSub.review?.correctedDraft || pendingSub.draft)?.entryMode !== 'full') {
+      const upgraded = await upgradePendingSubmission(pendingSub.id, simulatedDraft);
+      return { submission: upgraded, isUpgrade: true };
+    }
+  }
+
   const simulatedReq = {
     body: {
       claimedPlayerId: matchedStats[0]?.playerId || 'admin',
@@ -990,29 +1109,12 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
         name: submitterName,
         telegramId: sender?.id
       },
-      draft: {
-        source: 'telegram',
-        entryMode,
-        ...(entryMode === 'full' ? { guestStats: guestStatsList, substitutes: [] } : {}),
-        scope: matchScope,
-        sourceBattleId: ocrData.battleId || null,
-        teamKills: ocrData.teamKills ?? null,
-        enemyKills: ocrData.enemyKills ?? null,
-        mathVerified: ocrData.teamKills !== null && Array.isArray(ocrData.players) && ocrData.players.filter(p => Number.isInteger(p.kills)).reduce((s, p) => s + p.kills, 0) === ocrData.teamKills,
-        date: new Date().toISOString().slice(0, 10),
-        matchType,
-        result,
-        durationSeconds,
-        durationFormatted,
-        notes: caption ? `Telegram: ${caption}` : `Telegram skrinshot (${matchedStats.length} kishi / ${matchScope})`,
-        playerStats: matchedStats
-      }
+      draft: simulatedDraft
     }
   };
 
-  const identity = { role: 'admin', user: 'telegram_bot' };
   const submission = await queueMutation(() => createSubmission(simulatedReq, identity));
-  return { submission };
+  return { submission, isUpgrade: false };
 }
 
 export async function handleTelegramRoute(req, res) {

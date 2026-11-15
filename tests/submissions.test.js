@@ -189,3 +189,26 @@ test('approval conversion preserves deterministic Practice Lite provenance and o
   assert.equal(match.playerStats[0].damageReceived, null);
   assert.equal(match.guestStats.length, 0);
 });
+
+test('approval conversion preserves Full Practice provenance with all damage and objective metrics', () => {
+  const fullDraft = normalisePracticeDraft(draftInput({
+    entryMode: 'full',
+    playerStats: [{
+      ...draftInput().playerStats[0],
+      damageDealt: 63809,
+      damageReceived: 45210,
+      turretDamage: 3400,
+      teamfightParticipation: 65,
+      goldEarned: 9200
+    }]
+  }), officialData);
+  const record = storedSubmission(fullDraft, { source: 'ocr' });
+  const match = toOfficialMatch(record, officialData, '2026-08-31T09:00:00.000Z');
+
+  assert.equal(match.entryMode, 'full');
+  assert.equal(match.playerStats[0].damageDealt, 63809);
+  assert.equal(match.playerStats[0].damageReceived, 45210);
+  assert.equal(match.playerStats[0].turretDamage, 3400);
+  assert.equal(match.playerStats[0].teamfightParticipation, 65);
+  assert.equal(match.playerStats[0].goldEarned, 9200);
+});

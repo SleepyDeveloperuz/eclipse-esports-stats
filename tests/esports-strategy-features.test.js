@@ -156,6 +156,48 @@ test('Telegram Bot: handles webhook slash commands and callbacks', async () => {
   assert.equal(photoRes.photoReceived, true);
 });
 
+test('Telegram formatSubmissionTelegramMessage renders full damage, turret, taken, and teamfight metrics', () => {
+  const submission = {
+    id: 'sub_test_full_123',
+    submitter: { name: 'Sanjar' },
+    draft: {
+      result: 'win',
+      matchType: 'ranked',
+      date: '2026-11-15',
+      durationFormatted: '18:42',
+      entryMode: 'full',
+      playerStats: [
+        {
+          playerName: 'Shadow as always',
+          heroUsed: 'Balmond',
+          kills: 8,
+          deaths: 0,
+          assists: 8,
+          inGameScore: 11.2,
+          medal: 'supreme',
+          damageDealt: 63809,
+          damageReceived: 45210,
+          turretDamage: 3400,
+          teamfightParticipation: 65
+        }
+      ]
+    }
+  };
+
+  const text = formatSubmissionTelegramMessage(submission);
+  assert.ok(text.includes('Shadow as always'));
+  assert.ok(text.includes('Balmond'));
+  assert.ok(text.includes('8/0/8'));
+  assert.ok(text.includes('63,809'));
+  assert.ok(text.includes('3,400'));
+  assert.ok(text.includes('45,210'));
+  assert.ok(text.includes('65%'));
+  assert.ok(text.includes('💥 Hero: <b>63,809</b>'));
+  assert.ok(text.includes('🏰 Turret: <b>3,400</b>'));
+  assert.ok(text.includes('🛡 Taken: <b>45,210</b>'));
+  assert.ok(text.includes('🤝 TF: <b>65%</b>'));
+});
+
 test('Daily Scrim Export: calculates dynamics, MVP, and win rate accurately', () => {
   const matches = [
     {
