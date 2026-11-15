@@ -10,5 +10,8 @@
     "build": "node scripts/build.mjs",
     "bot": "node scripts/telegram-runner.mjs"
   },
+  "dependencies": {
+    "jpeg-js": "^0.4.4"
+  },
   "devDependencies": { "jsdom": "26.1.0" }
 }

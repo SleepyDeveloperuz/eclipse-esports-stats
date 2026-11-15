@@ -18,6 +18,7 @@ import { normaliseAwardEvidence } from '../lib/match-awards.js';
 import { configuredOcrModels, requestOcrProvider } from '../lib/ocr-provider.js';
 import { buildOcrRequest, normaliseOcrPayload } from './ocr.js';
 import { smartMatchRoster } from '../lib/roster-matcher.js';
+import { matchScreenshotHeroes } from '../lib/server-hero-matcher.js';
 import {
   notifySubmissionCreated,
   isTelegramConfigured,
@@ -779,11 +780,13 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
 
   // 1. Download image(s) from Telegram
   const imageParts = [];
+  const photoBuffers = [];
   for (const url of urls) {
     const photoRes = await fetch(url);
     if (!photoRes.ok) continue;
     const photoBuffer = Buffer.from(await photoRes.arrayBuffer());
     if (!photoBuffer.length) continue;
+    photoBuffers.push(photoBuffer);
 
     // Detect valid image MIME type from buffer magic bytes (Telegram often returns application/octet-stream)
     let mimeType = 'image/jpeg';
@@ -803,6 +806,21 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
     imageParts.push({ inline_data: { mime_type: mimeType, data: photoBuffer.toString('base64') } });
   }
   if (!imageParts.length) throw new Error('Telegramdan skrinshotni yuklab bo‘lmadi.');
+
+  // 1.5 Local / Server-side Hero Portrait Matcher (same pixel matching technology as web HeroPortraitMatcher)
+  let visualMatches = [];
+  for (const buf of photoBuffers) {
+    try {
+      const matches = matchScreenshotHeroes(buf);
+      if (matches && matches.length === 5 && matches.some(m => m.confident)) {
+        visualMatches = matches;
+        break;
+      }
+    } catch (vErr) {
+      console.warn('Server hero matcher error:', vErr?.message);
+    }
+  }
+  const visualHeroMap = new Map(visualMatches.map(m => [m.sourceRow, m]));
 
   // 2. Read bundle for roster and hero catalog
   const bundle = await readBundle({ withCatalog: true });
@@ -860,6 +878,7 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
 
   // 4. Match players with roster (Trio / Squad / Team5 / Solo)
   const matchedStats = [];
+  const guestStatsList = [];
   const usedPlayerIds = new Set();
 
   for (const p of ocrData.players) {
@@ -871,9 +890,21 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
       matched = smartMatchRoster(p.detectedName, roster);
     }
 
-    let heroRef = null;
-    const chosenHeroName = p.heroUsed;
+    const visual = visualHeroMap.get(p.sourceRow);
+    let chosenHeroName = p.heroUsed;
+    let heroCandidates = p.heroCandidates || [];
 
+    if (visual && visual.hero) {
+      // Prioritize mathematical visual matching over LLM guesswork
+      if (visual.confident || !chosenHeroName) {
+        chosenHeroName = visual.hero;
+      }
+      if (Array.isArray(visual.candidates) && visual.candidates.length) {
+        heroCandidates = visual.candidates.map(c => c.name);
+      }
+    }
+
+    let heroRef = null;
     if (chosenHeroName) {
       const cleanHero = String(chosenHeroName).trim().toLowerCase();
       heroRef = heroes.find(h => String(h.name).trim().toLowerCase() === cleanHero) || null;
@@ -883,7 +914,7 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
       }
     }
     const finalHeroName = heroRef ? heroRef.name : (chosenHeroName || 'MLBB Hero');
-    const finalHeroId = heroRef ? heroRef.id : null;
+    const finalHeroId = heroRef ? heroRef.id : (visual?.heroId || null);
 
     if (matched && !usedPlayerIds.has(matched.id)) {
       usedPlayerIds.add(matched.id);
@@ -893,6 +924,7 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
         heroId: finalHeroId,
         heroNameSnapshot: finalHeroName,
         heroUsed: finalHeroName,
+        heroCandidates,
         heroResolution: finalHeroId ? 'canonical' : 'legacy_name',
         rolePlayed: p.rolePlayed || matched.primaryRole || 'Mid Laner',
         roleSource: p.rolePlayed ? 'ocr' : 'roster',
@@ -903,6 +935,24 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
         medal: p.medal || null,
         savage: p.savage || false,
         maniac: p.maniac || false,
+        damageDealt: p.damageDealt,
+        damageReceived: p.damageReceived,
+        turretDamage: p.turretDamage,
+        teamfightParticipation: p.teamfightParticipation,
+        goldEarned: p.goldEarned
+      });
+    } else {
+      guestStatsList.push({
+        guestId: `guest_${guestStatsList.length + 1}`,
+        name: p.detectedName || `Guest ${guestStatsList.length + 1}`,
+        heroUsed: finalHeroName,
+        rolePlayed: p.rolePlayed || '',
+        roleSource: p.rolePlayed ? 'ocr' : 'legacy',
+        kills: p.kills ?? 0,
+        deaths: p.deaths ?? 0,
+        assists: p.assists ?? 0,
+        inGameScore: p.inGameScore ?? 5.0,
+        medal: p.medal || null,
         damageDealt: p.damageDealt,
         damageReceived: p.damageReceived,
         turretDamage: p.turretDamage,
@@ -943,7 +993,7 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
       draft: {
         source: 'telegram',
         entryMode,
-        ...(entryMode === 'full' ? { guestStats: [], substitutes: [] } : {}),
+        ...(entryMode === 'full' ? { guestStats: guestStatsList, substitutes: [] } : {}),
         scope: matchScope,
         sourceBattleId: ocrData.battleId || null,
         teamKills: ocrData.teamKills ?? null,
