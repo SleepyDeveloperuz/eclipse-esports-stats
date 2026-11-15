@@ -872,54 +872,7 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
     }
 
     let heroRef = null;
-    let chosenHeroName = p.heroUsed;
-
-    // Cross-check: If detected hero conflicts heavily with player's primary role/lane
-    // and candidate list contains a matching hero (e.g. EXP Laner with Benedetta vs Lesley/Miya)
-    const playerRole = (matched?.primaryRole || matched?.role || '').toLowerCase();
-    const candidateList = Array.isArray(p.heroCandidates) ? p.heroCandidates : [];
-
-    if (chosenHeroName) {
-      const lowerHero = String(chosenHeroName).trim().toLowerCase();
-      // Handle known visual confusions:
-      if ((lowerHero === 'lesley' || lowerHero === 'miya') && playerRole.includes('exp')) {
-        const hasBenedetta = candidateList.some(c => String(c).toLowerCase().includes('benedetta'));
-        if (hasBenedetta || !candidateList.length) {
-          chosenHeroName = 'Benedetta';
-        }
-      } else if (candidateList.length > 0) {
-        // If current hero's role/lane doesn't match player's lane, check if any candidate matches
-        const heroObj = heroes.find(h => String(h.name).toLowerCase() === lowerHero);
-        const heroLanes = (heroObj?.lanes || []).map(l => String(l).toLowerCase());
-        const heroRoles = (heroObj?.roles || []).map(r => String(r).toLowerCase());
-        const matchesPlayerRole = heroLanes.some(l => playerRole.includes(l) || l.includes(playerRole))
-          || (playerRole.includes('exp') && (heroRoles.includes('fighter') || heroRoles.includes('assassin')))
-          || (playerRole.includes('gold') && heroRoles.includes('marksman'))
-          || (playerRole.includes('mid') && heroRoles.includes('mage'))
-          || (playerRole.includes('roam') && (heroRoles.includes('tank') || heroRoles.includes('support')))
-          || (playerRole.includes('jung') && (heroRoles.includes('assassin') || heroRoles.includes('fighter')));
-
-        if (!matchesPlayerRole) {
-          for (const cand of candidateList) {
-            const candObj = heroes.find(h => String(h.name).toLowerCase() === String(cand).toLowerCase());
-            if (candObj) {
-              const candLanes = (candObj.lanes || []).map(l => String(l).toLowerCase());
-              const candRoles = (candObj.roles || []).map(r => String(r).toLowerCase());
-              const candMatches = candLanes.some(l => playerRole.includes(l) || l.includes(playerRole))
-                || (playerRole.includes('exp') && (candRoles.includes('fighter') || candRoles.includes('assassin')))
-                || (playerRole.includes('gold') && candRoles.includes('marksman'))
-                || (playerRole.includes('mid') && candRoles.includes('mage'))
-                || (playerRole.includes('roam') && (candRoles.includes('tank') || candRoles.includes('support')))
-                || (playerRole.includes('jung') && (candRoles.includes('assassin') || candRoles.includes('fighter')));
-              if (candMatches) {
-                chosenHeroName = candObj.name;
-                break;
-              }
-            }
-          }
-        }
-      }
-    }
+    const chosenHeroName = p.heroUsed;
 
     if (chosenHeroName) {
       const cleanHero = String(chosenHeroName).trim().toLowerCase();
