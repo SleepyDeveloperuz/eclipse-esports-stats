@@ -3,7 +3,7 @@ import { isProgressRequest, progressRequest } from '../lib/progress-api.js';
 import { QUALITY_FILE, qualityEvent, readQuality, recordQuality } from '../lib/scan-quality.js';
 import { cleanBattleId } from '../js/batch-model.js';
 import { createSessionSecurity } from '../lib/session-security.js';
-import { readTeamFiles, writeTeamFiles, withTeamTransaction } from '../lib/team-store.js';
+import { readTeamFiles, writeTeamFiles, withTeamTransaction, isTursoConfigured } from '../lib/team-store.js';
 import { createRedisStore, MLBB_KEYS } from '../lib/mlbb/store.js';
 import {
   getValidAccessIdentity,
@@ -74,7 +74,7 @@ function cleanDate(value) {
 function nullableNumber(value, { min = 0, max = Number.MAX_SAFE_INTEGER, integer = false } = {}) {
   if (value === '' || value === null || value === undefined) return null;
   if (typeof value !== 'number' && typeof value !== 'string') return null;
-  const text = typeof value === 'string' ? value.trim() : '';
+  const text = typeof value === 'string' ? value.replace(/[,%\s]/g, '').trim() : '';
   if (typeof value === 'string' && !/^\d+(?:\.\d+)?$/.test(text)) return null;
   const number = typeof value === 'number' ? value : Number(text);
   if (!Number.isFinite(number) || number < min || number > max) return null;
@@ -342,6 +342,24 @@ export function sameBattleRoster(first, second) {
   if (!cleanBattleId(first?.sourceBattleId) || first.sourceBattleId !== second?.sourceBattleId) return false;
   const ids = value => (value.playerStats || []).map(row => row.playerId).sort().join('|');
   return ids(first) === ids(second);
+}
+
+export function isSameMatchCandidate(first, second) {
+  if (!first || !second) return false;
+  if (cleanBattleId(first.sourceBattleId) && cleanBattleId(second.sourceBattleId)) {
+    return first.sourceBattleId === second.sourceBattleId;
+  }
+  if (first.date && second.date && first.date !== second.date) return false;
+  if (first.result && second.result && first.result !== second.result) return false;
+  if (Number.isInteger(first.durationSeconds) && Number.isInteger(second.durationSeconds)) {
+    if (Math.abs(first.durationSeconds - second.durationSeconds) > 45) return false;
+  }
+  const playersA = (first.playerStats || []).map(p => p.playerId).filter(Boolean);
+  const playersB = (second.playerStats || []).map(p => p.playerId).filter(Boolean);
+  if (!playersA.length || !playersB.length) return false;
+  const setA = new Set(playersA);
+  const common = playersB.filter(id => setA.has(id));
+  return common.length >= 1 && (common.length === playersA.length || common.length === playersB.length);
 }
 
 export function submissionFileName(fingerprint) {
@@ -778,7 +796,8 @@ export async function upgradePendingSubmission(submissionIdOrFingerprint, fullDr
       s.fingerprint === submissionIdOrFingerprint ||
       (s.status === 'pending' && (
         matchIdentityFingerprint(s.review?.correctedDraft || s.draft) === matchIdentityFingerprint(fullDraft) ||
-        sameBattleRoster(fullDraft, s.review?.correctedDraft || s.draft)
+        sameBattleRoster(fullDraft, s.review?.correctedDraft || s.draft) ||
+        isSameMatchCandidate(fullDraft, s.review?.correctedDraft || s.draft)
       ))
     );
     if (!submission) fail('Yangilanadigan submission topilmadi', 'SUBMISSION_NOT_FOUND', 404);
@@ -1083,7 +1102,8 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
     playerStats: matchedStats
   };
 
-  const identity = { role: 'admin', user: 'telegram_bot' };
+  const senderId = sender?.id ? String(sender.id) : 'telegram_bot';
+  const identity = { role: 'admin', user: `tg_${senderId}` };
 
   if (existingSubmissionId || hasDamageStats) {
     const bundle = await readBundle({ withCatalog: true });
@@ -1092,7 +1112,8 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
       (
         (existingSubmissionId && item.id === existingSubmissionId) ||
         sameBattleRoster(simulatedDraft, item.review?.correctedDraft || item.draft) ||
-        matchIdentityFingerprint(simulatedDraft) === matchIdentityFingerprint(item.review?.correctedDraft || item.draft)
+        matchIdentityFingerprint(simulatedDraft) === matchIdentityFingerprint(item.review?.correctedDraft || item.draft) ||
+        isSameMatchCandidate(simulatedDraft, item.review?.correctedDraft || item.draft)
       )
     );
 
@@ -1154,11 +1175,14 @@ export async function handleTelegramRoute(req, res) {
     return res.status(200).json({ ok: sent.ok, result: sent });
   }
 
-  // Verify Webhook Secret Token if configured
+  // Verify Webhook Secret Token strictly if configured
   const expectedSecret = getWebhookSecret();
   if (expectedSecret) {
-    const headerSecret = req.headers['x-telegram-bot-api-secret-token'];
-    if (headerSecret !== expectedSecret) {
+    const headerSecret = String(req.headers['x-telegram-bot-api-secret-token'] || '');
+    const expectedBuf = Buffer.from(expectedSecret);
+    const headerBuf = Buffer.from(headerSecret);
+    const isValid = expectedBuf.length === headerBuf.length && crypto.timingSafeEqual(expectedBuf, headerBuf);
+    if (!isValid) {
       return res.status(401).json({ error: 'Noto‘g‘ri webhook maxfiy kaliti' });
     }
   }
@@ -1214,7 +1238,7 @@ export default async function handler(req, res) {
     return handleTelegramRoute(req, res);
   }
   try {
-    if (!GIST_ID) return res.status(503).json({ error: 'Submission bazasi sozlanmagan' });
+    if (!isTursoConfigured() && !GIST_ID) return res.status(503).json({ error: 'Submission bazasi sozlanmagan' });
 
     if (isProgressRequest(req)) {
       const identity = await requireAccess(req, res);

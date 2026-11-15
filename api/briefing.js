@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { createSessionSecurity } from '../lib/session-security.js';
-import { readTeamFiles, writeTeamFiles, withTeamTransaction } from '../lib/team-store.js';
+import { readTeamFiles, writeTeamFiles, withTeamTransaction, isTursoConfigured } from '../lib/team-store.js';
 import {
   isAuthConfigured,
   isViewerAuthConfigured,
@@ -670,7 +670,7 @@ function signedVoterId(req) {
 export default async function handler(req, res) {
   try {
     res.setHeader('Cache-Control', 'no-store');
-    if (!GIST_ID) return res.status(503).json({ error: 'Briefing bazasi sozlanmagan' });
+    if (!isTursoConfigured() && !GIST_ID) return res.status(503).json({ error: 'Briefing bazasi sozlanmagan' });
 
     if (req.method === 'GET') {
       if (!await requireViewer(req, res)) return;

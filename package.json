@@ -2,7 +2,9 @@
   "name": "eclipse-esports-command-room",
   "private": true,
   "type": "module",
-  "engines": { "node": "24.x" },
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "check": "node scripts/check.mjs",
     "test": "node --test tests/*.test.js",
@@ -11,7 +13,10 @@
     "bot": "node scripts/telegram-runner.mjs"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "jpeg-js": "^0.4.4"
   },
-  "devDependencies": { "jsdom": "26.1.0" }
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
 }

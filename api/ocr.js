@@ -48,7 +48,8 @@ function cleanId(value) {
 function nullableNumber(value, { min = null, max = null, integer = false } = {}) {
   if (value === '' || value === null || typeof value === 'undefined') return null;
   if (!['number', 'string'].includes(typeof value) || (typeof value === 'string' && !value.trim())) return null;
-  const parsed = Number(value);
+  const cleanStr = typeof value === 'string' ? value.replace(/[,%\s]/g, '').trim() : value;
+  const parsed = Number(cleanStr);
   if (!Number.isFinite(parsed)) return null;
   if (integer && !Number.isInteger(parsed)) return null;
   if (min !== null && parsed < min) return null;
@@ -340,9 +341,14 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     'Unknown, obscured or absent values must be null, not zero, false or a guessed value.',
     'result is win for visible Victory and loss for visible Defeat. Never infer it from kills. duration is the visible MM:SS match duration, not the clock or date.',
     'matchType and teamTurtles/teamLords/teamTurrets must be null unless explicitly visible. Never infer destroyed turrets from turret damage.',
-    'On the Scoreboard screen, each row displays: hero portrait, level, player IGN, three K/D/A numbers (kills, deaths, assists in exact order), gold earned, and medal badge with inGameScore.',
+    'When two screenshots are provided, one is the Scoreboard screen and the other is the Data/Damage screen.',
+    'COMBINE BOTH SCREENSHOTS INTO ONE COMPLETE RECORD PER ROW (sourceRow 1 to 5):',
+    '• Match rows between the two screenshots by vertical position (sourceRow 1 to 5), hero portrait, and player IGN.',
+    '• From the Scoreboard screen, extract: kills, deaths, assists, inGameScore, medal, goldEarned, savage, maniac.',
+    '• From the Data/Damage screen, extract: damageDealt (Hero Damage), damageReceived (Damage Taken), turretDamage (Turret Damage), and teamfightParticipation (Teamfight % as an integer 0-100 without % sign).',
+    '• Extract raw integer numbers for damage and percentages (e.g. 63809, 54200, 4512, 68). If numbers have commas (63,809) or %, extract the pure integer.',
+    'On a single Scoreboard screen, each row displays: hero portrait, level, player IGN, three K/D/A numbers (kills, deaths, assists in exact order), gold earned, and medal badge with inGameScore.',
     'CRITICAL: Read kills, deaths, assists strictly from the three K/D/A numbers in that exact order (first is kills, second is deaths, third is assists). Never swap or confuse with inGameScore or gold.',
-    'Read damageDealt, damageReceived, turretDamage and teamfightParticipation from their named Data columns.',
     'Read the actual large medal, never infer it from score. Purple/lavender crystalline Supreme badge without MVP text is supreme. The same Supreme badge with an explicit MVP ribbon is supreme_mvp (including defeat MVP). A normal gold badge with explicit MVP text is mvp. Gold crossed swords without MVP are gold. Round silver/copper single-sword badges are silver/bronze. At most one friendly-team MVP total across mvp and supreme_mvp. An AFK badge obscures the medal: set medal=null, afk=true; do not invent bronze from the score. Uncertainty=null.',
     detailPart ? 'A final supplementary image contains enlarged medal-column strips labelled Image 1/2 detail, taken from the full originals above. They are the same rows, not additional players. Read each medal from the scoreboard strip and match its vertical position to the original screenshot; a Data/Damage strip has no medal evidence. A round silver medallion with a single sword is silver; the brown/copper version is bronze. none means an explicitly absent badge, never a silver or bronze badge. If the strip is not the medal column for this layout, use the full original image.' : '',
     'savage/maniac require explicit evidence; missing badges do not establish false. Never infer multikills solely from total KDA if badges are absent.',

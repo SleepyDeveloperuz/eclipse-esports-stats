@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { readTeamFiles, writeTeamFiles, withTeamTransaction } from '../lib/team-store.js';
+import { readTeamFiles, writeTeamFiles, withTeamTransaction, isTursoConfigured } from '../lib/team-store.js';
 import { normaliseAwardEvidence } from '../lib/match-awards.js';
 import {
   isAuthConfigured,
@@ -417,7 +417,7 @@ export function normalisePayload(input) {
 }
 
 function isSyncConfigured() {
-  return Boolean(GIST_ID);
+  return Boolean(isTursoConfigured() || GIST_ID);
 }
 
 function sendConfigurationError(res, message) {
@@ -432,7 +432,7 @@ export default async function handler(req, res) {
   try {
     res.setHeader('Cache-Control', 'no-store');
     if (!isSyncConfigured()) {
-      return sendConfigurationError(res, "Cloud sync sozlanmagan. Vercel Environment Variables orqali GIST_ID ni kiriting.");
+      return sendConfigurationError(res, "Cloud sync sozlanmagan. TURSO_DATABASE_URL yoki GIST_ID ni kiriting.");
     }
 
     // Team read can be protected with the optional VIEWER_PASSWORD gate.
