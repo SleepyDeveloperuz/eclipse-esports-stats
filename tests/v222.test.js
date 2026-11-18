@@ -55,7 +55,7 @@ test('only five tracked roster players produce Team5 in the new full form', () =
   }
 });
 test('known hero names never override uncertain visual recognition', () => {
-  const result = normaliseOcrPayload({ players: [{ matchedPlayerId: 'p1', heroUsed: 'Miya', heroRecognized: false, heroCandidates: ['Miya', 'Imaginary'], portraitBox: { imageIndex: 0, bounds: [100, 200, 200, 300] } }] }, data.players, data.heroes).players[0];
+  const result = normaliseOcrPayload({ players: [{ matchedPlayerId: 'p1', detectedName: data.players[0].name, heroUsed: 'Miya', heroRecognized: false, heroCandidates: ['Miya', 'Imaginary'], portraitBox: { imageIndex: 0, bounds: [100, 200, 200, 300] } }] }, data.players, data.heroes).players[0];
   assert.equal(result.heroRecognized, false); assert.equal(result.heroCatalogMatch, true); assert.equal(result.heroId, 1);
   assert.deepEqual(result.heroCandidates, ['Miya']); assert.equal(result.heroReviewRequired, true); assert.ok(result.portraitBox);
 });

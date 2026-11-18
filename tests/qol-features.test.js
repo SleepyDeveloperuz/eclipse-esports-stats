@@ -439,6 +439,7 @@ domTest('PlayerManager calculates 6-axis radar metrics and renders SVG playstyle
   const pm = new window.PlayerManager({}, {});
 
   const mockStats = {
+    matchesPlayed: 10,
     kdaRatio: '4.80',
     avgDamageShare: 28.5,
     avgGoldPerMinute: 780,
@@ -460,7 +461,7 @@ domTest('PlayerManager calculates 6-axis radar metrics and renders SVG playstyle
   assert.match(svgHtml, /player-radar-card/, 'Radar card container rendered');
   assert.match(svgHtml, /<svg class="player-radar-svg"/, 'SVG radar element present');
   assert.match(svgHtml, /<polygon points=/, 'Polygon vertices rendered');
-  assert.match(svgHtml, /6-O‘qli Taktik Radar/, 'Radar title in Uzbek rendered');
+  assert.match(svgHtml, /6-O‘qli Ko‘rsatkichlar Radari/, 'Radar title in Uzbek rendered');
   assert.match(svgHtml, /radar-playstyle-banner/, 'Playstyle banner present');
 
   dom.window.close();
@@ -502,8 +503,8 @@ domTest('StatsEngine computes duration breakdown (early, mid, late) and renders 
 
   const html = window.StatsEngine.renderDurationAnalyticsHtml(breakdown);
   assert.match(html, /duration-analytics-card/);
-  assert.match(html, /O‘yin Davomiyligi & Power Spike Tahlili/);
-  assert.match(html, /PEAK BOSQICH/);
+  assert.match(html, /Match davomiyligi bo‘yicha natijalar/);
+  assert.match(html, /ENG YUQORI WR/);
   assert.match(html, /Erta bosqich \(≤10m\)/);
 
   dom.window.close();
@@ -1091,7 +1092,10 @@ domTest('version status pill opens changelog modal with release notes', () => {
 
   const app = window.EclipseApp;
   assert.ok(Array.isArray(app.RELEASES), 'app has RELEASES array');
-  assert.equal(app.RELEASES[0].version, 'v2.41.0', 'latest release is v2.41.0');
+  const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+  assert.equal(app.RELEASES[0].version, `v${version}`, 'release notes match package version');
+  assert.ok(indexHtml.includes(`Eclipse Live System v${version}`), 'sidebar matches release');
+  assert.ok(indexHtml.includes(`<span class="changelog-release__version">v${version}</span>`), 'static changelog matches release');
 
   app.bindQolControls();
 

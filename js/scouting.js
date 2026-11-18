@@ -4,47 +4,6 @@
 
   const STORAGE_KEY = 'eclipse:scouting_teams';
 
-  const DEFAULT_SCOUT_TEAMS = [
-    {
-      id: 'scout-falcon',
-      name: 'Team Falcon',
-      tag: 'FLC',
-      tier: 'S',
-      region: 'Uzbekistan / Central Asia',
-      signaturePicks: [
-        { heroName: 'Fanny', role: 'Jungler', note: 'Asosiy jungler 75% WR bilan o‘ynaydi. 1-bosqichda ban qilish shart!', danger: 'high' },
-        { heroName: 'Chou', role: 'Roamer', note: 'Agressiv roamer, ko‘k buffga erta invayt uyushtiradi.', danger: 'high' },
-        { heroName: 'Beatrix', role: 'Gold Laner', note: 'Pozitsiyani yaxshi tanlaydi, Sniper va Shotgun kombinatsiyasi.', danger: 'medium' }
-      ],
-      priorityBans: [
-        { heroName: 'Fanny', reason: 'Juda xavfli jungler, birinchi ban' },
-        { heroName: 'Mathilda', reason: 'Erta rotatsiya va gankni kuchaytiradi' }
-      ],
-      counterNotes: '1. Fanny olinsa: darhol Khufra yoki Moskov javobini olish.\n2. 5-daqiqadagi 1-Turtle uchun 4 kishi oldindan yig‘ilish lozim.\n3. O‘yin 16-daqiqadan oshsa shoshilishadi, Late Game positioning bizda ustun.',
-      h2h: { wins: 3, losses: 1 },
-      lastPlayed: '2026-11-05'
-    },
-    {
-      id: 'scout-alpha',
-      name: 'Alpha Esports',
-      tag: 'ALPHA',
-      tier: 'A',
-      region: 'Uzbekistan',
-      signaturePicks: [
-        { heroName: 'Ling', role: 'Jungler', note: 'Devorlar orqali tezkor harakat, Angela bilan kombinatsiya.', danger: 'high' },
-        { heroName: 'Angela', role: 'Roamer', note: 'Ling yoki Fredrinn ustiga sakrab kiradi.', danger: 'medium' },
-        { heroName: 'Claude', role: 'Gold Laner', note: 'Late Game scaling kuchli, 2 ta itemdan keyin xavfli.', danger: 'medium' }
-      ],
-      priorityBans: [
-        { heroName: 'Ling', reason: 'Ularning asosiy drayveri' },
-        { heroName: 'Diggie', reason: 'CC kompozitsiyamizni yopish uchun oladi' }
-      ],
-      counterNotes: '1. Ling tanlansa: Baxia jungler yoki Ruby tanlash va birinchi daqiqadayoq uning ko‘k buffini bosish.\n2. Claude kuchaymasdan 12-daqiqagacha bosim o‘tkazib push qilish.\n3. Late Game lord oldida ehtiyotkor bo‘lish.',
-      h2h: { wins: 2, losses: 2 },
-      lastPlayed: '2026-11-08'
-    }
-  ];
-
   class ScoutingManager {
     constructor(dataStore) {
       this.dataStore = dataStore;
@@ -56,16 +15,21 @@
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length) return parsed;
+          if (Array.isArray(parsed) && parsed.every(t => t && typeof t === 'object' && typeof t.id === 'string' && typeof t.name === 'string')) return parsed;
+          throw new Error('Scouting yozuvlari formati noto‘g‘ri.');
         }
-      } catch (_) {}
-      return [...DEFAULT_SCOUT_TEAMS];
+      } catch (_) { this.loadError = 'Scouting yozuvlarini o‘qib bo‘lmadi. Saqlangan nusxa o‘zgartirilmadi.'; }
+      return [];
     }
 
-    saveTeams() {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.teams));
-      } catch (_) {}
+    saveTeams(teams = this.teams) {
+      if (this.loadError) throw new Error(this.loadError);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
+      this.teams = teams;
+    }
+
+    isLegacySample(team) {
+      return ['scout-falcon', 'scout-alpha'].includes(team.id) && team.provenance !== 'manual';
     }
 
     escape(str) {
@@ -80,61 +44,61 @@
       const id = `scout-${Date.now()}`;
       const newTeam = {
         id,
+        provenance: 'manual',
         name: teamData.name || 'Yangi Raqib',
         tag: teamData.tag || 'RIV',
-        tier: teamData.tier || 'A',
+        tier: teamData.tier || '',
         region: teamData.region || 'Uzbekistan',
         signaturePicks: teamData.signaturePicks || [],
         priorityBans: teamData.priorityBans || [],
         counterNotes: teamData.counterNotes || '',
         h2h: { wins: Number(teamData.wins) || 0, losses: Number(teamData.losses) || 0 },
-        lastPlayed: teamData.lastPlayed || new Date().toISOString().slice(0, 10)
+        lastPlayed: teamData.lastPlayed || null
       };
-      this.teams.unshift(newTeam);
-      this.saveTeams();
+      this.saveTeams([newTeam, ...this.teams]);
       return newTeam;
     }
 
-    updateTeam(id, updateData) {
+    updateTeam(id, updateData, { confirmEvidence = false } = {}) {
       const idx = this.teams.findIndex(t => t.id === id);
       if (idx === -1) return null;
-      this.teams[idx] = { ...this.teams[idx], ...updateData };
-      this.saveTeams();
+      const teams = [...this.teams];
+      teams[idx] = { ...teams[idx], ...updateData, provenance: confirmEvidence ? 'manual' : teams[idx].provenance };
+      this.saveTeams(teams);
       return this.teams[idx];
     }
 
     deleteTeam(id) {
-      this.teams = this.teams.filter(t => t.id !== id);
-      this.saveTeams();
+      this.saveTeams(this.teams.filter(t => t.id !== id));
     }
 
     recordH2H(id, isWin) {
       const team = this.teams.find(t => t.id === id);
-      if (!team) return;
-      team.h2h = team.h2h || { wins: 0, losses: 0 };
-      if (isWin) team.h2h.wins++;
-      else team.h2h.losses++;
-      team.lastPlayed = new Date().toISOString().slice(0, 10);
-      this.saveTeams();
+      if (!team || this.isLegacySample(team)) return;
+      this.updateTeam(id, {
+        h2h: { wins: (Number(team.h2h?.wins) || 0) + (isWin ? 1 : 0), losses: (Number(team.h2h?.losses) || 0) + (isWin ? 0 : 1) },
+        lastPlayed: new Date().toISOString().slice(0, 10)
+      });
     }
 
     render(containerId = 'scoutingContainer') {
       const container = document.getElementById(containerId);
       if (!container) return;
 
-      const totalTeams = this.teams.length;
+      const recordedTeams = this.teams.filter(t => !this.isLegacySample(t));
+      const totalTeams = recordedTeams.length;
       let totalWins = 0;
       let totalLosses = 0;
       let totalSignatures = 0;
 
-      this.teams.forEach(t => {
+      recordedTeams.forEach(t => {
         totalWins += Number(t.h2h?.wins) || 0;
         totalLosses += Number(t.h2h?.losses) || 0;
         totalSignatures += (t.signaturePicks || []).length;
       });
 
       const totalMatches = totalWins + totalLosses;
-      const totalWr = totalMatches ? Math.round((totalWins / totalMatches) * 100) : 0;
+      const totalWr = totalMatches ? `${Math.round((totalWins / totalMatches) * 100)}%` : '—';
 
       container.innerHTML = `
         <div class="scouting-shell">
@@ -147,16 +111,17 @@
               <p class="section-eyebrow">ECLIPSE TACTICAL // ENEMY DOSSIER</p>
               <h2>Raqib Jamoalar Razvedkasi (Scouting)</h2>
               <p>
-                Raqib jamoalarning sevimli (signature) qahramonlari, majburiy ban prioritetlari va ularga qarshi tayyorlangan taktik rejalar (Counter Notes).
+                Qo‘lda kiritilgan raqib kuzatuvlari va reja eslatmalari. Yozuvlar shu brauzerda saqlanadi; avtomatik tasdiqlangan tahlil emas.
               </p>
             </div>
             <div class="scouting-telemetry">
               <span><strong>${totalTeams}</strong><small>Raqib jamoa</small></span>
               <span><strong>${totalSignatures}</strong><small>O‘rganilgan herolar</small></span>
-              <span><strong>${totalWins}W - ${totalLosses}L</strong><small>H2H Rekord (${totalWr}%)</small></span>
+              <span><strong>${totalWins}W - ${totalLosses}L</strong><small>H2H Rekord (${totalWr})</small></span>
             </div>
           </section>
 
+          ${this.loadError ? `<p role="alert">${this.escape(this.loadError)}</p>` : ''}
           <!-- Action bar -->
           <div class="scouting-actions-bar">
             <div class="scouting-search-wrap">
@@ -197,9 +162,9 @@
                 </label>
                 <label>
                   <span>Xavf Darajasi (Tier)</span>
-                  <select class="form-select" id="scoutTier">
+                  <select class="form-select" id="scoutTier"><option value="" selected>Baholanmagan</option>
                     <option value="S">S-Tier (Top Raqib / Chempion)</option>
-                    <option value="A" selected>A-Tier (Kuchli Jamoa)</option>
+                    <option value="A">A-Tier (Kuchli Jamoa)</option>
                     <option value="B">B-Tier (O‘rtacha)</option>
                   </select>
                 </label>
@@ -219,16 +184,16 @@
 
               <div class="scouting-form-row">
                 <label>
-                  <span>Majburiy 1-Banlar (Priority Bans)</span>
+                  <span>Taklif qilingan banlar</span>
                   <input type="text" class="form-input" id="scoutBans" placeholder="Fanny, Mathilda (vergul bilan ajrating)">
-                  <small>Ushbu jamoaga qarshi birinchi bosqichda ban qilinishi shart bo‘lganlar</small>
+                  <small>Kuzatuvga asoslangan takliflaringiz; avtomatik tavsiya emas</small>
                 </label>
               </div>
 
               <div class="scouting-form-row">
                 <label>
                   <span>Taktik Eslatmalar & Counter Strategiya (Counter Notes)</span>
-                  <textarea class="form-input" id="scoutNotes" rows="4" placeholder="1. Fanny olinsa: darhol Khufra va Moskov javobi.&#10;2. 5-daqiqada 4 kishi Turtle'ga yig‘iladi.&#10;3. Late Game'da xatolari ko‘p."></textarea>
+                  <textarea class="form-input" id="scoutNotes" rows="4" placeholder="Kuzatilgan match sanasi, hero tanlovi va eslatma"></textarea>
                 </label>
               </div>
 
@@ -243,6 +208,11 @@
                 </label>
               </div>
 
+              <label id="scoutEvidenceReview" hidden>
+                <input type="checkbox" id="scoutConfirmEvidence">
+                Eski namunaning H2H sonlari va eslatmalarini haqiqiy kuzatuvlar bilan tekshirdim.
+              </label>
+              <p id="scoutFormError" role="alert"></p>
               <footer class="scouting-form-footer">
                 <button type="button" class="btn btn-secondary" id="scoutModalCancelBtn">Bekor qilish</button>
                 <button type="submit" class="btn btn-primary" id="scoutSaveBtn"><i class="fa-solid fa-floppy-disk"></i> Saqlash</button>
@@ -266,10 +236,11 @@
       }
 
       return teamList.map(team => {
+        const sample = this.isLegacySample(team);
         const wins = Number(team.h2h?.wins) || 0;
         const losses = Number(team.h2h?.losses) || 0;
         const total = wins + losses;
-        const wr = total ? Math.round((wins / total) * 100) : 0;
+        const wr = total ? `${Math.round((wins / total) * 100)}%` : '—';
         const tierClass = team.tier === 'S' ? 'tier-s' : team.tier === 'A' ? 'tier-a' : 'tier-b';
 
         const signatureChips = (team.signaturePicks || []).map(p => {
@@ -293,21 +264,22 @@
         const notesFormatted = this.escape(team.counterNotes || 'Eslatmalar kiritilmagan.').replace(/\n/g, '<br>');
 
         return `
-          <article class="scout-card" data-team-id="${team.id}">
+          <article class="scout-card" data-team-id="${this.escape(team.id)}">
             <header class="scout-card__head">
               <div class="scout-card__identity">
-                <span class="scout-card__tier-badge ${tierClass}">${team.tier}-TIER</span>
+                <span class="scout-card__tier-badge ${tierClass}">${team.tier ? `${this.escape(team.tier)}-TIER` : 'Baholanmagan'}</span>
                 <div>
                   <h3 class="scout-card__name">${this.escape(team.name)}</h3>
                   <small class="scout-card__region">${this.escape(team.region || 'Region')} · [${this.escape(team.tag || 'TAG')}]</small>
                 </div>
               </div>
               <div class="scout-card__h2h">
-                <span class="scout-card__score">${wins}W – ${losses}L</span>
-                <small>${wr}% WR</small>
+                <span class="scout-card__score">${sample ? 'Tasdiqlanmagan' : `${wins}W – ${losses}L`}</span>
+                <small>${sample ? 'Eski namuna' : `${wr} WR`}</small>
               </div>
             </header>
 
+            ${sample ? '<p role="status">Eski namuna — H2H hisobiga kirmaydi. Tahrirlashda sonlar va eslatmalarni tekshiring.</p>' : '<p>Qo‘lda kiritilgan kuzatuv.</p>'}
             <div class="scout-card__section">
               <span class="scout-card__label"><i class="fa-solid fa-star" style="color:var(--primary);"></i> Comfort / Signature Picks:</span>
               <div class="scout-card__heroes">
@@ -316,7 +288,7 @@
             </div>
 
             <div class="scout-card__section">
-              <span class="scout-card__label"><i class="fa-solid fa-ban" style="color:#ef4444;"></i> Majburiy 1-Banlar:</span>
+              <span class="scout-card__label"><i class="fa-solid fa-ban" style="color:#ef4444;"></i> Taklif qilingan banlar:</span>
               <div class="scout-card__bans">
                 ${banChips || '<span class="text-muted">Kiritilmagan</span>'}
               </div>
@@ -329,12 +301,12 @@
 
             <footer class="scout-card__footer">
               <div class="scout-card__h2h-buttons">
-                <button type="button" class="btn btn-sm btn-secondary" data-h2h-win="${team.id}" title="G‘alaba qo‘shish">+ Win</button>
-                <button type="button" class="btn btn-sm btn-secondary" data-h2h-loss="${team.id}" title="Mag‘lubiyat qo‘shish">+ Loss</button>
+                <button type="button" class="btn btn-sm btn-secondary" data-h2h-win="${this.escape(team.id)}" ${sample ? 'disabled' : ''} title="G‘alaba qo‘shish">+ Win</button>
+                <button type="button" class="btn btn-sm btn-secondary" data-h2h-loss="${this.escape(team.id)}" ${sample ? 'disabled' : ''} title="Mag‘lubiyat qo‘shish">+ Loss</button>
               </div>
               <div class="scout-card__manage-buttons">
-                <button type="button" class="btn btn-sm btn-secondary" data-edit-team="${team.id}" title="Tahrirlash"><i class="fa-solid fa-pen-to-square"></i></button>
-                <button type="button" class="btn btn-sm btn-secondary" data-delete-team="${team.id}" title="O‘chirish"><i class="fa-solid fa-trash-can"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary" data-edit-team="${this.escape(team.id)}" title="Tahrirlash"><i class="fa-solid fa-pen-to-square"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary" data-delete-team="${this.escape(team.id)}" title="O‘chirish"><i class="fa-solid fa-trash-can"></i></button>
               </div>
             </footer>
           </article>
@@ -373,6 +345,8 @@
       if (openBtn && modal) {
         openBtn.addEventListener('click', () => {
           form.reset();
+          container.querySelector('#scoutEvidenceReview').hidden = true;
+          container.querySelector('#scoutFormError').textContent = '';
           container.querySelector('#scoutEditId').value = '';
           container.querySelector('#scoutModalTitle').innerHTML = '<i class="fa-solid fa-shield-halved" style="color:var(--primary);"></i> Raqib Jamoani Kiritish';
           if (typeof modal.showModal === 'function') modal.showModal();
@@ -396,57 +370,62 @@
 
       // Handle card buttons (H2H, Edit, Delete)
       grid.addEventListener('click', e => {
-        const winBtn = e.target.closest('[data-h2h-win]');
-        if (winBtn) {
-          const id = winBtn.dataset.h2hWin;
-          this.recordH2H(id, true);
-          this.render();
-          window.showToast?.('G‘alaba qayd etildi!', 'success');
-          return;
-        }
-
-        const lossBtn = e.target.closest('[data-h2h-loss]');
-        if (lossBtn) {
-          const id = lossBtn.dataset.h2hLoss;
-          this.recordH2H(id, false);
-          this.render();
-          window.showToast?.('Mag‘lubiyat qayd etildi.', 'info');
-          return;
-        }
-
-        const deleteBtn = e.target.closest('[data-delete-team]');
-        if (deleteBtn) {
-          const id = deleteBtn.dataset.deleteTeam;
-          if (confirm('Ushbu raqib ma’lumotlarini o‘chirishni tasdiqlaysizmi?')) {
-            this.deleteTeam(id);
+        try {
+          const winBtn = e.target.closest('[data-h2h-win]');
+          if (winBtn) {
+            const id = winBtn.dataset.h2hWin;
+            this.recordH2H(id, true);
             this.render();
-            window.showToast?.('Raqib jamoa o‘chirildi.', 'info');
+            window.showToast?.('G‘alaba qayd etildi!', 'success');
+            return;
           }
-          return;
-        }
 
-        const editBtn = e.target.closest('[data-edit-team]');
-        if (editBtn) {
-          const id = editBtn.dataset.editTeam;
-          const team = this.teams.find(t => t.id === id);
-          if (!team || !modal) return;
+          const lossBtn = e.target.closest('[data-h2h-loss]');
+          if (lossBtn) {
+            const id = lossBtn.dataset.h2hLoss;
+            this.recordH2H(id, false);
+            this.render();
+            window.showToast?.('Mag‘lubiyat qayd etildi.', 'info');
+            return;
+          }
 
-          container.querySelector('#scoutEditId').value = team.id;
-          container.querySelector('#scoutName').value = team.name;
-          container.querySelector('#scoutTag').value = team.tag || '';
-          container.querySelector('#scoutTier').value = team.tier || 'A';
-          container.querySelector('#scoutRegion').value = team.region || 'Uzbekistan';
-          container.querySelector('#scoutSignatures').value = (team.signaturePicks || []).map(p => p.heroName || p).join(', ');
-          container.querySelector('#scoutBans').value = (team.priorityBans || []).map(b => b.heroName || b).join(', ');
-          container.querySelector('#scoutNotes').value = team.counterNotes || '';
-          container.querySelector('#scoutWins').value = team.h2h?.wins || 0;
-          container.querySelector('#scoutLosses').value = team.h2h?.losses || 0;
+          const deleteBtn = e.target.closest('[data-delete-team]');
+          if (deleteBtn) {
+            const id = deleteBtn.dataset.deleteTeam;
+            if (confirm('Ushbu raqib ma’lumotlarini o‘chirishni tasdiqlaysizmi?')) {
+              this.deleteTeam(id);
+              this.render();
+              window.showToast?.('Raqib jamoa o‘chirildi.', 'info');
+            }
+            return;
+          }
 
-          container.querySelector('#scoutModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:var(--primary);"></i> Raqib Ma’lumotlarini Tahrirlash';
+          const editBtn = e.target.closest('[data-edit-team]');
+          if (editBtn) {
+            const id = editBtn.dataset.editTeam;
+            const team = this.teams.find(t => t.id === id);
+            if (!team || !modal) return;
 
-          if (typeof modal.showModal === 'function') modal.showModal();
-          else modal.setAttribute('open', '');
-        }
+            container.querySelector('#scoutEditId').value = team.id;
+            container.querySelector('#scoutEvidenceReview').hidden = !this.isLegacySample(team);
+            container.querySelector('#scoutConfirmEvidence').checked = false;
+            container.querySelector('#scoutFormError').textContent = '';
+            container.querySelector('#scoutName').value = team.name;
+            container.querySelector('#scoutTag').value = team.tag || '';
+            container.querySelector('#scoutTier').value = team.tier || '';
+            container.querySelector('#scoutRegion').value = team.region || 'Uzbekistan';
+            container.querySelector('#scoutSignatures').value = (team.signaturePicks || []).map(p => p.heroName || p).join(', ');
+            container.querySelector('#scoutBans').value = (team.priorityBans || []).map(b => b.heroName || b).join(', ');
+            container.querySelector('#scoutNotes').value = team.counterNotes || '';
+            container.querySelector('#scoutWins').value = team.h2h?.wins || 0;
+            container.querySelector('#scoutLosses').value = team.h2h?.losses || 0;
+
+            container.querySelector('#scoutModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:var(--primary);"></i> Raqib Ma’lumotlarini Tahrirlash';
+
+            if (typeof modal.showModal === 'function') modal.showModal();
+            else modal.setAttribute('open', '');
+          }
+        } catch (_) { window.showToast?.('Saqlash bajarilmadi. Oldingi yozuvlar saqlandi.', 'error'); }
       });
 
       // Submit Form
@@ -476,35 +455,37 @@
             .filter(Boolean)
             .map(name => ({ heroName: name, reason: 'Priority 1st ban' }));
 
-          if (editId) {
-            this.updateTeam(editId, {
-              name,
-              tag,
-              tier,
-              region,
-              signaturePicks,
-              priorityBans,
-              counterNotes,
-              h2h: { wins, losses }
-            });
-            window.showToast?.('Raqib ma’lumotlari yangilandi!', 'success');
-          } else {
-            this.addTeam({
-              name,
-              tag,
-              tier,
-              region,
-              signaturePicks,
-              priorityBans,
-              counterNotes,
-              wins,
-              losses
-            });
-            window.showToast?.('Yangi raqib jamoa qo‘shildi!', 'success');
-          }
+          try {
+            if (editId) {
+              this.updateTeam(editId, {
+                name,
+                tag,
+                tier,
+                region,
+                signaturePicks,
+                priorityBans,
+                counterNotes,
+                h2h: { wins, losses }
+              }, { confirmEvidence: container.querySelector('#scoutConfirmEvidence').checked });
+              window.showToast?.('Raqib ma’lumotlari yangilandi!', 'success');
+            } else {
+              this.addTeam({
+                name,
+                tag,
+                tier,
+                region,
+                signaturePicks,
+                priorityBans,
+                counterNotes,
+                wins,
+                losses
+              });
+              window.showToast?.('Yangi raqib jamoa qo‘shildi!', 'success');
+            }
 
-          closeModal();
-          this.render();
+            closeModal();
+            this.render();
+          } catch (_) { container.querySelector('#scoutFormError').textContent = 'Saqlash bajarilmadi. Kiritilgan ma’lumotlar formda qoldi.'; }
         });
       }
     }

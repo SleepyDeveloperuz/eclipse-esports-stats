@@ -98,7 +98,7 @@ test('Weekly action creates only a captain draft and never substitutes an unrela
 });
 test('Coach entry points are private-team only and responsive stylesheet is linked', () => {
   const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
-  assert.match(read('index.html'), /js\/coach.js\?v=2.36.0/); assert.match(read('index.html'), /css\/coach.css/);
+  assert.ok(read('index.html').includes(`js/coach.js?v=${JSON.parse(read('package.json')).version}`)); assert.match(read('index.html'), /css\/coach.css/);
   assert.doesNotMatch(read('meta-lab.html'), /js\/coach.js/);
   assert.match(read('js/app.js'), /data-dashboard-coach/); assert.match(read('js/players.js'), /data-player-coach/);
   assert.match(read('css/coach.css'), /max-width: 600px/);

@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -17,6 +17,20 @@ import {
 } from '../lib/telegram-bot.js';
 import { normaliseOcrPayload } from '../api/ocr.js';
 import { normalisePracticeDraft } from '../api/submissions.js';
+
+const telegramEnv = { TELEGRAM_CHAT_ID: '123456', TELEGRAM_GROUP_ID: '-1003648509145', TELEGRAM_ALLOWED_USER_IDS: '1210055227', TELEGRAM_CAPTAIN_USER_ID: '', TELEGRAM_BOT_TOKEN: '' };
+const previousEnv = Object.fromEntries(Object.keys(telegramEnv).map(key => [key, process.env[key]]));
+const previousFetch = globalThis.fetch;
+before(() => {
+  Object.assign(process.env, telegramEnv);
+  globalThis.fetch = async () => new Response('{}'); // No live Telegram, Meta Lab or OCR traffic.
+});
+after(() => {
+  for (const [key, value] of Object.entries(previousEnv)) {
+    if (value === undefined) delete process.env[key]; else process.env[key] = value;
+  }
+  globalThis.fetch = previousFetch;
+});
 
 function getEclipseShareCard() {
   const source = readFileSync(new URL('../js/share-card.js', import.meta.url), 'utf8');
@@ -102,7 +116,7 @@ test('Telegram Bot: formats daily scrim summary with duration breakdown and coac
   assert.ok(summary.includes('3 ta') && summary.includes('67% WR'));
   assert.ok(summary.includes('Early Game (<12m)'));
   assert.ok(summary.includes('Late Game (>18m)'));
-  assert.ok(summary.includes('MURABBIY XULOSASI'));
+  assert.ok(summary.includes('TAHLIL CHEGARASI'));
   assert.ok(summary.includes('Ace'));
 });
 
@@ -121,7 +135,8 @@ test('Telegram Bot: handles webhook slash commands and callbacks', async () => {
   const summaryRes = await handleTelegramWebhook({
     message: {
       text: '/summary',
-      chat: { id: 123456 }
+      chat: { id: 123456, type: 'private' },
+      from: { id: 123456 }
     }
   }, mockDeps);
   assert.equal(summaryRes.ok, true);
@@ -132,7 +147,8 @@ test('Telegram Bot: handles webhook slash commands and callbacks', async () => {
     callback_query: {
       id: 'cb_1',
       data: 'sub_approve:sub_target_555',
-      message: { message_id: 10, chat: { id: 123456 }, text: 'Old message' }
+      from: { id: 123456 },
+      message: { message_id: 10, chat: { id: 123456, type: 'private' }, text: 'Old message' }
     }
   }, mockDeps);
   assert.equal(callbackRes.ok, true);
@@ -257,12 +273,8 @@ test('Scouting Manager: initializes dossiers, records H2H and filters rivals', (
   assert.ok(ScoutingManager);
 
   const manager = new ScoutingManager(null);
-  const teams = manager.teams;
-  assert.ok(Array.isArray(teams) && teams.length >= 2);
-  const falcon = teams.find(r => r.name === 'Team Falcon');
-  assert.ok(falcon);
-  assert.ok(falcon.signaturePicks.some(h => h.heroName === 'Fanny'));
-
+  assert.equal(manager.teams.length, 0);
+  const falcon = manager.addTeam({ name: 'Fixture Rival', tag: 'TEST', signaturePicks: [{ heroName: 'Fanny' }] });
   // Quick H2H recording
   const initialWins = falcon.h2h?.wins || 0;
   manager.recordH2H(falcon.id, true);
@@ -280,7 +292,7 @@ test('Scouting Manager: initializes dossiers, records H2H and filters rivals', (
   assert.ok(manager.teams.some(t => t.name === 'RRQ Hoshi'));
 });
 
-test('Hero Pool Depth Matrix: calculates resilience and categorizes S/A/Joker tiers', () => {
+test('Hero pool shows recorded categories without inferring tournament readiness', () => {
   const playerSource = readFileSync(new URL('../js/players.js', import.meta.url), 'utf8');
   const windowObj = {
     EclipseApp: { authManager: { isAdmin: () => true } }
@@ -296,25 +308,32 @@ test('Hero Pool Depth Matrix: calculates resilience and categorizes S/A/Joker ti
 
   const pm = new PlayerManager({ getPlayers: () => [], getMatches: () => [] }, null);
 
-  // High resilience test (4+ S-Tier heroes)
+  // Recorded comfort and backup choices remain visible.
   const highPool = [
     { heroId: 1, heroName: 'Chou', status: 'comfort' },
     { heroId: 2, heroName: 'Khufra', status: 'comfort' },
     { heroId: 3, heroName: 'Ruby', status: 'comfort' },
     { heroId: 4, heroName: 'Paquito', status: 'comfort' },
-    { heroId: 5, heroName: 'Grock', status: 'backup' }
+    { heroId: 5, heroName: 'Grock', status: 'backup' },
+    { heroId: 6, heroName: '<b>Learning hero</b>', status: 'learning' }
   ];
+  const before = structuredClone(highPool);
   const highHtml = pm.renderHeroPoolDepthMatrix(highPool);
-  assert.ok(highHtml.includes('Yuqori Ban Chidamliligi'));
-  assert.ok(highHtml.includes('🌟 S-Tier'));
+  assert.ok(highHtml.includes('6 ta hero'));
+  assert.doesNotMatch(highHtml, /100%|S-Tier|A-Tier|Yuqori Ban Chidamliligi/);
+  assert.ok(highHtml.includes('🌟 Comfort'));
   assert.ok(highHtml.includes('Chou'));
+  assert.ok(highHtml.includes('📚 Learning'));
+  assert.ok(highHtml.includes('&lt;b&gt;Learning hero&lt;/b&gt;'));
+  assert.deepEqual(highPool, before);
 
-  // Critical resilience test (Target ban risk)
+  // A short list does not establish a target-ban weakness.
   const lowPool = [
     { heroId: 1, heroName: 'Fanny', status: 'comfort' }
   ];
   const lowHtml = pm.renderHeroPoolDepthMatrix(lowPool);
-  assert.ok(lowHtml.includes('Target Ban xavfi!'));
+  assert.ok(lowHtml.includes('1 ta hero'));
+  assert.doesNotMatch(lowHtml, /Target Ban xavfi/);
 });
 
 test('MLBB Highlights: badge 4 detects Maniac, badge 5 detects Savage and inherently sets Maniac', () => {
@@ -404,7 +423,7 @@ test('Telegram Bot: normalizes supergroup ID and generates main reply keyboard',
   assert.equal(getDefaultGroupId(), '-1003648509145');
   process.env.TELEGRAM_GROUP_ID = '-1003648509145';
   assert.equal(getDefaultGroupId(), '-1003648509145');
-  process.env.TELEGRAM_GROUP_ID = orig;
+  if (orig === undefined) delete process.env.TELEGRAM_GROUP_ID; else process.env.TELEGRAM_GROUP_ID = orig;
 
   const kb = getMainReplyKeyboard();
   assert.ok(kb && Array.isArray(kb.keyboard));
@@ -447,6 +466,7 @@ test('Telegram Bot: handles Meta Lab, Stats, and Roster commands', async () => {
   const metaUpdate = {
     message: {
       chat: { id: 1210055227, type: 'private' },
+      from: { id: 1210055227 },
       text: '🧬 Meta Lab (Nusxa olish)'
     }
   };
@@ -457,6 +477,7 @@ test('Telegram Bot: handles Meta Lab, Stats, and Roster commands', async () => {
   const statsUpdate = {
     message: {
       chat: { id: 1210055227, type: 'private' },
+      from: { id: 1210055227 },
       text: '/stats'
     }
   };
@@ -472,6 +493,7 @@ test('Telegram Bot: handles Meta Lab, Stats, and Roster commands', async () => {
   const rosterUpdate = {
     message: {
       chat: { id: 1210055227, type: 'private' },
+      from: { id: 1210055227 },
       text: '👥 O‘yinchilar tarkibi'
     }
   };

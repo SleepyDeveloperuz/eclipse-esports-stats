@@ -244,7 +244,8 @@
         earlyStats = { count: 0, wr: '—' },
         midStats = { count: 0, wr: '—' },
         lateStats = { count: 0, wr: '—' },
-        coachVerdict = 'Barqaror jamoaviy o‘yin namoyish etildi.'
+        unknownDuration = 0,
+        coachVerdict = 'Davomiylik va W/L sababni ko‘rsatmaydi. Taktik xulosa uchun VOD kerak.'
       } = reportData;
 
       // 1. Cyberpunk Dark Gradient Background
@@ -409,7 +410,7 @@
 
       ctx.fillStyle = 'rgba(228, 196, 110, 0.8)';
       ctx.font = 'bold 12px monospace';
-      ctx.fillText('💡 MURABBIY XULOSASI (COACH VERDICT):', 85, 532);
+      ctx.fillText(`TAHLIL CHEGARASI · Davomiyligi noma’lum: ${unknownDuration} ta`, 85, 532);
 
       ctx.fillStyle = '#d1d5db';
       ctx.font = 'italic 14px sans-serif';
@@ -438,7 +439,11 @@
 
     static calculateDailyScrimData(matches = [], targetDate = null) {
       const date = targetDate || new Date().toISOString().slice(0, 10);
-      const dayMatches = matches.filter(m => (m.date || '').slice(0, 10) === date);
+      // Keep the quality gate in parity with StatsEngine/progress-model.
+      const dayMatches = (Array.isArray(matches) ? matches : []).filter(m => m && m.status !== 'draft'
+        && m.validForAnalytics !== false && m.needsReview !== true && m.verificationStatus !== 'needs_review'
+        && (m.dataIssues == null || (Array.isArray(m.dataIssues) && m.dataIssues.length === 0))
+        && ['win', 'loss'].includes(m.result) && (m.date || '').slice(0, 10) === date);
       const totalMatches = dayMatches.length;
 
       let wins = 0;
@@ -453,15 +458,25 @@
         const isWin = m.result === 'win' || m.result === 'G‘alaba' || m.isWin === true;
         if (isWin) wins++;
 
-        let durSec = 900;
-        if (Number.isFinite(Number(m.durationSeconds))) {
+        const hasSeconds = m.durationSeconds !== null && m.durationSeconds !== undefined && m.durationSeconds !== '';
+        let durSec = null;
+        if (hasSeconds && ['number', 'string'].includes(typeof m.durationSeconds)) {
           durSec = Number(m.durationSeconds);
-        } else if (typeof m.duration === 'string') {
-          const parts = m.duration.split(':').map(Number);
-          durSec = (parts[0] || 0) * 60 + (parts[1] || 0);
+        } else if (!hasSeconds) {
+          const value = m.durationFormatted || m.duration;
+          if (typeof value === 'number') durSec = value;
+          else {
+            const text = String(value || '').trim();
+            const clock = text.match(/^(\d{1,3}):([0-5]\d)$/) || text.match(/^(\d{1,3})m\s([0-5]\d)s$/i);
+            const hours = text.match(/^(\d{1,2})h\s([0-5]\d)m\s([0-5]\d)s$/i);
+            if (clock) durSec = Number(clock[1]) * 60 + Number(clock[2]);
+            if (hours) durSec = Number(hours[1]) * 3600 + Number(hours[2]) * 60 + Number(hours[3]);
+          }
         }
+        if (!Number.isInteger(durSec) || durSec < 1 || durSec > 7259) durSec = null;
 
-        if (durSec < 720) {
+        if (durSec === null) { /* Unknown duration is not a 0-minute or 15-minute game. */ }
+        else if (durSec < 720) {
           timing.early.total++;
           if (isWin) timing.early.wins++;
         } else if (durSec <= 1080) {
@@ -503,14 +518,8 @@
         }
       });
 
-      let coachVerdict = '';
-      if (timing.late.total > 0 && (timing.late.wins / timing.late.total) < 0.5) {
-        coachVerdict = '18+ daqiqadan oshgan uzun o‘yinlarda qiyinchilik sezildi. Lord atrofidagi positioning va teamfight timinglariga ko‘proq urg‘u berish zarur.';
-      } else if (timing.early.total > 0 && (timing.early.wins / timing.early.total) >= 0.75) {
-        coachVerdict = 'Erta o‘yin (Early game) va Turtle nazorati a’lo darajada o‘tdi. Tajovuzkor Snowball strategiyasini saqlab qolish kerak.';
-      } else {
-        coachVerdict = 'Barqaror jamoaviy o‘yin namoyish etildi. Xatolar kam va jamoaviy sinergiya o‘smoqda.';
-      }
+      const coachVerdict = 'Davomiylik va W/L sababni ko‘rsatmaydi. Taktik xulosa uchun VOD kerak.';
+      const unknownDuration = totalMatches - timing.early.total - timing.mid.total - timing.late.total;
 
       const earlyWr = timing.early.total ? `${Math.round((timing.early.wins / timing.early.total) * 100)}%` : '—';
       const midWr = timing.mid.total ? `${Math.round((timing.mid.wins / timing.mid.total) * 100)}%` : '—';
@@ -529,6 +538,7 @@
         midStats: { count: timing.mid.total, wr: midWr },
         lateStats: { count: timing.late.total, wr: lateWr },
         coachVerdict,
+        unknownDuration,
         mvpPlayer
       };
     }
@@ -550,7 +560,8 @@
         `• Mid Game (12-18m): **${data.midStats.count} ta** (${data.midStats.wr} WR)`,
         `• Late Game (>18m): **${data.lateStats.count} ta** (${data.lateStats.wr} WR) ${data.lateStats.count && parseInt(data.lateStats.wr) < 50 ? '⚠️' : ''}`,
         ``,
-        `💡 **MURABBIY XULOSASI (COACH VERDICT):**`,
+        `Davomiyligi noma’lum: **${data.unknownDuration} ta**`,
+        `💡 **TAHLIL CHEGARASI:**`,
         `_${data.coachVerdict}_`,
         ``,
         `🔗 *Eclipse Esports Analytics Hub*`
@@ -660,7 +671,7 @@
 
             <div class="scrim-preview-coach">
               <i class="fa-solid fa-lightbulb" style="color: var(--primary);"></i>
-              <p>${data.coachVerdict}</p>
+              <p>${data.coachVerdict} Davomiyligi noma’lum: ${data.unknownDuration} ta.</p>
             </div>
           </div>
         `;

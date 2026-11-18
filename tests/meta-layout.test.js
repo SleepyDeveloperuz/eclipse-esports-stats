@@ -83,11 +83,11 @@ domTest('desktop, tablet and phone CSS constrain controls and keep table scrolli
 });
 
 test('both entry pages reference the corrected, cache-busted layout styles', () => {
+  const version = JSON.parse(read('package.json')).version;
   for (const file of ['index.html', 'meta-lab.html']) {
-    assert.match(read(file), /public-meta\.css\?v=2\.30\.1/);
-    assert.match(read(file), /meta-explore\.css\?v=2\.36\.1/);
-    assert.match(read(file), /meta-qol\.css\?v=2\.36\.1/);
-    assert.match(read(file), /style\.css\?v=2\.36\.1/);
+    for (const style of ['public-meta', 'meta-explore', 'meta-qol', 'style']) {
+      assert.ok(read(file).includes(`${style}.css?v=${version}`));
+    }
   }
 });
 

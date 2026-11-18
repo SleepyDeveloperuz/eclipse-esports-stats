@@ -45,8 +45,8 @@ test('loadServerHeroReferences loads bundled hero references', () => {
   assert.ok(johnson, 'Johnson should be in references');
 });
 
-test('matchScreenshotHeroes handles empty or invalid buffers gracefully', () => {
-  assert.deepEqual(matchScreenshotHeroes(null), []);
-  assert.deepEqual(matchScreenshotHeroes(Buffer.alloc(0)), []);
-  assert.deepEqual(matchScreenshotHeroes(Buffer.from('not an image')), []);
+test('matchScreenshotHeroes handles empty or invalid buffers gracefully', async () => {
+  assert.deepEqual(await matchScreenshotHeroes(null), []);
+  assert.deepEqual(await matchScreenshotHeroes(Buffer.alloc(0)), []);
+  assert.deepEqual(await matchScreenshotHeroes(Buffer.from('not an image')), []);
 });

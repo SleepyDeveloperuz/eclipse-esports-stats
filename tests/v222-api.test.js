@@ -81,3 +81,57 @@ test('full submission API supports viewer review, guarded captain correction and
     assert.equal(JSON.parse((await repository.files())['eclipse_data.json'].content).matches.length, 3, 'linking does not duplicate or replace recorded facts');
   } finally { globalThis.fetch = oldFetch; }
 });
+
+test('captain match review is explicit, revision guarded, validated and cannot retain an OCR certificate', async () => {
+  const timestamp = '2026-11-16T10:00:00.000Z';
+  const draft = { entryMode: 'full', date: '2026-11-16', matchType: 'ranked', result: 'win', claimedPlayerId: 'admin',
+    durationFormatted: '10:00', playerStats: [{ playerId: 'p1', heroUsed: 'Miya', rolePlayed: 'Gold Laner', kills: 3, deaths: 1, assists: 6 }] };
+  const initial = { players: [{ id: 'p1', name: 'Leader' }], heroes: [{ id: 1, name: 'Miya' }], revision: 0,
+    matches: [{ ...draft, teamTurtles: 2, teamLords: 1, id: 'review-fixture', scope: 'individual', dataSource: 'ocr', dataQuality: 'ocr_verified',
+      ocrVerified: true, dataIssues: ['duration_conflict'], createdAt: timestamp, updatedAt: timestamp }] };
+  const repository = createTeamRepository({ store: createMemoryStore(), key: 'qualityfixture', seed: async () => ({ 'eclipse_data.json': { content: JSON.stringify(initial) } }) });
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, options) => {
+    const command = JSON.parse(options.body);
+    if (command[0] === 'GET' && command[1].startsWith('eclipse:auth:')) return new Response('{"result":null}');
+    if (command[0] === 'EVAL' && command[3].startsWith('eclipse:auth:')) return new Response('{"result":[1,900000]}');
+    assert.deepEqual(command, ['GET', 'eclipse:mlbb:catalog:v1']);
+    return new Response(JSON.stringify({ result: JSON.stringify({ data: initial.heroes }) }));
+  };
+  const stored = async () => JSON.parse((await repository.files())['eclipse_data.json'].content);
+  async function call(body, token) {
+    const res = response();
+    await repository.transaction(() => handler({ method: 'PATCH', body, headers: { authorization: `Bearer ${token}` }, query: {}, socket: {} }, res));
+    return res;
+  }
+  try {
+    const admin = await login('admin'), viewer = await login('viewer');
+    const request = { action: 'edit_match', id: 'review-fixture', expectedUpdatedAt: timestamp, draft };
+    assert.equal((await call({ ...request, resolveReview: true }, viewer)).statusCode, 401);
+    const ordinary = await call(request, admin);
+    assert.equal(ordinary.statusCode, 200);
+    assert.equal(ordinary.body.match.needsReview, true);
+    assert.equal(ordinary.body.match.teamTurtles, 2);
+    assert.equal(ordinary.body.match.teamLords, 1); // Retired form fields survive unrelated edits.
+    assert.deepEqual(ordinary.body.match.dataIssues, ['duration_conflict']);
+    assert.equal(ordinary.body.match.verificationStatus, 'needs_review');
+    assert.equal(ordinary.body.match.ocrVerified, false);
+    const before = await stored();
+    const current = { ...request, expectedUpdatedAt: ordinary.body.match.updatedAt, resolveReview: true };
+    assert.equal((await call({ ...current, expectedUpdatedAt: 'stale' }, admin)).statusCode, 409);
+    assert.equal((await call({ ...current, draft: { ...draft, date: '2026-02-30' } }, admin)).statusCode, 400);
+    assert.deepEqual(await stored(), before, 'failed reviews leave the saved match intact');
+    const resolved = await call(current, admin);
+    assert.equal(resolved.statusCode, 200);
+    assert.equal(resolved.body.match.needsReview, false);
+    assert.equal(resolved.body.match.validForAnalytics, true);
+    assert.deepEqual(resolved.body.match.dataIssues, []);
+    assert.equal(resolved.body.match.verificationStatus, 'unverified');
+    assert.equal(resolved.body.match.ocrVerified, false);
+    assert.equal(resolved.body.match.dataCompleteness, 'partial');
+    assert.equal(resolved.body.match.createdAt, timestamp);
+    assert.equal(resolved.body.match.playerStats[0].damageDealt, null);
+    assert.equal((await stored()).matches.length, 1);
+    assert.deepEqual((await stored()).matches[0], resolved.body.match);
+  } finally { globalThis.fetch = oldFetch; }
+});

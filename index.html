@@ -9,9 +9,10 @@
     <meta name="apple-mobile-web-app-title" content="Eclipse">
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
-    <link rel="stylesheet" href="/css/pwa.css?v=2.30.0">
-    <script src="/js/pwa.js?v=2.30.0" defer></script>
-    <title>Eclipse Esports — Pro MLBB Stats Tracker</title>
+    <link rel="stylesheet" href="/css/pwa.css?v=2.42.0">
+    <script src="/js/pwa.js?v=2.42.0" defer></script>
+    <script src="/js/bootstrap.js?v=2.42.0" defer></script>
+    <title>Eclipse Esports — Stats Tracker</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,12 +20,12 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     
-    <link rel="stylesheet" href="css/style.css?v=2.36.1">
-    <link rel="stylesheet" href="css/coach.css?v=2.36.0">
-    <link rel="stylesheet" href="css/public-meta.css?v=2.30.1">
-    <link rel="stylesheet" href="css/meta-explore.css?v=2.36.1">
-    <link rel="stylesheet" href="css/meta-decisions.css?v=2.31.0">
-    <link rel="stylesheet" href="css/meta-qol.css?v=2.36.1">
+    <link rel="stylesheet" href="css/style.css?v=2.42.0">
+    <link rel="stylesheet" href="css/coach.css?v=2.42.0">
+    <link rel="stylesheet" href="css/public-meta.css?v=2.42.0">
+    <link rel="stylesheet" href="css/meta-explore.css?v=2.42.0">
+    <link rel="stylesheet" href="css/meta-decisions.css?v=2.42.0">
+    <link rel="stylesheet" href="css/meta-qol.css?v=2.42.0">
     
     <link rel="icon" type="image/svg+xml" href="assets/eclipse-mark.svg?v=2.16.0">
 </head>
@@ -34,6 +35,7 @@
         <div class="access-bootstrap__orbit" aria-hidden="true"><span></span></div>
         <p>ECLIPSE / PRIVATE SIGNAL</p>
         <strong>Command Room tekshirilmoqda</strong>
+        <button type="button" class="btn btn-secondary" id="bootstrapRetry" hidden>Qayta yuklash</button>
         <a class="btn btn-secondary public-meta-link" href="/meta-lab">Ommaviy Meta Lab’ni ochish</a>
         <button type="button" class="btn btn-secondary" data-pwa-install>Ilovani o‘rnatish</button>
     </div>
@@ -78,9 +80,9 @@
                 <button type="button" class="sidebar-footer-close-btn" id="sidebarFooterCloseBtn" aria-label="Menyuni yopish">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i> <span>Menyuni yopish</span>
                 </button>
-                <button type="button" class="sidebar-status-pill" id="versionChangelogBtn" aria-label="Versiya yangiliklari (v2.41.0)" title="Versiya yangiliklari (v2.41.0) — o‘zgarishlarni ko‘rish">
+                <button type="button" class="sidebar-status-pill" id="versionChangelogBtn" aria-label="Versiya yangiliklari (v2.42.0)" title="Versiya yangiliklari (v2.42.0) — o‘zgarishlarni ko‘rish">
                     <span class="status-dot"></span>
-                    <span>Eclipse Live System v2.41.0</span>
+                    <span>Eclipse Live System v2.42.0</span>
                     <span class="sidebar-status-pill__badge">Yangiliklar</span>
                 </button>
                 <p class="sidebar-shortcuts-hint"><kbd>Esc</kbd> Yopish &middot; <kbd>S</kbd> Practice</p>
@@ -170,8 +172,8 @@
                     </div>
                 </div>
                 <div class="submission-mode-switch" role="group" aria-label="Match kiritish usuli">
-                    <button type="button" class="btn btn-secondary" onclick="window.EclipseApp.navigate('submissions')"><i class="fa-solid fa-camera"></i> Bitta match (AI Skaner)</button>
-                    <button type="button" class="btn btn-secondary" onclick="window.EclipseApp.navigate('batch')"><i class="fa-solid fa-layer-group"></i> Multi-match upload (3–10 rasm)</button>
+                    <button type="button" class="btn btn-secondary" data-navigate="submissions"><i class="fa-solid fa-camera"></i> Bitta match (AI Skaner)</button>
+                    <button type="button" class="btn btn-secondary" data-navigate="batch"><i class="fa-solid fa-layer-group"></i> Multi-match upload (3–10 rasm)</button>
                     <button type="button" class="btn btn-secondary active"><i class="fa-solid fa-keyboard"></i> Qo‘lda kiritish (Forma)</button>
                 </div>
                 <div id="matchFormContainer"></div>
@@ -470,56 +472,54 @@
                 <article class="changelog-release">
                     <div class="changelog-release__head">
                         <div class="changelog-release__meta">
-                            <span class="changelog-release__version">v2.41.0</span>
+                            <span class="changelog-release__version">v2.42.0</span>
                             <span class="changelog-release__badge">Hozirgi versiya</span>
                         </div>
-                        <time class="changelog-release__date">2026-11-15</time>
+                        <time class="changelog-release__date">2026-11-18</time>
                     </div>
-                    <h4 class="changelog-release__title">Turso Serverless SQLite, Dual-Screenshot Fusion va Yagona Production Bundle</h4>
-                    
+                    <h4 class="changelog-release__title">Tarix yaxlitligi, aniq OCR va ishonchli hisobotlar</h4>
                     <div class="changelog-section">
                         <div class="changelog-section__head">
-                            <span class="changelog-section__title"><i class="fa-solid fa-database" style="color:var(--primary);"></i> Turso Serverless SQLite &amp; Baza Himoyasi</span>
-                            <span class="changelog-section__tag">Database</span>
+                            <span class="changelog-section__title"><i class="fa-solid fa-images" aria-hidden="true"></i> OCR va roster mosligi</span>
+                            <span class="changelog-section__tag">OCR</span>
                         </div>
                         <ul class="changelog-section__list">
-                            <li>Monolit Redis JSON o‘rniga zamonaviy Turso Serverless SQLite adapteri joriy etildi va 5.9 MB cheklovi bartaraf etildi.</li>
-                            <li>Tasdiqlangan arizalar uchun avtomatik arxivlash (circular retention) yo‘lga qo‘yildi — baza hajmi aslo to‘lib qolmaydi.</li>
-                            <li>LocalStorage 5 MB to‘lganida arizalar va zaxira nusxalar o‘chib ketmasligi uchun xavfsiz tozalash kiritildi.</li>
+                            <li>Tasdiqlangan eski IGN’lar rosterga bog‘lanadi; guest Shadow va rosterdagi Shadow as always ajratiladi.</li>
+                            <li>Scoreboard va Data ekranlari bir matchga tegishliligi tekshiriladi. Noaniq hero qo‘lda tanlanadi, o‘qilmagan raqamlar taxmin bilan to‘ldirilmaydi.</li>
+                            <li>Lord/Turtle kiritish va OCR talabi olib tashlandi. Eski saqlangan qiymatlar saqlanadi.</li>
                         </ul>
                     </div>
-
                     <div class="changelog-section">
                         <div class="changelog-section__head">
-                            <span class="changelog-section__title"><i class="fa-solid fa-images" style="color:var(--primary);"></i> Dual-Screenshot Fusion &amp; PNG Hero Matcher</span>
-                            <span class="changelog-section__tag">AI &amp; OCR</span>
+                            <span class="changelog-section__title"><i class="fa-solid fa-database" aria-hidden="true"></i> Tarix va saqlash</span>
+                            <span class="changelog-section__tag">Ma’lumotlar</span>
                         </div>
                         <ul class="changelog-section__list">
-                            <li>Scoreboard va Damage skrinshotlari yuborilganda ikkala rasm birlashtirilib, barcha ko‘rsatkichlar (Hero Damage, Turret, Taken, TF%, KDA) 100% to‘liq yozuvga aylanadi.</li>
-                            <li>Serverdagi pikselli qahramon tanigichga (Hero Matcher) toza PNG dekoderi qo‘shildi — iPhone (iOS) skrinshotlari ham piksellar bo‘yicha aniq taniladi.</li>
-                            <li>Gemini OCR modellari rasmiy tezkor <code>gemini-2.5-flash</code> va <code>gemini-2.0-flash</code> talqinlariga yangilandi.</li>
+                            <li>Parallel saqlash va backup’dan tiklash tekshiruvlari kuchaytirildi. Rasmiy matchlar tarixi hajm limitiga moslash uchun kesilmaydi.</li>
+                            <li>Xotira to‘lsa, qoralamalar va yuborilmagan o‘zgarishlar saqlanadi; sabab va qayta urinish imkoniyati ko‘rsatiladi.</li>
+                            <li>Tekshiruvdagi matchlar xatolar alohida tasdiqlanguncha statistikaga kiritilmaydi.</li>
                         </ul>
                     </div>
-
                     <div class="changelog-section">
                         <div class="changelog-section__head">
-                            <span class="changelog-section__title"><i class="fa-solid fa-bolt" style="color:var(--primary);"></i> Yagona Production Bundle (3–4x Tezlanish)</span>
-                            <span class="changelog-section__tag">Speed</span>
+                            <span class="changelog-section__title"><i class="fa-brands fa-telegram" aria-hidden="true"></i> Telegram va hisobotlar</span>
+                            <span class="changelog-section__tag">Jamoa</span>
                         </div>
                         <ul class="changelog-section__list">
-                            <li>Sayt ochilishida 38 ta alohida so‘rov o‘rniga atigi 1 ta siqilgan JS (<code>bundle.min.js</code>) va 1 ta CSS (<code>bundle.min.css</code>) yuklanadi.</li>
-                            <li>Barcha modullar uchun yagona <code>window.escapeHtml</code> integratsiya qilindi va takrorlanuvchi kodlar tozalandi.</li>
+                            <li>Webhook siri va ruxsatli Telegram ID’lar tekshiriladi; tasdiqlash va tahrirlash kapitan ID’siga bog‘langan.</li>
+                            <li>Bo‘sh roster va hero pool namunaviy ma’lumot bilan to‘ldirilmaydi. Comfort, Backup va Learning saqlangan toifalarni ko‘rsatadi.</li>
+                            <li>Noma’lum natija mag‘lubiyat deb sanalmaydi. Davomiylik va W/L’dan mag‘lubiyat sababi taxmin qilinmaydi.</li>
                         </ul>
                     </div>
-
                     <div class="changelog-section">
                         <div class="changelog-section__head">
-                            <span class="changelog-section__title"><i class="fa-brands fa-telegram" style="color:var(--primary);"></i> Telegram Bot: Qotib qolmaslik va Shaxsiy limit</span>
-                            <span class="changelog-section__tag">Bot</span>
+                            <span class="changelog-section__title"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Yuklanish va qidiruv</span>
+                            <span class="changelog-section__tag">Ilova</span>
                         </div>
                         <ul class="changelog-section__list">
-                            <li>Inline tugmalar bosilganda Telegram yuklanish aylanmasi (loading spinner) qotib qolishi to‘liq bartaraf etildi.</li>
-                            <li>Bot limiti umumiy jamoa hisobidan har bir foydalanuvchining shaxsiy Telegram ID siga o‘tkazildi.</li>
+                            <li>Ilova boshlanmasa yoki so‘rov uzoq kutilsa, qayta urinish ko‘rsatiladi.</li>
+                            <li>Match tarixi qidiruvi tez yozishni, amaldagi va arxivlangan roster nomlarini hisobga oladi. Sahifaga qaytilganda qidiruv va filtr saqlanadi.</li>
+                            <li>Yangi fayllar uchun kesh havolalari yangilanadi; skriptlarning yuklanish tartibi saqlanadi.</li>
                         </ul>
                     </div>
                 </article>
@@ -642,40 +642,40 @@
             </div>
             <footer class="changelog-modal__footer">
                 <span>Eclipse Esports · Professional MLBB Analytics Center</span>
-                <span>v2.41.0 Live</span>
+                <span>v2.42.0 Live</span>
             </footer>
         </div>
     </dialog>
 
-    <script src="js/heroes.js?v=2.41.0"></script>
-    <script src="js/date-utils.js?v=2.41.0"></script>
-    <script src="js/data.js?v=2.41.0"></script>
-    <script src="js/stats.js?v=2.41.0"></script>
-    <script src="js/charts.js?v=2.41.0"></script>
-    <script src="js/players.js?v=2.41.0"></script>
-    <script src="js/match.js?v=2.41.0"></script>
-    <script src="js/auth.js?v=2.41.0"></script>
-    <script src="js/cloud.js?v=2.41.0"></script>
-    <script src="js/mlbb.js?v=2.41.0"></script>
-    <script src="js/briefing.js?v=2.41.0"></script>
-    <script src="js/scan-details.js?v=2.41.0"></script>
-    <script src="js/image-upload.js?v=2.41.0"></script>
-    <script src="js/submissions.js?v=2.41.0"></script>
-    <script src="js/hero-matcher.js?v=2.41.0"></script>
-    <script src="js/portrait-locator.js?v=2.41.0"></script>
-    <script src="js/match-desk.js?v=2.41.0"></script>
-    <script src="js/tier-board.js?v=2.41.0"></script>
-    <script src="js/meta-explore.js?v=2.41.0"></script>
-    <script src="js/meta-decision-model.js?v=2.41.0"></script>
-    <script src="js/meta-decisions.js?v=2.41.0"></script>
-    <script src="js/command-palette.js?v=2.41.0"></script>
-    <script src="js/share-card.js?v=2.41.0"></script>
-    <script src="js/draft-helper.js?v=2.41.0"></script>
-    <script src="js/scouting.js?v=2.41.0"></script>
-    <script src="js/theme.js?v=2.41.0"></script>
-    <script src="js/app.js?v=2.41.0"></script>
-    <script type="module" src="js/progress.js?v=2.41.0"></script>
-    <script type="module" src="js/coach.js?v=2.36.0"></script>
-    <script type="module" src="js/batch.js?v=2.41.0"></script>
+    <script src="js/heroes.js?v=2.42.0" defer></script>
+    <script src="js/date-utils.js?v=2.42.0" defer></script>
+    <script src="js/data.js?v=2.42.0" defer></script>
+    <script src="js/stats.js?v=2.42.0" defer></script>
+    <script src="js/charts.js?v=2.42.0" defer></script>
+    <script src="js/players.js?v=2.42.0" defer></script>
+    <script src="js/match.js?v=2.42.0" defer></script>
+    <script src="js/auth.js?v=2.42.0" defer></script>
+    <script src="js/cloud.js?v=2.42.0" defer></script>
+    <script src="js/mlbb.js?v=2.42.0" defer></script>
+    <script src="js/briefing.js?v=2.42.0" defer></script>
+    <script src="js/scan-details.js?v=2.42.0" defer></script>
+    <script src="js/image-upload.js?v=2.42.0" defer></script>
+    <script src="js/submissions.js?v=2.42.0" defer></script>
+    <script src="js/hero-matcher.js?v=2.42.0" defer></script>
+    <script src="js/portrait-locator.js?v=2.42.0" defer></script>
+    <script src="js/match-desk.js?v=2.42.0" defer></script>
+    <script src="js/tier-board.js?v=2.42.0" defer></script>
+    <script src="js/meta-explore.js?v=2.42.0" defer></script>
+    <script src="js/meta-decision-model.js?v=2.42.0" defer></script>
+    <script src="js/meta-decisions.js?v=2.42.0" defer></script>
+    <script src="js/command-palette.js?v=2.42.0" defer></script>
+    <script src="js/share-card.js?v=2.42.0" defer></script>
+    <script src="js/draft-helper.js?v=2.42.0" defer></script>
+    <script src="js/scouting.js?v=2.42.0" defer></script>
+    <script src="js/theme.js?v=2.42.0" defer></script>
+    <script src="js/app.js?v=2.42.0" defer></script>
+    <script type="module" src="js/progress.js?v=2.42.0"></script>
+    <script type="module" src="js/coach.js?v=2.42.0"></script>
+    <script type="module" src="js/batch.js?v=2.42.0"></script>
 </body>
 </html>

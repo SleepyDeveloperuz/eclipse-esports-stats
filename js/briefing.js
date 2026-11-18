@@ -300,7 +300,7 @@ window.BriefingManager = class BriefingManager {
     const from = cutoff.toISOString().slice(0, 10);
     const to = now.toISOString().slice(0, 10);
     const matches = (this.db?.getMatches?.() || []).filter(match => match.date >= from && match.date <= to
-      && match.validForAnalytics !== false && !match.needsReview && match.status !== 'draft');
+      && engine.isAnalyticsEligible(match));
     return (patch.heroAdjustments || []).map(item => {
       const identity = engine.getHeroIdentity({ heroId: item.heroId, heroUsed: item.heroName });
       const count = identity ? matches.filter(match => (match.playerStats || []).some(stat => {

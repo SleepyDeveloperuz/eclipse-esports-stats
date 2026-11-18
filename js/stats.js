@@ -57,7 +57,8 @@ window.StatsEngine = class StatsEngine {
   }
 
   static numberOrNull(value) {
-    if (value === null || value === undefined || value === '') return null;
+    if (typeof value !== 'number' && typeof value !== 'string') return null;
+    if (typeof value === 'string' && !value.trim()) return null;
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
   }
@@ -196,10 +197,19 @@ window.StatsEngine = class StatsEngine {
       && guestStats.length === 0;
   }
 
+  static needsDataReview(match) {
+    return match?.needsReview === true || match?.validForAnalytics === false
+      || match?.verificationStatus === 'needs_review'
+      || (match?.dataIssues != null && (!Array.isArray(match.dataIssues) || match.dataIssues.length > 0));
+  }
+
+  static isAnalyticsEligible(match) {
+    return !!match && match.status !== 'draft' && !StatsEngine.needsDataReview(match);
+  }
+
   static filterMatchesByScope(matches, scope = 'team5') {
     const list = (Array.isArray(matches) ? matches : []).filter(match =>
-      match?.validForAnalytics !== false
-      && match?.needsReview !== true
+      StatsEngine.isAnalyticsEligible(match)
       && StatsEngine.isScopeParticipantConsistent(match));
     if (scope === null || scope === undefined || scope === 'all') return [...list];
     const allowed = new Set(Array.isArray(scope) ? scope : [scope]);
@@ -207,12 +217,9 @@ window.StatsEngine = class StatsEngine {
   }
 
   static filterAnalyticsMatches(matches, mode = 'team5') {
-    const eligible = (Array.isArray(matches) ? matches : []).filter(match => match?.status !== 'draft');
+    const eligible = (Array.isArray(matches) ? matches : []).filter(StatsEngine.isAnalyticsEligible);
     if (mode === 'team5') {
-      return eligible.filter(match =>
-        match?.validForAnalytics !== false
-        && match?.needsReview !== true
-        && StatsEngine.hasOfficialTeamContext(match));
+      return eligible.filter(StatsEngine.hasOfficialTeamContext);
     }
     if (mode === 'squad') return StatsEngine.filterMatchesByScope(eligible, ['individual', 'squad']);
     return [];
@@ -320,7 +327,7 @@ window.StatsEngine = class StatsEngine {
     const completeRows = rows.filter(row => requiredPlayerFields.every(field => isPresent(row?.[field]))).length;
     const totalCells = rows.length * requiredPlayerFields.length;
     const completeCells = rows.reduce((total, row) => total + requiredPlayerFields.filter(field => isPresent(row?.[field])).length, 0);
-    const verifiedMatches = list.filter(match => match?.verificationStatus === 'verified').length;
+    const verifiedMatches = list.filter(match => match?.verificationStatus === 'verified' && StatsEngine.isAnalyticsEligible(match)).length;
     const legacyMatches = list.filter(match => match?.dataSource === 'legacy').length;
     const fullMatches = list.filter(match => {
       const playerStats = Array.isArray(match?.playerStats) ? match.playerStats : [];
@@ -332,7 +339,7 @@ window.StatsEngine = class StatsEngine {
       return match.playerStats?.length > 0 && match.playerStats.every(row => fields.every(field => isPresent(row?.[field])));
     }).length;
     const contractRate = list.length ? contractMatches / list.length * 100 : 0;
-    const matchMetricFields = ['durationSeconds', 'teamTurtles', 'teamLords', 'teamTurrets'];
+    const matchMetricFields = ['durationSeconds', 'teamTurrets'];
     const matchMetricCoverage = Object.fromEntries(matchMetricFields.map(field => [
       field,
       list.filter(match => isPresent(match?.[field])).length
@@ -684,9 +691,7 @@ window.StatsEngine = class StatsEngine {
   }
 
   getMatchInsights(match, matches = [], players = []) {
-    if (!match
-      || match.validForAnalytics === false
-      || match.needsReview === true
+    if (!StatsEngine.isAnalyticsEligible(match)
       || !StatsEngine.isScopeParticipantConsistent(match)) return [];
     const scope = StatsEngine.getMatchScope(match);
     const hasOfficialTeamContext = StatsEngine.hasOfficialTeamContext(match);
@@ -734,8 +739,6 @@ window.StatsEngine = class StatsEngine {
     const topDamageShare = hasOfficialTeamContext && topDamage !== null && totals.damage && totals.damage > 0
       ? (topDamage / totals.damage) * 100
       : null;
-    const turtles = StatsEngine.numberOrNull(match.teamTurtles);
-    const lords = StatsEngine.numberOrNull(match.teamLords);
     const turrets = StatsEngine.numberOrNull(match.teamTurrets);
     const metricSamples = {
       deathsPerMinute: deathBaselineSampleSize,
@@ -743,17 +746,7 @@ window.StatsEngine = class StatsEngine {
     };
 
     let worked;
-    if (hasOfficialTeamContext && match.result === 'win' && [turtles, lords, turrets].some(value => value !== null && value > 0)) {
-      worked = {
-        title: 'Map nazorati natijaga aylandi',
-        body: `Objective yozuvi: ${turtles ?? '—'} Turtle · ${lords ?? '—'} Lord · ${turrets ?? '—'} Turret. Bu sabab emas, tekshirilishi kerak bo‘lgan signal.`,
-        metric: `${turrets ?? '—'} TOWER`,
-        reasonCodes: ['RESULT_WIN', 'OBJECTIVE_SIGNAL'],
-        reasons: ['Match g‘alaba bilan tugagan', 'Kamida bitta ijobiy objective qiymati qayd etilgan'],
-        baselineMatches: 0,
-        baselineMetric: 'current-objectives'
-      };
-    } else if (topImpact) {
+    if (topImpact) {
       worked = {
         title: `${topName} kuchli individual signal berdi`,
         body: `In-game score ${topImpact.score.toFixed(1)}. Bu ko‘rsatkich rol va VOD kontekstisiz yakuniy hukm emas.`,
@@ -799,7 +792,7 @@ window.StatsEngine = class StatsEngine {
     } else if (hasOfficialTeamContext && turrets !== null && previousTurrets !== null && turretBaselineSampleSize >= 3 && turrets < previousTurrets - 1) {
       risk = {
         title: 'Turret conversion baseline’dan past',
-        body: `${turrets} turret, oldingi shu turdagi matchlar o‘rtachasi ${previousTurrets.toFixed(1)}. Pick yoki Lord’dan keyingi map qarorini VODda tekshiring.`,
+        body: `${turrets} turret, oldingi shu turdagi matchlar o‘rtachasi ${previousTurrets.toFixed(1)}. Turretga bosim berish imkoniyatlarini ko‘rib chiqing.`,
         metric: `${turrets} TOWER`,
         reasonCodes: ['TURRET_CONVERSION_DOWN'],
         reasons: ['Turret soni oldingi scope baseline’idan bir donadan ko‘proq past'],
@@ -1684,13 +1677,14 @@ window.StatsEngine = class StatsEngine {
         eligible = StatsEngine.filterMatchesByScope(eligible, scope);
       } catch (_) {}
     }
-    const validMatches = eligible.filter(match => StatsEngine.numberOrNull(match.durationSeconds) > 0);
+    const validMatches = eligible.filter(match => StatsEngine.isAnalyticsEligible(match)
+      && ['win', 'loss'].includes(match.result) && StatsEngine.numberOrNull(match.durationSeconds) > 0);
 
     const phases = {
       early: {
         key: 'early',
         name: 'Erta bosqich (≤10m)',
-        focus: 'Snowball va erta agressiya',
+        focus: '10 daqiqagacha yakunlangan matchlar',
         matches: [],
         wins: 0,
         losses: 0,
@@ -1700,7 +1694,7 @@ window.StatsEngine = class StatsEngine {
       mid: {
         key: 'mid',
         name: 'O‘rta bosqich (10–16m)',
-        focus: 'Lord, Turtle va jamoaviy janglar',
+        focus: '10 daqiqadan uzun, 16 daqiqagacha matchlar',
         matches: [],
         wins: 0,
         losses: 0,
@@ -1710,7 +1704,7 @@ window.StatsEngine = class StatsEngine {
       late: {
         key: 'late',
         name: 'Kechki bosqich (>16m)',
-        focus: 'Maksimal build va baza qamali',
+        focus: '16 daqiqadan uzun matchlar',
         matches: [],
         wins: 0,
         losses: 0,
@@ -1769,7 +1763,7 @@ window.StatsEngine = class StatsEngine {
       return `
         <div class="duration-analytics-card">
           <div class="duration-analytics-header">
-            <h3><i class="fa-solid fa-stopwatch-20" style="color:var(--primary);"></i> O‘yin davomiyligi va Power Spike tahlili</h3>
+            <h3><i class="fa-solid fa-stopwatch-20" style="color:var(--primary);"></i> Match davomiyligi bo‘yicha natijalar</h3>
           </div>
           <p style="color:var(--text-muted); font-size:0.88rem; margin:0;">Davomiyligi kiritilgan matchlar hozircha mavjud emas.</p>
         </div>
@@ -1790,7 +1784,7 @@ window.StatsEngine = class StatsEngine {
           <div>
             <div class="duration-segment__head">
               <span class="duration-segment__title">${p.name}</span>
-              <span class="duration-segment__badge">${isPeak ? '⚡ PEAK BOSQICH' : p.key.toUpperCase()}</span>
+              <span class="duration-segment__badge">${isPeak ? 'ENG YUQORI WR' : p.key.toUpperCase()}</span>
             </div>
             <div class="duration-segment__wr">${wrText}</div>
             <div class="duration-segment__track">
@@ -1808,31 +1802,8 @@ window.StatsEngine = class StatsEngine {
       `;
     }).join('\n');
 
-    // Coach Diagnostic Verdicts
-    let coachDiagnosticHtml = '';
-    const late = phases.late;
-    const early = phases.early;
-    if (late && late.matches.length >= 2 && late.winRateNum < 50) {
-      coachDiagnosticHtml = `
-        <div class="duration-coach-diagnostic is-warning" style="margin-top:1rem; padding:0.85rem 1.1rem; border-radius:8px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.35); display:flex; align-items:flex-start; gap:0.75rem;">
-          <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444; font-size:1.1rem; margin-top:0.15rem;"></i>
-          <div>
-            <strong style="color:#fca5a5; font-size:0.85rem; display:block; margin-bottom:0.2rem;">Murabbiy Diagnostikasi (Late Game muammosi):</strong>
-            <span style="font-size:0.8rem; color:#fee2e2; line-height:1.45;">Jamoa 16+ daqiqadan oshgan uzun matchlarda kutilganidan ko‘proq yutqazmoqda (${late.winRate}% WR). 15-daqiqadagi Lord oldidagi positioning va ortiqcha xavfli harakatlarni kamaytirish talab etiladi.</span>
-          </div>
-        </div>
-      `;
-    } else if (early && early.matches.length >= 2 && early.winRateNum >= 70) {
-      coachDiagnosticHtml = `
-        <div class="duration-coach-diagnostic is-success" style="margin-top:1rem; padding:0.85rem 1.1rem; border-radius:8px; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.35); display:flex; align-items:flex-start; gap:0.75rem;">
-          <i class="fa-solid fa-bolt-lightning" style="color:#22c55e; font-size:1.1rem; margin-top:0.15rem;"></i>
-          <div>
-            <strong style="color:#86efac; font-size:0.85rem; display:block; margin-bottom:0.2rem;">Taktik Ustunlik (Snowball effekti):</strong>
-            <span style="font-size:0.8rem; color:#dcfce7; line-height:1.45;">Jamoaning erta o‘yindagi tempi va 5-daqiqadagi 1-Turtle nazorati juda yuqori darajada (${early.winRate}% WR). Erta tajovuzkor bosim o‘tkazish uslubini saqlab qolish tavsiya etiladi.</span>
-          </div>
-        </div>
-      `;
-    }
+    // Duration and W/L describe outcomes, not objective control or decisions.
+    const coachDiagnosticHtml = `<p class="duration-coach-diagnostic">Davomiylik va W/L sababni ko‘rsatmaydi. Taktik xulosa uchun VOD kerak. Kam matchli guruhdagi yuqori foiz barqaror ustunlik isboti emas.</p>`;
 
     return `
       <div class="duration-analytics-card">
@@ -1840,15 +1811,15 @@ window.StatsEngine = class StatsEngine {
           <div>
             <h3>
               <i class="fa-solid fa-stopwatch-20" style="color:var(--primary);"></i>
-              <span>O‘yin Davomiyligi & Power Spike Tahlili</span>
+              <span>Match davomiyligi bo‘yicha natijalar</span>
             </h3>
             <p style="color:var(--text-secondary); font-size:0.82rem; margin:0.25rem 0 0 0;">
-              Jamoamiz qaysi o‘yin bosqichida eng samarali ekanligi va uning g‘alaba foizlari (${totalCount} ta match tahlili).
+              Matchlar yakuniy davomiyligi bo‘yicha guruhlangan; har guruhdagi g‘alaba foizi (${totalCount} ta match tahlili).
             </p>
           </div>
           ${peakPhase ? `
             <span class="badge" style="background:var(--primary); color:#000; font-weight:800; font-size:0.75rem;">
-              <i class="fa-solid fa-fire"></i> KUCHLI FAZA: ${phases[peakPhase].name}
+              <i class="fa-solid fa-fire"></i> ENG YUQORI WR: ${phases[peakPhase].name}
             </span>
           ` : ''}
         </div>

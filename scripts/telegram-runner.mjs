@@ -4,17 +4,8 @@ import {
   isTelegramConfigured,
   getBotToken,
   handleTelegramWebhook,
-  sendTelegramMessage,
   setBotCommands
 } from '../lib/telegram-bot.js';
-import {
-  readBundle,
-  approveSubmission,
-  rejectSubmission,
-  createSubmission,
-  createSubmissionFromTelegramPhoto,
-  queueMutation
-} from '../api/submissions.js';
 
 // Load .env.local if present
 if (existsSync('.env.local')) {
@@ -30,6 +21,11 @@ if (!isTelegramConfigured()) {
   console.error('Iltimos, .env.local fayliga TELEGRAM_BOT_TOKEN=<token> ni kiriting.');
   process.exit(1);
 }
+
+// Server modules capture some configuration at import time. Load them only
+// after the local environment, using the same protected dispatcher as webhook.
+const { readBundle, approveSubmission, rejectSubmission, correctSubmissionHero,
+  createSubmissionFromTelegramPhoto, queueMutation } = await import('../api/submissions.js');
 
 const token = getBotToken();
 const TELEGRAM_API_BASE = 'https://api.telegram.org';
@@ -82,6 +78,11 @@ async function startPolling() {
             await handleTelegramWebhook(update, {
               approveSubmission: (id) => queueMutation(() => approveSubmission(id)),
               rejectSubmission: (id, reason) => queueMutation(() => rejectSubmission(id, reason)),
+              correctSubmissionHero,
+              getSubmission: async id => {
+                const bundle = await readBundle({ withCatalog: true });
+                return bundle.submissions.find(submission => submission.id === id) || null;
+              },
               getMatches: async () => {
                 try {
                   const bundle = await readBundle();

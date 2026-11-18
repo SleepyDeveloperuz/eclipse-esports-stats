@@ -19,6 +19,28 @@ window.AuthManager = class AuthManager {
     return sessionStorage.getItem(this.TOKEN_KEY) || '';
   }
 
+  async requestJSON(path, options = {}) {
+    const controller = new AbortController();
+    let timer;
+    try {
+      return await Promise.race([
+        (async () => {
+          const response = await fetch(path, { ...options, signal: controller.signal });
+          const payload = await response.json().catch(() => ({}));
+          return { response, payload };
+        })(),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            reject(new Error('Kirish serveri javob bermadi. Qayta urinib ko‘ring.'));
+            controller.abort();
+          }, 15000);
+        })
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   getViewerToken() {
     return sessionStorage.getItem(this.VIEWER_TOKEN_KEY) || '';
   }
@@ -94,8 +116,7 @@ window.AuthManager = class AuthManager {
       try {
         for (const candidate of candidates) {
           const headers = candidate.token ? { Authorization: `Bearer ${candidate.token}` } : {};
-          response = await fetch('/api/auth?scope=viewer', { headers, cache: 'no-store' });
-          payload = await response.json().catch(() => ({}));
+          ({ response, payload } = await this.requestJSON('/api/auth?scope=viewer', { headers, cache: 'no-store' }));
           if (response.ok && payload.valid === true) {
             this.viewerGateRequired = payload.viewerRequired === true;
             this.unlockViewerSurface();
@@ -142,7 +163,7 @@ window.AuthManager = class AuthManager {
     // Keep the UI responsive, then verify the signed session with the server.
     this.updateUI();
     try {
-      const response = await fetch('/api/auth', {
+      const { response } = await this.requestJSON('/api/auth', {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store'
       });
@@ -163,13 +184,11 @@ window.AuthManager = class AuthManager {
     }
 
     try {
-      const res = await fetch('/api/auth', {
+      const { response: res, payload: data } = await this.requestJSON('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: enteredPassword.trim() })
       });
-
-      const data = await res.json().catch(() => ({}));
 
       if (res.ok && data.token && data.role === 'admin') {
         sessionStorage.setItem(this.TOKEN_KEY, data.token);
@@ -195,7 +214,7 @@ window.AuthManager = class AuthManager {
     }
 
     try {
-      const res = await fetch('/api/auth', {
+      const { response: res, payload: data } = await this.requestJSON('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -204,7 +223,6 @@ window.AuthManager = class AuthManager {
           voterId: this.getVoterId()
         })
       });
-      const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.token || !['admin', 'viewer'].includes(data.role)) {
         window.showToast?.(data.error || 'Kirish paroli noto‘g‘ri', 'error');
         return false;

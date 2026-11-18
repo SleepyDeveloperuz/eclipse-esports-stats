@@ -35,7 +35,8 @@ test('visual similarity preserves ambiguity, rejects incomplete catalog and tiny
   assert.equal(list[0].id,1); assert.equal(list[0].score,1); assert.equal(math.automaticMatch(list,true,64),true);
   assert.equal(math.automaticMatch(list,false,64),false); assert.equal(math.automaticMatch(list,true,20),false);
   assert.equal(math.automaticMatch([{score:1},{score:.99}],true,64),false);
-  assert.equal(math.automaticMatch([{score:.95},{score:.5}],true,64),false);
+  assert.equal(math.automaticMatch([{score:.91},{score:.5}],true,64),false);
+  assert.equal(math.automaticMatch([{score:.94},{score:.84}],true,64),true);
 });
 test('server preserves lane and bounded tags, rejects invalid lanes and does not change historical roles', () => {
   const data=normalisePayload({players:[{id:'p1',name:'Player',primaryRole:'Roamer',tags:['Shotcaller','shotcaller',' Flex ','a'.repeat(60),'3','4','5','6']}],matches:[],heroes:[]});

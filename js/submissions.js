@@ -689,7 +689,7 @@ window.SubmissionManager = class SubmissionManager {
           rosterPlayers: (this.db.getActivePlayers?.() || this.db.getPlayers()).map(player => ({
             id: player.id,
             name: player.name,
-            realName: player.realName || '',
+            aliases: player.aliases || [],
             role: player.primaryRole || ''
           })),
           heroList: (this.heroDb?.getAll?.() || []).map(hero => ({ id: hero.id, name: hero.name, role: hero.role }))
@@ -758,83 +758,9 @@ window.SubmissionManager = class SubmissionManager {
     if (!form || !rows) return;
     const roster = this.db.getActivePlayers?.() || this.db.getPlayers();
     const roles = ['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'];
-    const normalize = value => String(value || '').toLocaleLowerCase('uz-UZ').replace(/[^a-z0-9]/g, '');
-    const stripClanPrefix = str => {
-      if (!str) return '';
-      let clean = String(str).replace(/[\[\(\<].*?[\]\)\>]/g, ' ');
-      clean = clean.replace(/[◆々亗★•†|~_.:\-]/g, ' ');
-      clean = clean.replace(/^(?:i['’]?m\s+|[a-z0-9]{2,4}\s+)/i, '');
-      return clean.trim();
-    };
-    const noiseWords = new Set([
-      'im', 'i', 'm', 'as', 'always', 'mlbb', 'the', 'pro', 'mr', 'god',
-      'no', 'is', 'to', 'of', 'and', 'in', 'on', 'at', 'by', 'for', 'hero', 'guest', 'pub'
-    ]);
-    const extractTokens = str => stripClanPrefix(str)
-      .toLocaleLowerCase('uz-UZ')
-      .split(/\s+/)
-      .map(t => t.replace(/[^a-z0-9]/g, ''))
-      .filter(t => t.length >= 3 && !noiseWords.has(t));
-
-    const matchRoster = detectedName => {
-      if (!detectedName) return null;
-      const pNorm = normalize(detectedName);
-      if (!pNorm) return null;
-      const pStripped = normalize(stripClanPrefix(detectedName));
-
-      // 1. Exact match against IGN, realName, or aliases
-      const exact = roster.find(r => {
-        if (normalize(r.name) === pNorm || (pStripped && normalize(r.name) === pStripped)) return true;
-        if (r.realName) {
-          const rnNorm = normalize(r.realName);
-          if (rnNorm === pNorm || (pStripped && rnNorm === pStripped)) return true;
-        }
-        if (Array.isArray(r.aliases) && r.aliases.some(a => {
-          const aNorm = normalize(a);
-          return aNorm === pNorm || (pStripped && aNorm === pStripped);
-        })) return true;
-        return false;
-      });
-      if (exact) return exact;
-
-      // 2. Stripped prefix exact match
-      for (const r of roster) {
-        const rStripped = normalize(stripClanPrefix(r.name));
-        if (pStripped && rStripped && pStripped === rStripped) return r;
-      }
-
-      // 3. Significant distinctive tokens (length >= 4 or >= 2 common tokens)
-      const pTokens = extractTokens(detectedName);
-      if (pTokens.length) {
-        for (const r of roster) {
-          const rTokens = extractTokens(r.name);
-          if (r.realName) {
-            const rn = normalize(r.realName);
-            if (rn.length >= 3 && !noiseWords.has(rn)) rTokens.push(rn);
-          }
-          const common = pTokens.filter(t => rTokens.includes(t));
-          if (common.length >= 2) return r;
-          if (common.length === 1 && (common[0].length >= 5 || (r.realName && normalize(r.realName) === common[0]))) return r;
-        }
-      }
-
-      // 4. Whole phrase containment
-      for (const r of roster) {
-        const rNorm = normalize(r.name);
-        const rStripped = normalize(stripClanPrefix(r.name));
-        if (rNorm.length >= 7 && (pNorm.includes(rNorm) || (rStripped.length >= 5 && pNorm.includes(rStripped)))) return r;
-      }
-      return null;
-    };
-    const detected = (Array.isArray(data.players) ? data.players.slice(0, 5) : []).map(player => {
-      let mapped = null;
-      if (player.detectedName) {
-        mapped = matchRoster(player.detectedName);
-      } else if (player.matchedPlayerId) {
-        mapped = roster.find(item => item.id === player.matchedPlayerId);
-      }
-      return mapped ? { ...player, matchedPlayerId: mapped.id } : null;
-    }).filter(Boolean);
+    // API results already have verified IGN identities; never rematch guest names here.
+    const detected = (Array.isArray(data.players) ? data.players.slice(0, 5) : [])
+      .filter(player => roster.some(item => item.id === player.matchedPlayerId));
     const trackedCount = new Set(detected.map(player => player.matchedPlayerId)).size;
     if (trackedCount > 5) throw new Error('Bitta jamoada ko‘pi bilan 5 ta Eclipse a’zosi bo‘lishi mumkin.');
     if (!trackedCount) throw new Error('Eclipse a’zosi ishonchli aniqlanmadi. O‘yinchini tanlab, ma’lumotni qo‘lda kiriting.');
@@ -846,10 +772,6 @@ window.SubmissionManager = class SubmissionManager {
     const used = new Set();
     (detected.length ? detected : [{}]).forEach(player => {
       let playerId = roster.some(item => item.id === player.matchedPlayerId) ? player.matchedPlayerId : '';
-      if (!playerId && player.detectedName) {
-        const match = matchRoster(player.detectedName);
-        playerId = match?.id || '';
-      }
       if (used.has(playerId)) return;
       if (playerId) used.add(playerId);
       const detectedRole = roles.includes(player.rolePlayed) ? player.rolePlayed : '';
@@ -857,7 +779,8 @@ window.SubmissionManager = class SubmissionManager {
       this.addParticipantRow({
         ...player,
         playerId,
-        heroUsed: resolvedHero ? resolvedHero.name : '',
+        heroUsed: player.heroSource === 'portrait' && resolvedHero ? resolvedHero.name : '',
+        heroSource: player.heroSource === 'portrait' && resolvedHero ? 'portrait' : 'ocr',
         portraitBox: null,
         rolePlayed: detectedRole,
         roleSource: detectedRole ? 'ocr' : 'unknown',
@@ -972,7 +895,8 @@ window.SubmissionManager = class SubmissionManager {
       const payload = await this.request(this.editingMatch || this.editingSubmission ? 'PATCH' : 'POST', {
         idempotencyKey: window.crypto?.randomUUID?.() || `submit_${Date.now()}`,
         ...submission,
-        ...(this.editingMatch ? { action: 'edit_match', id: this.editingMatch.id, expectedUpdatedAt: this.editingMatch.updatedAt }
+        ...(this.editingMatch ? { action: 'edit_match', id: this.editingMatch.id, expectedUpdatedAt: this.editingMatch.updatedAt,
+          resolveReview: this.container.querySelector('#resolveMatchReview')?.checked === true }
           : this.editingSubmission ? { action: 'correct_approve', id: this.editingSubmission.id, expectedUpdatedAt: this.editingSubmission.updatedAt }
           : this.auth.isAdmin() ? { action: 'save' } : {})
       });
@@ -983,7 +907,9 @@ window.SubmissionManager = class SubmissionManager {
       this.clearSavedDraft?.();
       this.editingSubmission = null;
       this.editingMatch = null;
-      window.showToast?.(payload.match ? 'Match saqlandi va statistikaga qo‘shildi.' : 'Match Captain navbatiga yuborildi.', 'success');
+      const held = payload.match && (payload.match.needsReview === true || payload.match.validForAnalytics === false
+        || payload.match.verificationStatus === 'needs_review' || payload.match.dataIssues?.length || payload.match.status === 'draft');
+      window.showToast?.(payload.match ? held ? 'Match saqlandi. Hali statistikaga kiritilmadi.' : 'Match saqlandi va statistikaga qo‘shildi.' : 'Match Captain navbatiga yuborildi.', 'success');
       this.filter = 'pending';
       await this.render(this.container.id);
     } catch (error) {

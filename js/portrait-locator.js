@@ -1,5 +1,5 @@
 /* Screenshot pixels stay in memory. Localization only proposes crops; never confirms a hero. */
-(() => {
+((scope) => {
   const GRID = [[6,6],[12,4],[18,6],[4,12],[12,12],[20,12],[6,18],[12,20],[18,18]];
   const DETAIL_GRID = [];
   for (let y = 4; y <= 20; y += 4) for (let x = 4; x <= 20; x += 4) {
@@ -91,9 +91,14 @@
       }
       await yieldFrame();
     }
-    if (!layouts.length) return { boxes: [], reason: 'layout_not_found' };
     layouts.sort((a, b) => b.score - a.score);
-    const finalists = [];
+    // Standard result-screen geometry is a proposal, not a recognition result.
+    // Coarse sampling can miss a row under a flag/rank overlay. This proposal
+    // still has to pass the same five-row pixel checks below.
+    const standardSize = bounds.height * .098;
+    const finalists = [{ x: bounds.x + bounds.width * .159 - standardSize / 2,
+      y: bounds.y + bounds.height * .270 - standardSize / 2,
+      pitch: bounds.height * .129, size: standardSize }];
     for (const layout of layouts) {
       if (finalists.some(other => Math.abs(other.x - layout.x) < step * 2 && Math.abs(other.y - layout.y) < step * 2)) continue;
       finalists.push(layout); if (finalists.length === 3) break;
@@ -130,7 +135,7 @@
     }
     refined.sort((a, b) => b.score - a.score);
     const best = refined[0];
-    if (!best || best.score < .885) return { boxes: [], reason: 'uncertain_layout' };
+    if (!best || best.score < .885) return { boxes: [], reason: layouts.length ? 'uncertain_layout' : 'layout_not_found' };
     // Strong alternative at another column/row is ambiguous; require a manual crop.
     if (refined.some(other => other !== best && best.score - other.score < .008 && other.rows.some((r, i) => Math.hypot(r.x - best.rows[i].x, r.y - best.rows[i].y) > r.size * .65))) return { boxes: [], reason: 'ambiguous_layout' };
     return { boxes: best.rows.map(row => ({ rowIndex: row.rowIndex, bounds: [row.y / height, row.x / width, (row.y + row.size) / height, (row.x + row.size) / width].map(n => Math.round(n * 1000)) })),
@@ -147,5 +152,5 @@
       return await locatePixels(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, options);
     } catch (_) { return { boxes: [], reason: 'image_unavailable' }; }
   }
-  window.EclipsePortraitLocator = { locate, locatePixels };
-})();
+  scope.EclipsePortraitLocator = { locate, locatePixels };
+})(typeof window !== 'undefined' ? window : globalThis);

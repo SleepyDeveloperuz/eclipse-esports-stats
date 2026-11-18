@@ -1,9 +1,12 @@
+import { applyVerifiedHeroMatches, mergeRosterScanStats } from '../lib/ocr-evidence.js';
+import { buildMedalDetail } from '../lib/ocr-details.js';
 import crypto from 'crypto';
 import { isProgressRequest, progressRequest } from '../lib/progress-api.js';
 import { QUALITY_FILE, qualityEvent, readQuality, recordQuality } from '../lib/scan-quality.js';
 import { cleanBattleId } from '../js/batch-model.js';
 import { cleanText, cleanId, cleanDate, parseDuration, escapeHtml } from '../lib/utils.js';
 import { createSessionSecurity } from '../lib/session-security.js';
+import { telegramSecretMatches } from '../lib/telegram-security.js';
 import { readTeamFiles, writeTeamFiles, withTeamTransaction, isTursoConfigured } from '../lib/team-store.js';
 import { createRedisStore, MLBB_KEYS } from '../lib/mlbb/store.js';
 import {
@@ -11,14 +14,14 @@ import {
   isAuthConfigured,
   isViewerAuthConfigured,
   isViewerGateRequested,
-  verifySession,
-  verifyToken
+  verifySession
 } from './auth.js';
 import { normalisePayload } from './sync.js';
 import { normaliseAwardEvidence } from '../lib/match-awards.js';
-import { configuredOcrModels, requestOcrProvider } from '../lib/ocr-provider.js';
+import { configuredOcrModels } from '../lib/ocr-provider.js';
 import { buildOcrRequest, normaliseOcrPayload } from './ocr.js';
-import { smartMatchRoster } from '../lib/roster-matcher.js';
+import { extractWithRecheck } from '../lib/ocr-recheck.js';
+import { smartMatchRoster, rosterAliases } from '../lib/roster-matcher.js';
 import { matchScreenshotHeroes } from '../lib/server-hero-matcher.js';
 import {
   notifySubmissionCreated,
@@ -451,8 +454,8 @@ export function officialMatchFromDraft(draft, officialData, metadata) {
     verificationStatus: 'verified',
     durationSeconds: draft.durationSeconds,
     durationFormatted: draft.durationFormatted,
-    teamTurtles: draft.teamTurtles ?? null,
-    teamLords: draft.teamLords ?? null,
+    teamTurtles: metadata.teamTurtles ?? draft.teamTurtles ?? null,
+    teamLords: metadata.teamLords ?? draft.teamLords ?? null,
     teamTurrets: draft.teamTurrets ?? null,
     sessionLabel: draft.sessionLabel || null,
     sessionId: draft.sessionLabel ? draft.sessionLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || null : null,
@@ -777,56 +780,21 @@ export async function upgradePendingSubmission(submissionIdOrFingerprint, fullDr
     const bundle = await readBundle({ withCatalog: true });
     const submission = bundle.submissions.find(s =>
       s.id === submissionIdOrFingerprint ||
-      s.fingerprint === submissionIdOrFingerprint ||
-      (s.status === 'pending' && (
-        matchIdentityFingerprint(s.review?.correctedDraft || s.draft) === matchIdentityFingerprint(fullDraft) ||
-        sameBattleRoster(fullDraft, s.review?.correctedDraft || s.draft) ||
-        isSameMatchCandidate(fullDraft, s.review?.correctedDraft || s.draft)
-      ))
+      s.fingerprint === submissionIdOrFingerprint
     );
     if (!submission) fail('Yangilanadigan submission topilmadi', 'SUBMISSION_NOT_FOUND', 404);
     if (submission.status !== 'pending') fail('Ushbu submission allaqachon ko‘rib chiqilgan', 'ALREADY_REVIEWED', 409);
 
     const prevDraft = submission.review?.correctedDraft || submission.draft;
+    if (!sameBattleRoster(fullDraft, prevDraft)
+      || (fullDraft.result && prevDraft.result && fullDraft.result !== prevDraft.result)
+      || (fullDraft.durationSeconds && prevDraft.durationSeconds && fullDraft.durationSeconds !== prevDraft.durationSeconds)) {
+      fail('Qo‘shimcha rasm avvalgi matchga mos emas.', 'MISMATCHED_SCREENSHOTS', 409);
+    }
     const heroes = bundle.officialData?.heroes || [];
 
     // Merge player stats (damage, turret, taken, gold, tf%, medals, savage, maniac, kda)
-    const updatedPlayerStats = prevDraft.playerStats.map(prevStat => {
-      const fullStat = (fullDraft.playerStats || []).find(s => s.playerId === prevStat.playerId)
-        || (fullDraft.playerStats || []).find(s => s.playerName === prevStat.playerName)
-        || (fullDraft.playerStats || []).find(s => s.heroUsed === prevStat.heroUsed);
-      if (!fullStat) return prevStat;
-      return {
-        ...prevStat,
-        heroId: fullStat.heroId || prevStat.heroId,
-        heroNameSnapshot: fullStat.heroNameSnapshot || prevStat.heroNameSnapshot,
-        heroUsed: fullStat.heroUsed || prevStat.heroUsed,
-        heroResolution: fullStat.heroResolution || prevStat.heroResolution,
-        rolePlayed: fullStat.rolePlayed || prevStat.rolePlayed,
-        roleSource: fullStat.roleSource || prevStat.roleSource,
-        kills: Number.isInteger(fullStat.kills) && (fullStat.kills > 0 || !Number.isInteger(prevStat.kills) || prevStat.kills === 0) ? fullStat.kills : prevStat.kills,
-        deaths: Number.isInteger(fullStat.deaths) && (fullStat.deaths > 0 || !Number.isInteger(prevStat.deaths) || prevStat.deaths === 0) ? fullStat.deaths : prevStat.deaths,
-        assists: Number.isInteger(fullStat.assists) && (fullStat.assists > 0 || !Number.isInteger(prevStat.assists) || prevStat.assists === 0) ? fullStat.assists : prevStat.assists,
-        inGameScore: Number.isFinite(fullStat.inGameScore) && fullStat.inGameScore > 0 ? fullStat.inGameScore : prevStat.inGameScore,
-        medal: fullStat.medal || prevStat.medal,
-        damageDealt: Number.isInteger(fullStat.damageDealt) ? fullStat.damageDealt : prevStat.damageDealt,
-        damageReceived: Number.isInteger(fullStat.damageReceived) ? fullStat.damageReceived : prevStat.damageReceived,
-        turretDamage: Number.isInteger(fullStat.turretDamage) ? fullStat.turretDamage : prevStat.turretDamage,
-        teamfightParticipation: Number.isInteger(fullStat.teamfightParticipation) ? fullStat.teamfightParticipation : prevStat.teamfightParticipation,
-        goldEarned: Number.isInteger(fullStat.goldEarned) ? fullStat.goldEarned : prevStat.goldEarned,
-        savage: fullStat.savage || prevStat.savage,
-        maniac: fullStat.maniac || prevStat.maniac
-      };
-    });
-
-    // Add any players detected in fullDraft that were omitted in prevDraft
-    const existingPlayerIds = new Set(updatedPlayerStats.map(p => p.playerId));
-    for (const fStat of (fullDraft.playerStats || [])) {
-      if (fStat.playerId && !existingPlayerIds.has(fStat.playerId) && updatedPlayerStats.length < 5) {
-        updatedPlayerStats.push(fStat);
-        existingPlayerIds.add(fStat.playerId);
-      }
-    }
+    const updatedPlayerStats = mergeRosterScanStats(prevDraft.playerStats, fullDraft.playerStats);
 
     const validGuests = (Array.isArray(fullDraft.guestStats) ? fullDraft.guestStats : (prevDraft.guestStats || []))
       .filter(g =>
@@ -871,21 +839,22 @@ export async function upgradePendingSubmission(submissionIdOrFingerprint, fullDr
 }
 
 export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, caption, sender, existingSubmissionId = null }) {
+  const scanStarted = Date.now();
   const submitterName = sender
     ? `${sender.first_name || ''} ${sender.last_name || ''}`.trim() || sender.username || 'Telegram User'
     : 'Telegram Bot';
 
   const urls = Array.isArray(fileUrls) && fileUrls.length > 0 ? fileUrls : [fileUrl].filter(Boolean);
-  if (!urls.length) throw new Error('Telegramdan skrinshotni yuklab bo‘lmadi.');
+  if (!urls.length || urls.length > 2) throw new Error('Bitta match uchun 1–2 ta skrinshot yuboring.');
 
   // 1. Download image(s) from Telegram
   const imageParts = [];
   const photoBuffers = [];
   for (const url of urls) {
-    const photoRes = await fetch(url);
-    if (!photoRes.ok) continue;
+    const photoRes = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!photoRes.ok) throw new Error('Telegramdan skrinshotni yuklab bo‘lmadi.');
     const photoBuffer = Buffer.from(await photoRes.arrayBuffer());
-    if (!photoBuffer.length) continue;
+    if (!photoBuffer.length || photoBuffer.length > 3 * 1024 * 1024) throw new Error('Skrinshot bo‘sh yoki 3 MB dan katta.');
     photoBuffers.push(photoBuffer);
 
     // Detect valid image MIME type from buffer magic bytes (Telegram often returns application/octet-stream)
@@ -907,28 +876,9 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   }
   if (!imageParts.length) throw new Error('Telegramdan skrinshotni yuklab bo‘lmadi.');
 
-  // 1.5 Local / Server-side Hero Portrait Matcher (same pixel matching technology as web HeroPortraitMatcher)
-  let visualMatches = [];
-  let bestVisualScoreSum = 0;
-  for (const buf of photoBuffers) {
-    try {
-      const matches = matchScreenshotHeroes(buf);
-      if (matches && matches.length === 5) {
-        const scoreSum = matches.reduce((sum, m) => sum + (m.score || 0), 0);
-        if (scoreSum > bestVisualScoreSum) {
-          bestVisualScoreSum = scoreSum;
-          visualMatches = matches;
-        }
-      }
-    } catch (vErr) {
-      console.warn('Server hero matcher error:', vErr?.message);
-    }
-  }
-  const visualHeroMap = new Map(visualMatches.map(m => [m.sourceRow, m]));
-
   // 2. Read bundle for roster and hero catalog
   const bundle = await readBundle({ withCatalog: true });
-  const roster = bundle.officialData?.players || [];
+  const roster = (bundle.officialData?.players || []).filter(player => player.active !== false);
   const heroes = bundle.officialData?.heroes || [];
   if (!roster.length) throw new Error('Faol o‘yinchilar tarkibi topilmadi.');
 
@@ -942,7 +892,7 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   const safeRoster = roster.map(p => ({
     id: p.id,
     name: p.name,
-    realName: p.realName || '',
+    aliases: rosterAliases(p),
     role: p.primaryRole || p.role || ''
   }));
   const safeHeroes = heroes.map(h => ({ id: h.id, name: h.name, role: h.role || '' }));
@@ -953,15 +903,14 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
     purpose: 'practice_submission',
     roster: safeRoster,
     heroes: safeHeroes,
-    imageParts
+    imageParts, detailPart: buildMedalDetail(imageParts)
   });
 
   const ocrModels = configuredOcrModels(process.env.GEMINI_OCR_MODELS);
-  const provider = await requestOcrProvider({
-    apiKey,
-    requestBody,
-    models: ocrModels,
-    validate: parsed => normaliseOcrPayload(parsed, safeRoster, safeHeroes, { mode: ocrMode }).players.length > 0
+  const provider = await extractWithRecheck({
+    apiKey, requestBody, models: ocrModels, deadlineMs: Math.max(0, 45000 - (Date.now() - scanStarted)),
+    validate: parsed => Array.isArray(parsed?.players),
+    normalize: parsed => normaliseOcrPayload(parsed, safeRoster, safeHeroes, { mode: ocrMode, imageCount: imageParts.length })
   });
 
   if (!provider.success) {
@@ -978,11 +927,19 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
     throw new Error(detail);
   }
 
-  const ocrData = normaliseOcrPayload(provider.data, safeRoster, safeHeroes, { mode: ocrMode });
+  const ocrData = provider.data;
+  if (ocrData.scanError) throw new Error('Rasmlar bir matchga tegishli emas yoki Battle ID o‘qilmadi. Mos Scoreboard va Data rasmlarini yuboring.');
+  const visualHeroMap = new Map();
+  if (Number.isInteger(ocrData.sourceImageIndex)) {
+    try {
+      for (const match of (await matchScreenshotHeroes(photoBuffers[ocrData.sourceImageIndex], { heroes: safeHeroes })) || []) visualHeroMap.set(match.sourceRow, match);
+    } catch { /* Uncertain portraits remain for review. */ }
+  }
+
+  applyVerifiedHeroMatches(ocrData, [...visualHeroMap.values()], safeHeroes);
 
   // 4. Match players with roster (Trio / Squad / Team5 / Solo)
   const matchedStats = [];
-  const guestStatsList = [];
   const usedPlayerIds = new Set();
 
   for (const p of ocrData.players) {
@@ -994,20 +951,8 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
       matched = smartMatchRoster(p.detectedName, roster);
     }
 
-    const visual = visualHeroMap.get(p.sourceRow);
-    let chosenHeroName = p.heroUsed;
-    let heroCandidates = p.heroCandidates || [];
-
-    if (visual && visual.hero) {
-      // Prioritize mathematical pixel visual matching over LLM guesswork
-      if (visual.confident || (visual.score && visual.score >= 0.75) || !chosenHeroName) {
-        chosenHeroName = visual.hero;
-      }
-      if (Array.isArray(visual.candidates) && visual.candidates.length) {
-        heroCandidates = visual.candidates.map(c => c.name);
-      }
-    }
-
+    const chosenHeroName = p.heroUsed;
+    const heroCandidates = p.heroCandidates || [];
     let heroRef = null;
     if (chosenHeroName) {
       const cleanHero = String(chosenHeroName).trim().toLowerCase();
@@ -1017,8 +962,8 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
         heroRef = heroes.find(h => String(h.name).toLowerCase().replace(/[^a-z0-9]/g, '') === normH) || null;
       }
     }
-    const finalHeroName = heroRef ? heroRef.name : (chosenHeroName || 'MLBB Hero');
-    const finalHeroId = heroRef ? heroRef.id : (visual?.heroId || null);
+    const finalHeroName = heroRef ? heroRef.name : (chosenHeroName || '');
+    const finalHeroId = heroRef ? heroRef.id : null;
 
     if (matched && !usedPlayerIds.has(matched.id)) {
       usedPlayerIds.add(matched.id);
@@ -1030,33 +975,15 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
         heroUsed: finalHeroName,
         heroCandidates,
         heroResolution: finalHeroId ? 'canonical' : 'legacy_name',
-        rolePlayed: p.rolePlayed || matched.primaryRole || 'Mid Laner',
-        roleSource: p.rolePlayed ? 'ocr' : 'roster',
-        kills: p.kills ?? 0,
-        deaths: p.deaths ?? 0,
-        assists: p.assists ?? 0,
-        inGameScore: p.inGameScore ?? 5.0,
-        medal: p.medal || null,
-        savage: p.savage || false,
-        maniac: p.maniac || false,
-        damageDealt: p.damageDealt,
-        damageReceived: p.damageReceived,
-        turretDamage: p.turretDamage,
-        teamfightParticipation: p.teamfightParticipation,
-        goldEarned: p.goldEarned
-      });
-    } else {
-      guestStatsList.push({
-        guestId: `guest_${guestStatsList.length + 1}`,
-        name: p.detectedName || `Guest ${guestStatsList.length + 1}`,
-        heroUsed: finalHeroName,
         rolePlayed: p.rolePlayed || '',
-        roleSource: p.rolePlayed ? 'ocr' : 'legacy',
-        kills: p.kills ?? 0,
-        deaths: p.deaths ?? 0,
-        assists: p.assists ?? 0,
-        inGameScore: p.inGameScore ?? 5.0,
+        roleSource: p.rolePlayed ? 'ocr' : 'unknown',
+        kills: p.kills,
+        deaths: p.deaths,
+        assists: p.assists,
+        inGameScore: p.inGameScore,
         medal: p.medal || null,
+        savage: p.savage,
+        maniac: p.maniac,
         damageDealt: p.damageDealt,
         damageReceived: p.damageReceived,
         turretDamage: p.turretDamage,
@@ -1080,12 +1007,7 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   else if (capLower.includes('#oddiy') || capLower.includes('#casual')) matchType = 'casual';
 
   let result = (ocrData.result && MATCH_RESULTS.has(ocrData.result)) ? ocrData.result : null;
-  if (!result && existingSubmissionId) {
-    const existing = bundle.submissions?.find(s => s.id === existingSubmissionId);
-    const existingResult = existing?.review?.correctedDraft?.result || existing?.draft?.result;
-    if (MATCH_RESULTS.has(existingResult)) result = existingResult;
-  }
-  if (!result) result = 'win';
+  if (!result) throw new Error('Match natijasi o‘qilmadi. Victory yoki Defeat ko‘rinadigan rasm yuboring.');
 
   let matchDate;
   try {
@@ -1093,32 +1015,25 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   } catch (_) {
     matchDate = new Date().toISOString().slice(0, 10);
   }
-  const durationSeconds = ocrData.durationSeconds || 900;
-  const durationFormatted = ocrData.durationFormatted || '15:00';
+  const durationSeconds = ocrData.durationSeconds;
+  const durationFormatted = ocrData.durationFormatted;
+  if (!durationSeconds) throw new Error('Match davomiyligi o‘qilmadi. To‘liq skrinshot yuboring.');
   const matchScope = matchedStats.length === 5 ? 'team5' : matchedStats.length === 1 ? 'individual' : 'squad';
   const hasDamageStats = matchedStats.some(stat => Number.isInteger(stat.damageDealt));
   const hasScoreboardStats = matchedStats.some(stat => Number.isInteger(stat.kills) && (stat.kills > 0 || stat.deaths > 0 || stat.assists > 0))
     || matchedStats.some(stat => stat.medal && stat.medal !== 'none');
   const entryMode = (hasDamageStats && (hasScoreboardStats || imageParts.length > 1)) ? 'full' : 'practice_lite';
 
-  const validGuestStatsList = guestStatsList.filter(g =>
-    g.name &&
-    heroes.some(h => String(h.name).trim().toLowerCase() === String(g.heroUsed).trim().toLowerCase()) &&
-    Number.isInteger(g.kills) &&
-    Number.isInteger(g.deaths) &&
-    Number.isInteger(g.assists)
-  );
-
   // 6. Create or upgrade official submission
   const simulatedDraft = {
     source: 'telegram',
     entryMode,
-    ...(entryMode === 'full' ? { guestStats: validGuestStatsList, substitutes: [] } : {}),
+    guestStats: [], substitutes: [],
     scope: matchScope,
     sourceBattleId: ocrData.battleId || null,
     teamKills: ocrData.teamKills ?? null,
     enemyKills: ocrData.enemyKills ?? null,
-    mathVerified: ocrData.teamKills !== null && Array.isArray(ocrData.players) && ocrData.players.filter(p => Number.isInteger(p.kills)).reduce((s, p) => s + p.kills, 0) === ocrData.teamKills,
+    mathVerified: ocrData.teamKills !== null && ocrData.players.length === 5 && ocrData.players.every(p => Number.isInteger(p.kills)) && ocrData.players.filter(p => Number.isInteger(p.kills)).reduce((s, p) => s + p.kills, 0) === ocrData.teamKills,
     date: matchDate,
     matchType,
     result,
@@ -1133,21 +1048,21 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
 
   if (existingSubmissionId || hasDamageStats) {
     const bundle = await readBundle({ withCatalog: true });
-    const pendingSub = bundle.submissions.find(item =>
-      item.status === 'pending' &&
-      (
-        (existingSubmissionId && item.id === existingSubmissionId) ||
-        sameBattleRoster(simulatedDraft, item.review?.correctedDraft || item.draft) ||
-        matchIdentityFingerprint(simulatedDraft) === matchIdentityFingerprint(item.review?.correctedDraft || item.draft) ||
-        isSameMatchCandidate(simulatedDraft, item.review?.correctedDraft || item.draft)
-      )
-    );
+    const explicit = existingSubmissionId ? bundle.submissions.find(item => item.id === existingSubmissionId) : null;
+    if (existingSubmissionId && !explicit) throw new Error('Yangilanadigan submission topilmadi.');
+    if (explicit && !sameBattleRoster(simulatedDraft, explicit.review?.correctedDraft || explicit.draft)) {
+      throw new Error('Qo‘shimcha rasm avvalgi matchning Battle ID va rosteriga mos emas.');
+    }
+    const pendingSub = explicit || bundle.submissions.find(item => item.status === 'pending'
+      && sameBattleRoster(simulatedDraft, item.review?.correctedDraft || item.draft));
 
     if (pendingSub && (pendingSub.review?.correctedDraft || pendingSub.draft)?.entryMode !== 'full') {
       const upgraded = await upgradePendingSubmission(pendingSub.id, simulatedDraft);
       return { submission: upgraded, isUpgrade: true };
     }
   }
+
+  if (matchedStats.some(player => !player.heroId)) throw new Error('Hero portreti ishonchli aniqlanmadi. Saytda nomzodlardan to‘g‘ri heroni tanlab yuboring.');
 
   const simulatedReq = {
     body: {
@@ -1183,7 +1098,10 @@ export async function handleTelegramRoute(req, res) {
   if (req.body?.action === 'send_daily_summary') {
     const authHeader = req.headers.authorization || '';
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-    if (!verifyToken(token)) {
+    let authorized;
+    try { authorized = await verifySession(token, 'admin'); }
+    catch { return res.status(503).json({ error: 'Sessiyani tekshirib bo‘lmadi' }); }
+    if (!authorized) {
       return res.status(403).json({ error: 'Faqat admin / kapitan hisobot yuborishi mumkin' });
     }
     const bundle = await readBundle();
@@ -1201,21 +1119,19 @@ export async function handleTelegramRoute(req, res) {
     return res.status(200).json({ ok: sent.ok, result: sent });
   }
 
-  // Verify Webhook Secret Token strictly if configured
+  // Missing transport credentials disable ingestion, rather than allowing
+  // unauthenticated updates to impersonate a Telegram user.
   const expectedSecret = getWebhookSecret();
-  if (expectedSecret) {
-    const headerSecret = String(req.headers['x-telegram-bot-api-secret-token'] || '');
-    const expectedBuf = Buffer.from(expectedSecret);
-    const headerBuf = Buffer.from(headerSecret);
-    const isValid = expectedBuf.length === headerBuf.length && crypto.timingSafeEqual(expectedBuf, headerBuf);
-    if (!isValid) {
-      return res.status(401).json({ error: 'Noto‘g‘ri webhook maxfiy kaliti' });
-    }
+  if (!isTelegramConfigured() || !expectedSecret.trim()) {
+    return res.status(503).json({ code: 'TELEGRAM_WEBHOOK_NOT_CONFIGURED', error: 'Telegram webhook xavfsizligi sozlanmagan' });
+  }
+  if (!telegramSecretMatches(req.headers?.['x-telegram-bot-api-secret-token'], expectedSecret)) {
+    return res.status(401).json({ error: 'Noto‘g‘ri webhook maxfiy kaliti' });
   }
 
   try {
     const update = req.body;
-    if (!update || typeof update !== 'object') {
+    if (!update || typeof update !== 'object' || Array.isArray(update)) {
       return res.status(400).json({ error: 'Update topilmadi' });
     }
 
@@ -1345,7 +1261,14 @@ export default async function handler(req, res) {
           if (existing.updatedAt !== req.body.expectedUpdatedAt) fail('Match boshqa qurilmada o‘zgargan. Yangilab qayta oching.', 'MATCH_CONFLICT', 409);
           const draft = normalisePracticeDraft(req.body.draft, bundle.officialData, { adminAuthor: true, allowArchived: true });
           const now = new Date().toISOString();
-          const edited = { ...existing, ...officialMatchFromDraft(draft, bundle.officialData, { ...existing, updatedAt: now }), dataSource: existing.dataSource };
+          const edited = {
+            ...existing,
+            ...officialMatchFromDraft(draft, bundle.officialData, { ...existing, updatedAt: now }),
+            dataSource: existing.dataSource,
+            // Manual changes cannot inherit an OCR certificate for the previous values.
+            verificationStatus: 'unverified', ocrVerified: false, dataQuality: 'partial',
+            ...(req.body.resolveReview === true ? { dataIssues: [], needsReview: false, validForAnalytics: true } : {})
+          };
           const next = normalisePayload({ ...bundle.officialData, matches: bundle.officialData.matches.map(match => match.id === id ? edited : match), revision: bundle.officialData.revision + 1, lastMutationId: crypto.randomUUID(), updatedAt: now });
           await writeFiles({ [DATA_FILE]: { content: JSON.stringify(next) } });
           return { match: next.matches.find(match => match.id === id), revision: next.revision };

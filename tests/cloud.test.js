@@ -44,6 +44,12 @@ function createCloud({
     HEROES_KEY: 'eclipse_heroes',
     getPlayers: () => [...state.players],
     getMatches: () => [...state.matches],
+    replaceSnapshot(data, { entries = {} } = {}) {
+      if (data.players) this.savePlayers(data.players);
+      if (data.matches) this.saveMatches(data.matches);
+      if (data.heroes) localStorage.setItem(this.HEROES_KEY, JSON.stringify(data.heroes));
+      for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, value);
+    },
     savePlayers: value => {
       state.players = [...value];
       saved.players = [...value];

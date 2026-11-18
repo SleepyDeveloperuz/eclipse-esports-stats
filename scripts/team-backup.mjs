@@ -1,10 +1,10 @@
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { readExistingTeamSnapshot } from '../lib/team-store.js';
+import { readExistingTeamSnapshot, teamNamespace } from '../lib/team-store.js';
 
 // Explicit, read-only server export; refuses to overwrite an existing backup.
 const destination = process.argv[2];
-if (!destination || !process.env.GIST_ID) {
+if (!destination || !teamNamespace()) {
   console.error('Usage: node --env-file=/secure/team.env scripts/team-backup.mjs /secure/backup.json');
   process.exitCode = 1;
 } else {

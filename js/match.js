@@ -129,6 +129,8 @@ window.MatchManager = class MatchManager {
       too_many_participants: '5 tadan ortiq ishtirokchi aniqlangan',
       unidentified_participant: 'O‘yinchi aniqlanmagan',
       unknown_match_type: 'Match turi aniqlanmagan',
+      unknown_roster_player: 'O‘yinchi rosterda topilmagan',
+      invalid_data_issues: 'Saqlangan tekshiruv belgisi noto‘g‘ri',
       unknown_role: 'Rol aniqlanmagan',
       unrecognized_hero: 'Hero katalogda topilmagan'
     };
@@ -244,8 +246,6 @@ window.MatchManager = class MatchManager {
     const matchResultVal = isEditMode ? existingMatch.result : '';
     const matchTypeVal = isEditMode ? (existingMatch.matchType || 'ranked') : 'ranked';
     const matchScopeVal = isEditMode ? (existingMatch.scope || this.inferScope(existingMatch.playerStats?.length || 0)) : this.inferScope(Math.min(players.length, 5));
-    const matchTurtlesVal = isEditMode ? (existingMatch.teamTurtles ?? '') : '';
-    const matchLordsVal = isEditMode ? (existingMatch.teamLords ?? '') : '';
     const matchTurretsVal = isEditMode ? (existingMatch.teamTurrets ?? '') : '';
     const matchNotesVal = isEditMode ? (existingMatch.notes || '') : '';
     const matchSessionLabelVal = isEditMode ? (existingMatch.sessionLabel || '') : '';
@@ -393,16 +393,6 @@ window.MatchManager = class MatchManager {
                 <span style="font-weight:bold; color:var(--text-muted);">:</span>
                 <input type="number" id="match-duration-sec" aria-label="Match davomiyligi, soniya" min="0" max="59" value="${matchDurationSec !== '' && matchDurationSec < 10 ? '0' + matchDurationSec : matchDurationSec}" class="form-input" placeholder="Son. (masalan, 30)" style="text-align:center;" />
               </div>
-            </div>
-
-            <div class="form-group">
-              <label for="team-turtles" class="form-label"><i class="fa-solid fa-shield-halved" style="color:var(--success);"></i> Olingan Turtle (0–10)</label>
-              <input type="number" id="team-turtles" min="0" max="10" value="${matchTurtlesVal}" class="form-input" placeholder="0" />
-            </div>
-
-            <div class="form-group">
-              <label for="team-lords" class="form-label"><i class="fa-solid fa-crown" style="color:var(--secondary);"></i> Olingan Lord (0–10)</label>
-              <input type="number" id="team-lords" min="0" max="10" value="${matchLordsVal}" class="form-input" placeholder="0" />
             </div>
 
             <div class="form-group">
@@ -797,8 +787,6 @@ window.MatchManager = class MatchManager {
         result: resultInput.value,
         durationSeconds: totalDurSec,
         durationFormatted: durFormatted,
-        teamTurtles: this.optionalNumber(document.getElementById('team-turtles')),
-        teamLords: this.optionalNumber(document.getElementById('team-lords')),
         teamTurrets: this.optionalNumber(document.getElementById('team-turrets')),
         notes: document.getElementById('match-notes').value.trim(),
         sessionId: sessionSlug ? `session-${sessionSlug}` : null,
@@ -935,7 +923,7 @@ window.MatchManager = class MatchManager {
     });
   }
 
-  renderMatchHistory(containerId, matches, players) {
+  renderMatchHistory(containerId, matches, players, { filtered = false } = {}) {
     const container = document.getElementById(containerId);
     if (!container) return;
     const fmtDate = window.StatsEngine.formatDateFormatted;
@@ -945,8 +933,8 @@ window.MatchManager = class MatchManager {
       container.innerHTML = `
         <div class="empty-state match-ledger-empty">
           <span class="empty-state__icon"><i class="fa-solid fa-box-archive"></i></span>
-          <div><p class="section-eyebrow">MATCH LEDGER</p><h3>Matchlar tarixi bo‘sh</h3><p>Tasdiqlangan matchlar shu yerda tartib bilan ko‘rinadi.</p></div>
-          ${isAdmin ? '<button class="btn btn-primary" data-action="add-first-match"><i class="fa-solid fa-plus"></i> Birinchi matchni qo‘shish</button>' : ''}
+          <div><p class="section-eyebrow">MATCH LEDGER</p><h3>${filtered ? 'Mos match topilmadi' : 'Matchlar tarixi bo‘sh'}</h3><p>${filtered ? 'Qidiruv matni yoki filtrni o‘zgartirib ko‘ring.' : 'Tasdiqlangan matchlar shu yerda tartib bilan ko‘rinadi.'}</p></div>
+          ${isAdmin && !filtered ? '<button class="btn btn-primary" data-action="add-first-match"><i class="fa-solid fa-plus"></i> Birinchi matchni qo‘shish</button>' : ''}
         </div>`;
       container.querySelector('[data-action="add-first-match"]')?.addEventListener('click', () => window.EclipseApp.navigate('add-match'));
       return;
@@ -993,7 +981,7 @@ window.MatchManager = class MatchManager {
       const substitutes = (match.substitutes || []).map(id => players.find(player => player.id === id)?.name).filter(Boolean);
       const [scopeLabel, scopeIcon] = scopeMeta[match.scope] || ['SCOPE YO‘Q', 'fa-circle-question'];
       const completeness = completenessMeta[match.dataCompleteness] || completenessMeta.partial;
-      const source = match.verificationStatus === 'needs_review' || match.needsReview === true
+      const source = window.StatsEngine.needsDataReview(match)
         ? ['TEKSHIRISH KERAK', 'is-review', 'fa-triangle-exclamation']
         : match.ocrVerified === true || match.dataQuality === 'ocr_verified'
           ? ['OCR TASDIQLANGAN', 'is-verified', 'fa-wand-magic-sparkles']
@@ -1013,8 +1001,6 @@ window.MatchManager = class MatchManager {
           <div class="match-ledger-card__body">
             <dl class="match-ledger-metrics">
               <div><dt>Jamoa KDA</dt><dd>${kda ? `${kda.kills} / ${kda.deaths} / ${kda.assists}` : '—'}</dd></div>
-              <div><dt>Turtle</dt><dd>${metric(match.teamTurtles)}</dd></div>
-              <div><dt>Lord</dt><dd>${metric(match.teamLords)}</dd></div>
               <div><dt>Turret</dt><dd>${metric(match.teamTurrets)}</dd></div>
             </dl>
             <div class="match-ledger-roster"><p class="section-eyebrow">TARKIB</p><ul>${rosterPills}${guestPills}</ul></div>
@@ -1140,7 +1126,7 @@ window.MatchManager = class MatchManager {
     const subNames = (match.substitutes || []).map(id => players.find(player => player.id === id)?.name).filter(Boolean);
     const scopeLabel = { team5: 'To‘liq tarkib (5)', squad: 'Guruh (2–4 kishi)', individual: 'Yakkaxon (1 kishi)', unclassified: 'Tekshirish kerak' }[match.scope] || 'Noma’lum';
     const completenessLabel = match.entryMode === 'practice_lite' ? 'LITE DATA' : match.dataCompleteness === 'full' ? 'TO‘LIQ DATA' : 'QISMAN DATA';
-    const needsReview = match.verificationStatus === 'needs_review' || match.needsReview === true;
+    const needsReview = window.StatsEngine.needsDataReview(match);
     const isOcrVerified = match.ocrVerified === true || match.dataQuality === 'ocr_verified';
     const sourceLabel = needsReview
       ? 'TEKSHIRISH KERAK'
@@ -1151,7 +1137,7 @@ window.MatchManager = class MatchManager {
 
     content.innerHTML = `<div class="modal-header"><div><p class="section-eyebrow">MATCH READOUT · ${scopeLabel}</p><h3 class="modal-title" id="modalTitle">${this.escape(window.StatsEngine.formatDateFormatted(match.date))}</h3></div><button class="modal-close" id="closeModalBtn" aria-label="Yopish">&times;</button></div>
       <div class="modal-body match-readout">
-        <section class="match-readout__summary"><div class="match-readout__result ${match.result === 'win' ? 'is-win' : match.result === 'loss' ? 'is-loss' : 'is-review'}"><strong>${resultCode}</strong><span>${resultLabel}</span></div><dl><div><dt>Davomiylik</dt><dd>${this.escape(duration)}</dd></div><div><dt>Turtle</dt><dd>${fmt(match.teamTurtles)}</dd></div><div><dt>Lord</dt><dd>${fmt(match.teamLords)}</dd></div><div><dt>Turret</dt><dd>${fmt(match.teamTurrets)}</dd></div></dl><div class="match-readout__quality"><span class="quality-badge ${needsReview ? 'is-review' : isOcrVerified ? 'is-verified' : 'is-manual'}">${sourceLabel}</span><span class="quality-badge ${match.dataCompleteness === 'full' ? 'is-full' : 'is-partial'}">${completenessLabel}</span></div></section>
+        <section class="match-readout__summary"><div class="match-readout__result ${match.result === 'win' ? 'is-win' : match.result === 'loss' ? 'is-loss' : 'is-review'}"><strong>${resultCode}</strong><span>${resultLabel}</span></div><dl><div><dt>Davomiylik</dt><dd>${this.escape(duration)}</dd></div><div><dt>Turret</dt><dd>${fmt(match.teamTurrets)}</dd></div></dl><div class="match-readout__quality"><span class="quality-badge ${needsReview ? 'is-review' : isOcrVerified ? 'is-verified' : 'is-manual'}">${sourceLabel}</span><span class="quality-badge ${match.dataCompleteness === 'full' ? 'is-full' : 'is-partial'}">${completenessLabel}</span></div></section>
         ${needsReview && Array.isArray(match.dataIssues) && match.dataIssues.length ? `<section class="match-readout__issues"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>Analyticsga kiritilmagan</strong><p>${this.escape(match.dataIssues.map(issue => this.formatDataIssue(issue)).join(' · '))}</p></div></section>` : ''}
         ${match.sessionLabel || match.notes ? `<section class="match-readout__context">${match.sessionLabel ? `<small>SESSION · ${this.escape(match.sessionLabel)}</small>` : ''}${match.notes ? `<p>${this.escape(match.notes)}</p>` : ''}</section>` : ''}
         <section><div class="match-readout__section-title"><p class="section-eyebrow">PARTICIPANTS</p><strong>${(match.playerStats || []).length + (match.guestStats || []).length}/5</strong></div><div class="match-participant-grid">${participants}</div></section>
@@ -1664,14 +1650,6 @@ window.MatchManager = class MatchManager {
     }
 
     // 4. Team Objectives (if recognized)
-    if (typeof data.teamTurtles === 'number') {
-      const el = document.getElementById('team-turtles');
-      if (el) el.value = data.teamTurtles;
-    }
-    if (typeof data.teamLords === 'number') {
-      const el = document.getElementById('team-lords');
-      if (el) el.value = data.teamLords;
-    }
     if (typeof data.teamTurrets === 'number') {
       const el = document.getElementById('team-turrets');
       if (el) el.value = data.teamTurrets;

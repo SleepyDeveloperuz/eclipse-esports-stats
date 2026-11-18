@@ -1,6 +1,7 @@
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { runChecks } from './ci.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -69,13 +70,14 @@ function bundleAssets(output) {
   writeFileSync(join(output, 'js', 'bundle.min.js'), bundledJs);
 
   // 3. Rewrite public/index.html to use bundle assets
-  const jsScriptPattern = /<script src=\"js\/heroes\.js[^\"]*\"><\/script>[\s\S]*?<script src=\"js\/app\.js[^\"]*\"><\/script>/;
+  const jsScriptPattern = /<script src=\"js\/heroes\.js[^\"]*\"(?: defer)?><\/script>[\s\S]*?<script src=\"js\/app\.js[^\"]*\"(?: defer)?><\/script>/;
   const cssLinkPattern = /<link rel=\"stylesheet\" href=\"css\/style\.css[^\"]*\">[\s\S]*?<link rel=\"stylesheet\" href=\"css\/meta-qol\.css[^\"]*\">/;
 
-  const version = '2.41.0';
+  const versionOf = content => createHash('sha256').update(content).digest('hex').slice(0, 16);
+  const jsVersion = versionOf(bundledJs), cssVersion = versionOf(minifiedCss);
   const updatedHtml = indexHtml
-    .replace(cssLinkPattern, `<link rel="stylesheet" href="css/bundle.min.css?v=${version}">`)
-    .replace(jsScriptPattern, `<script src="js/bundle.min.js?v=${version}"></script>`);
+    .replace(cssLinkPattern, `<link rel="stylesheet" href="css/bundle.min.css?v=${cssVersion}">`)
+    .replace(jsScriptPattern, `<script src="js/bundle.min.js?v=${jsVersion}" defer></script>`);
 
   writeFileSync(indexPath, updatedHtml);
 
@@ -85,7 +87,7 @@ function bundleAssets(output) {
     const metaLabHtml = readFileSync(metaLabPath, 'utf8');
     if (metaLabHtml.includes('<html') && metaLabHtml.includes('css/style.css')) {
       const metaCssPattern = /<link rel=\"stylesheet\" href=\"\/css\/style\.css[^\"]*\">[\s\S]*?<link rel=\"stylesheet\" href=\"\/css\/meta-qol\.css[^\"]*\">/;
-      const updatedMetaLab = metaLabHtml.replace(metaCssPattern, `<link rel="stylesheet" href="/css/bundle.min.css?v=${version}">`);
+      const updatedMetaLab = metaLabHtml.replace(metaCssPattern, `<link rel="stylesheet" href="/css/bundle.min.css?v=${cssVersion}">`);
       writeFileSync(metaLabPath, updatedMetaLab);
     }
   }

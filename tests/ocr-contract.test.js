@@ -46,11 +46,11 @@ test('OCR drops duplicate participants and keeps unknown heroes explicitly unrec
     result: 'win', duration: null, matchType: 'ranked',
     players: [
       { matchedPlayerId: 'p1', detectedName: 'Leader', heroUsed: 'Not A Hero', kills: '4' },
-      { matchedPlayerId: 'p1', detectedName: 'Leader duplicate', heroUsed: 'Fanny' },
+      { matchedPlayerId: 'p1', detectedName: 'Leader', heroUsed: 'Fanny' },
       { detectedName: 'Guest', heroUsed: 'Fanny' }
     ]
   }, roster, heroes);
-  assert.equal(data.players.length, 2);
+  assert.equal(data.players.length, 1);
   assert.equal(data.players[0].heroRecognized, false);
   assert.equal(data.players[0].kills, 4);
   assert.ok(data.reviewIssues.includes('duplicate_participant'));
@@ -98,10 +98,9 @@ test('source rows retain original positions across reordered, unidentified, and 
     { sourceRow: 5, detectedName: 'Guest bottom', kills: 8 },
     { sourceRow: 1, detectedName: '' },
     { sourceRow: 3, matchedPlayerId: 'p1', detectedName: 'Leader' },
-    { sourceRow: 4, matchedPlayerId: 'p1', detectedName: 'Duplicate leader' }
+    { sourceRow: 4, matchedPlayerId: 'p1', detectedName: 'Leader' }
   ] }, roster, heroes, { mode: 'scoreboard' });
-  assert.deepEqual(data.players.map(row => row.sourceRow), [5, 3]);
-  assert.ok(data.reviewIssues.includes('unidentified_participant'));
+  assert.deepEqual(data.players.map(row => row.sourceRow), [3]);
   assert.ok(data.reviewIssues.includes('duplicate_participant'));
 });
 
@@ -109,7 +108,7 @@ test('missing, duplicate and invalid source rows are never inferred from array i
   const data = normaliseOcrPayload({ players: [
     { sourceRow: 2, detectedName: 'A' }, { sourceRow: 2, detectedName: 'B' },
     { detectedName: 'C' }, { sourceRow: '4', detectedName: 'D' }, { sourceRow: 6, detectedName: 'E' }
-  ] }, roster, heroes, { mode: 'scoreboard' });
+  ] }, ['A', 'B', 'C', 'D', 'E'].map(name => ({ id: name, name })), heroes, { mode: 'scoreboard' });
   assert.deepEqual(data.players.map(row => row.sourceRow), [null, null, null, null, null]);
   assert.ok(data.reviewIssues.includes('duplicate_source_row'));
   assert.ok(data.reviewIssues.includes('missing_or_invalid_source_row'));
@@ -120,7 +119,7 @@ test('unknown medal remains unknown and duplicate MVP marks both rows for review
     { sourceRow: 1, detectedName: 'A', medal: 'mvp' },
     { sourceRow: 2, detectedName: 'B', medal: 'mvp' },
     { sourceRow: 3, detectedName: 'C', medal: 'unclear' }
-  ] }, roster, heroes, { mode: 'scoreboard' });
+  ] }, ['A', 'B', 'C'].map(name => ({ id: name, name })), heroes, { mode: 'scoreboard' });
   assert.deepEqual(data.players.map(row => row.medal), ['mvp', 'mvp', null]);
   assert.ok(data.players.every(row => row.medalReviewRequired));
   assert.ok(data.reviewIssues.includes('multiple_mvp_medals'));
@@ -180,16 +179,12 @@ test('non-numeric JSON values cannot masquerade as zero or one during normalizat
   }
 });
 
-test('OCR normalisation strictly resets matchedPlayerId to null when detectedName does not match roster', () => {
-  // If the model erroneously guessed or hallucinated matchedPlayerId for a guest player,
-  // normaliseOcrPayload verifies against smartMatchRoster and strictly overrides to null.
-  const payload = {
-    players: [
-      { detectedName: 'RandomGuest99', matchedPlayerId: 'p1', kills: 5 },
-      { detectedName: 'My Pub Hero', matchedPlayerId: 'p2', kills: 4 }
-    ]
-  };
-  const data = normaliseOcrPayload(payload, roster, heroes);
-  assert.equal(data.players[0].matchedPlayerId, null);
-  assert.equal(data.players[1].matchedPlayerId, null);
+test('OCR drops guest records even when the provider assigns a roster ID', () => {
+  const data = normaliseOcrPayload({ players: [
+    { detectedName: 'RandomGuest99', matchedPlayerId: 'p1', kills: 5 },
+    { detectedName: 'My Pub Hero', matchedPlayerId: 'p2', kills: 4 },
+    { matchedPlayerId: 'p1', kills: 10 }
+  ], notes: 'Private guest text' }, roster, heroes);
+  assert.deepEqual(data.players, []);
+  assert.equal(data.notes, '');
 });

@@ -5,7 +5,7 @@ import { normaliseOcrPayload, parseDetailImage, buildOcrRequest } from '../api/o
 
 const row = (sourceRow, extra = {}) => ({ sourceRow, detectedName: `Player ${sourceRow}`, kills: 5, deaths: 2, assists: 8, inGameScore: 8.4, goldEarned: 8000, medal: 'gold', ...extra });
 const data = players => ({ result: 'win', players, reviewIssues: [] });
-const normalize = value => normaliseOcrPayload(value, [], [], { mode: 'scoreboard' });
+const normalize = value => normaliseOcrPayload(value, [1, 2, 3, 4, 5].map(n => ({ id: `p${n}`, name: `Player ${n}` })), [], { mode: 'scoreboard' });
 const requestBody = { contents: [{ parts: [{ text: 'Original extraction instructions' }] }] };
 const provider = values => {
   const requests = [];
@@ -20,6 +20,15 @@ test('complete visible values require one request and no recheck', async () => {
   const mock = provider([data([row(1)])]);
   const result = await extractWithRecheck({ apiKey: 'fixture', requestBody, models: ['gemini-fixture'], normalize, ...mock });
   assert.equal(mock.requests.length, 1); assert.equal(result.meta.rechecked, false);
+  assert.deepEqual(extractionProblems(result.data), []);
+});
+
+test('damage-only evidence does not trigger a paid recheck for unavailable scoreboard columns', async () => {
+  const mock = provider([{ ...data([row(1, { damageDealt: 12345 })]), screenshots: [{ imageIndex: 0, kind: 'damage', battleId: '1003364882523644224', duration: '11:47', result: 'win' }] }]);
+  const result = await extractWithRecheck({ apiKey: 'fixture', requestBody, models: ['gemini-fixture'], normalize, ...mock });
+  assert.equal(mock.requests.length, 1);
+  assert.equal(result.data.players[0].kills, null);
+  assert.equal(result.data.players[0].damageDealt, 12345);
   assert.deepEqual(extractionProblems(result.data), []);
 });
 
@@ -54,6 +63,13 @@ test('recheck cannot substitute a different player or overwrite valid stats', ()
   const fixed = reconcileRecheck(original, data([row(1, { goldEarned: 1 })]));
   assert.equal(fixed.players[0].goldEarned, 8000); assert.equal(fixed.players[0].medal, 'gold');
   assert.equal(original.players[0].medal, null);
+});
+
+test('recheck cannot merge contradictory match headers or switch the portrait source image', () => {
+  const original = { ...data([row(1, { medal: null })]), battleId: '1003364882523644224', durationSeconds: 707, sourceImageIndex: 0 };
+  for (const extra of [{ battleId: '995707943677883216' }, { durationSeconds: 708 }, { result: 'loss' }, { sourceImageIndex: 1 }, { scanError: 'mismatched_screenshots' }]) {
+    assert.equal(reconcileRecheck(original, { ...original, ...extra, players: [row(1)] }), original);
+  }
 });
 
 test('recheck matches unique identities across reordering and only fills missing KDA', () => {

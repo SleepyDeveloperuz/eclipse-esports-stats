@@ -1,5 +1,5 @@
 /* Local portrait matching. Only public reference descriptors are persisted, never screenshots. */
-(() => {
+((scope) => {
   const SIZE = 24, VERSION = 1, MAX_AGE = 7 * 86400000;
   function descriptor(rgba) {
     if (rgba.length !== SIZE * SIZE * 4) throw new Error('Ikonka o‘lchami yaroqsiz');
@@ -24,8 +24,9 @@
     })).sort((a, b) => b.score - a.score || a.id - b.id).slice(0, 3);
   }
   function automaticMatch(candidates, complete, cropSize) {
-    // Conservative near-identical gate, NOT a calibrated confidence percentage.
-    return Boolean(complete && cropSize >= 32 && candidates.length >= 2 && candidates[0].score >= .985 && candidates[0].score - candidates[1].score >= .06);
+    // Screenshot compression lowers raw similarity. Require both strong pixel
+    // agreement and a clear alternative margin; this is not a probability.
+    return Boolean(complete && cropSize >= 32 && candidates.length >= 2 && candidates[0].score >= .92 && candidates[0].score - candidates[1].score >= .06);
   }
   function imageVariants(image) {
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = SIZE;
@@ -138,6 +139,6 @@
       return { candidates, automatic: automaticMatch(candidates, this.complete && detail > .005, cropSize), loaded: this.references.length, total: this.total };
     }
   }
-  window.HeroPortraitMatcher = HeroPortraitMatcher;
-  window.HeroPortraitMath = { descriptor, similarity, rankCandidates, automaticMatch, size: SIZE };
-})();
+  scope.HeroPortraitMatcher = HeroPortraitMatcher;
+  scope.HeroPortraitMath = { descriptor, similarity, rankCandidates, automaticMatch, size: SIZE };
+})(typeof window !== 'undefined' ? window : globalThis);

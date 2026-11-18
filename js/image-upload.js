@@ -79,15 +79,7 @@
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, targetW, targetH);
 
-      let compressed = null;
-      try {
-        compressed = canvas.toDataURL('image/webp', quality);
-        if (!compressed || !compressed.startsWith('data:image/webp')) compressed = null;
-      } catch { compressed = null; }
-
-      if (!compressed) {
-        compressed = canvas.toDataURL('image/jpeg', quality);
-      }
+      let compressed = canvas.toDataURL('image/jpeg', quality);
 
       // If compressed output is still large (> 1.2 MB base64), progressively lower quality
       if (compressed && compressed.length > 1600000) {

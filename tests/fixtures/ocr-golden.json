@@ -1,0 +1,354 @@
+{
+  "description": "Manually transcribed screenshot values; roster only. Numeric/medal checks and separately labeled hero checks are reported independently. Lanes are unscored. Original screenshots stay outside the repository.",
+  "cases": [
+    {
+      "id": "notification",
+      "files": [
+        "IMG_3875.jpeg",
+        "IMG_3876.jpeg"
+      ],
+      "expected": {
+        "battleId": "1002783597354835233",
+        "result": "win",
+        "durationSeconds": 672,
+        "teamKills": 32,
+        "enemyKills": 10,
+        "players": [
+          {
+            "matchedPlayerId": "cd2969b5-7cfa-4f0d-88bd-0906502a3aba",
+            "sourceRow": 1,
+            "kills": 2,
+            "deaths": 1,
+            "assists": 20,
+            "goldEarned": 7177,
+            "inGameScore": 11.9,
+            "medal": "supreme_mvp",
+            "damageDealt": 26936,
+            "turretDamage": 0,
+            "damageReceived": 91856,
+            "teamfightParticipation": 69
+          },
+          {
+            "matchedPlayerId": "95fa6dbd-bd82-4d7d-88de-23bc01858eac",
+            "sourceRow": 2,
+            "kills": 9,
+            "deaths": 3,
+            "assists": 8,
+            "goldEarned": 8864,
+            "inGameScore": 8.9,
+            "medal": "gold",
+            "damageDealt": 35128,
+            "turretDamage": 3842,
+            "damageReceived": 31806,
+            "teamfightParticipation": 53
+          },
+          {
+            "matchedPlayerId": "bc0f7b6c-4c0d-466e-b17b-ca04c5b583e4",
+            "sourceRow": 4,
+            "kills": 3,
+            "deaths": 1,
+            "assists": 6,
+            "goldEarned": 8604,
+            "inGameScore": 7.5,
+            "medal": "gold",
+            "damageDealt": 33234,
+            "turretDamage": 25821,
+            "damageReceived": 16090,
+            "teamfightParticipation": 28
+          }
+        ]
+      }
+    },
+    {
+      "id": "reordered",
+      "files": [
+        "IMG_3877.jpeg",
+        "IMG_3878.jpeg"
+      ],
+      "expected": {
+        "battleId": "1003364882523644224",
+        "result": "win",
+        "durationSeconds": 707,
+        "teamKills": 36,
+        "enemyKills": 15,
+        "players": [
+          {
+            "matchedPlayerId": "cd2969b5-7cfa-4f0d-88bd-0906502a3aba",
+            "sourceRow": 1,
+            "kills": 0,
+            "deaths": 4,
+            "assists": 21,
+            "goldEarned": 7512,
+            "inGameScore": 10.0,
+            "medal": "supreme",
+            "damageDealt": 39388,
+            "turretDamage": 138,
+            "damageReceived": 91063,
+            "teamfightParticipation": 58
+          },
+          {
+            "matchedPlayerId": "bc0f7b6c-4c0d-466e-b17b-ca04c5b583e4",
+            "sourceRow": 3,
+            "kills": 13,
+            "deaths": 1,
+            "assists": 2,
+            "goldEarned": 10544,
+            "inGameScore": 10.3,
+            "medal": "supreme_mvp",
+            "damageDealt": 61864,
+            "turretDamage": 26430,
+            "damageReceived": 33065,
+            "teamfightParticipation": 42
+          },
+          {
+            "matchedPlayerId": "95fa6dbd-bd82-4d7d-88de-23bc01858eac",
+            "sourceRow": 5,
+            "kills": 5,
+            "deaths": 2,
+            "assists": 11,
+            "goldEarned": 8516,
+            "inGameScore": 9.0,
+            "medal": "gold",
+            "damageDealt": 46337,
+            "turretDamage": 1151,
+            "damageReceived": 74078,
+            "teamfightParticipation": 44
+          }
+        ]
+      },
+      "expectedHeroes": [
+        {
+          "matchedPlayerId": "cd2969b5-7cfa-4f0d-88bd-0906502a3aba",
+          "heroUsed": "Khufra"
+        },
+        {
+          "matchedPlayerId": "bc0f7b6c-4c0d-466e-b17b-ca04c5b583e4",
+          "heroUsed": "Brody"
+        },
+        {
+          "matchedPlayerId": "95fa6dbd-bd82-4d7d-88de-23bc01858eac",
+          "heroUsed": "Aulus"
+        }
+      ]
+    },
+    {
+      "id": "zeroes",
+      "files": [
+        "IMG_3955.jpeg",
+        "IMG_3956.jpeg"
+      ],
+      "expected": {
+        "battleId": "995707943677883216",
+        "result": "loss",
+        "durationSeconds": 595,
+        "teamKills": 2,
+        "enemyKills": 24,
+        "players": [
+          {
+            "matchedPlayerId": "bc0f7b6c-4c0d-466e-b17b-ca04c5b583e4",
+            "sourceRow": 1,
+            "kills": 0,
+            "deaths": 6,
+            "assists": 1,
+            "goldEarned": 4311,
+            "inGameScore": 3.7,
+            "medal": "silver",
+            "damageDealt": 18113,
+            "turretDamage": 0,
+            "damageReceived": 101916,
+            "teamfightParticipation": 50
+          },
+          {
+            "matchedPlayerId": "cd2969b5-7cfa-4f0d-88bd-0906502a3aba",
+            "sourceRow": 2,
+            "kills": 2,
+            "deaths": 5,
+            "assists": 0,
+            "goldEarned": 4946,
+            "inGameScore": 5.3,
+            "medal": "silver",
+            "damageDealt": 38227,
+            "turretDamage": 0,
+            "damageReceived": 55930,
+            "teamfightParticipation": 100
+          },
+          {
+            "matchedPlayerId": "95fa6dbd-bd82-4d7d-88de-23bc01858eac",
+            "sourceRow": 3,
+            "kills": 0,
+            "deaths": 5,
+            "assists": 0,
+            "goldEarned": 5154,
+            "inGameScore": 3.0,
+            "medal": "bronze",
+            "damageDealt": 30279,
+            "turretDamage": 0,
+            "damageReceived": 45562,
+            "teamfightParticipation": 0
+          }
+        ]
+      },
+      "expectedHeroes": [
+        {
+          "matchedPlayerId": "bc0f7b6c-4c0d-466e-b17b-ca04c5b583e4",
+          "heroUsed": "Masha"
+        },
+        {
+          "matchedPlayerId": "cd2969b5-7cfa-4f0d-88bd-0906502a3aba",
+          "heroUsed": "Aulus"
+        },
+        {
+          "matchedPlayerId": "95fa6dbd-bd82-4d7d-88de-23bc01858eac",
+          "heroUsed": "Obsidia"
+        }
+      ]
+    },
+    {
+      "id": "guest-decoy",
+      "annotation": "Owner confirmed IMG_3937 row 5: FS Shadow as always is roster Shadow playing Aulus (0/4/6). Row 1 No1 Shadow@5279 is a guest; the old stored Gloo label is not ground truth and is not changed by this fixture.",
+      "files": [
+        "IMG_3937.jpeg",
+        "IMG_3938.jpeg"
+      ],
+      "expected": {
+        "battleId": "960320028793846589",
+        "result": "loss",
+        "durationSeconds": 699,
+        "teamKills": 12,
+        "enemyKills": 28,
+        "players": [
+          {
+            "matchedPlayerId": "cd2969b5-7cfa-4f0d-88bd-0906502a3aba",
+            "sourceRow": 2,
+            "kills": 1,
+            "deaths": 3,
+            "assists": 7,
+            "goldEarned": 5717,
+            "inGameScore": 6.8,
+            "medal": "silver",
+            "damageDealt": 22194,
+            "turretDamage": 0,
+            "damageReceived": 30826,
+            "teamfightParticipation": 67
+          },
+          {
+            "matchedPlayerId": "bc0f7b6c-4c0d-466e-b17b-ca04c5b583e4",
+            "sourceRow": 3,
+            "kills": 2,
+            "deaths": 4,
+            "assists": 0,
+            "goldEarned": 6932,
+            "inGameScore": 4.2,
+            "medal": "silver",
+            "damageDealt": 21177,
+            "turretDamage": 5308,
+            "damageReceived": 37881,
+            "teamfightParticipation": 17
+          },
+          {
+            "matchedPlayerId": "95fa6dbd-bd82-4d7d-88de-23bc01858eac",
+            "sourceRow": 5,
+            "kills": 0,
+            "deaths": 4,
+            "assists": 6,
+            "goldEarned": 6458,
+            "inGameScore": 5.9,
+            "medal": "silver",
+            "damageDealt": 28189,
+            "turretDamage": 1370,
+            "damageReceived": 59291,
+            "teamfightParticipation": 50
+          }
+        ]
+      },
+      "expectedHeroes": [
+        {
+          "matchedPlayerId": "cd2969b5-7cfa-4f0d-88bd-0906502a3aba",
+          "heroUsed": "Selena"
+        },
+        {
+          "matchedPlayerId": "bc0f7b6c-4c0d-466e-b17b-ca04c5b583e4",
+          "heroUsed": "Hanabi"
+        },
+        {
+          "matchedPlayerId": "95fa6dbd-bd82-4d7d-88de-23bc01858eac",
+          "heroUsed": "Aulus"
+        }
+      ]
+    },
+    {
+      "id": "solo-alias",
+      "files": [
+        "IMG_3689.jpeg",
+        "IMG_3690.jpeg"
+      ],
+      "expected": {
+        "battleId": "955123354586535089",
+        "result": "win",
+        "durationSeconds": 642,
+        "teamKills": 32,
+        "enemyKills": 11,
+        "players": [
+          {
+            "matchedPlayerId": "cd2969b5-7cfa-4f0d-88bd-0906502a3aba",
+            "sourceRow": 5,
+            "kills": 9,
+            "deaths": 2,
+            "assists": 8,
+            "goldEarned": 9104,
+            "inGameScore": 10.8,
+            "medal": "supreme_mvp",
+            "damageDealt": 47005,
+            "turretDamage": 12439,
+            "damageReceived": 22790,
+            "teamfightParticipation": 53
+          }
+        ]
+      }
+    },
+    {
+      "id": "duo",
+      "files": [
+        "IMG_3776.jpeg",
+        "IMG_3777.jpeg"
+      ],
+      "expected": {
+        "battleId": "991567668217331314",
+        "result": "win",
+        "durationSeconds": 718,
+        "teamKills": 26,
+        "enemyKills": 7,
+        "players": [
+          {
+            "matchedPlayerId": "95fa6dbd-bd82-4d7d-88de-23bc01858eac",
+            "sourceRow": 1,
+            "kills": 12,
+            "deaths": 2,
+            "assists": 2,
+            "goldEarned": 11313,
+            "inGameScore": 10.4,
+            "medal": "supreme",
+            "damageDealt": 58685,
+            "turretDamage": 20231,
+            "damageReceived": 40477,
+            "teamfightParticipation": 54
+          },
+          {
+            "matchedPlayerId": "cd2969b5-7cfa-4f0d-88bd-0906502a3aba",
+            "sourceRow": 5,
+            "kills": 2,
+            "deaths": 3,
+            "assists": 6,
+            "goldEarned": 7865,
+            "inGameScore": 5.8,
+            "medal": "silver",
+            "damageDealt": 22541,
+            "turretDamage": 0,
+            "damageReceived": 32303,
+            "teamfightParticipation": 31
+          }
+        ]
+      }
+    }
+  ]
+}

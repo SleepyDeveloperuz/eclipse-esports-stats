@@ -183,7 +183,7 @@ domTest('missing or duplicate sourceRow falls back to manual crop without catalo
   }
 });
 
-domTest('unsupported first image tries the second, while partial layouts never produce crops', async () => {
+domTest('partial anchor layouts never borrow another player position from the other image', async () => {
   const { w, desk } = setup();
   try {
     let calls = 0, prepared = 0; const attached = [];
@@ -191,7 +191,7 @@ domTest('unsupported first image tries the second, while partial layouts never p
     w.EclipsePortraitLocator.locate = async () => ({ boxes: ++calls === 1 ? boxes().slice(0, 4) : boxes() });
     desk.attachPortrait = async (_, box) => attached.push(box);
     await desk.applyOcrData({ players: [player(4)] });
-    assert.equal(calls, 2); assert.equal(prepared, 1); assert.equal(attached[0].imageIndex, 1); assert.equal(attached[0].bounds[0], 580);
+    assert.equal(calls, 1); assert.equal(prepared, 1); assert.equal(attached.length, 0);
   } finally { w.close(); }
 });
 
@@ -225,7 +225,7 @@ domTest('image replacement and form replacement discard pending portrait work', 
 domTest('OCR plus valid local matches is immediately submit-ready without confirmation or edits', async () => {
   const { w, desk } = setup();
   try {
-    desk.portraitMatcher.match = async () => ({ automatic: false, loaded: 133, total: 133, candidates: [{ name: 'Wrong AI hero', score: .99 }, { name: 'Miya', score: .91 }, { name: 'Moskov', score: .88 }] });
+    desk.portraitMatcher.match = async () => ({ automatic: true, loaded: 133, total: 133, candidates: [{ name: 'Miya', score: .96 }, { name: 'Moskov', score: .85 }] });
     w.fetch = async () => ({ ok: true, async json() { return { data: { result: 'win', players: [player(3)] } }; } });
     await desk.scanImages();
     const row = desk.container.querySelector('.submission-player-row');
@@ -249,7 +249,7 @@ domTest('OCR plus valid local matches is immediately submit-ready without confir
 domTest('optional edits accept another candidate or a manual hero immediately', async () => {
   const { w, desk, form } = setup();
   try {
-    desk.portraitMatcher.match = async () => ({ candidates: [{ name: 'Miya', score: .95 }, { name: 'Moskov', score: .92 }] });
+    desk.portraitMatcher.match = async () => ({ automatic: true, candidates: [{ name: 'Miya', score: .96 }, { name: 'Moskov', score: .84 }] });
     await desk.applyOcrData({ result: 'win', players: [player(3)] });
     form.querySelector('[data-scan-summary] button').click();
     assert.equal(form.querySelector('[data-scan-summary]').dataset.detailsOpen, 'true');
@@ -711,5 +711,30 @@ domTest('an older base scan finishing cannot unlock the button owned by a newer 
     assert.equal(form.querySelector('#practiceScanBtn').disabled, true);
     second.resolve({ ok: true, async json() { return { data: { players: [player(null)] } }; } }); await b;
     assert.equal(form.querySelector('#practiceScanBtn').disabled, false);
+  } finally { w.close(); }
+});
+
+domTest('reversed screenshot order uses the verified scoreboard for portrait lookup', async () => {
+  const { w, desk } = setup();
+  try {
+    const located = [], attached = [];
+    w.EclipsePortraitLocator.locate = async image => { located.push(image); return { boxes: boxes() }; };
+    desk.attachPortrait = async (_, box) => attached.push(box);
+    await desk.applyOcrData({ sourceImageIndex: 1, players: [player(5)] });
+    assert.deepEqual(located, [desk.images[1]]);
+    assert.equal(attached[0].imageIndex, 1);
+    assert.equal(attached[0].bounds[0], 700);
+  } finally { w.close(); }
+});
+
+domTest('an uncertain first hero candidate never silently becomes a confirmed hero', async () => {
+  const { w, desk, form } = setup();
+  try {
+    desk.portraitMatcher.match = async () => ({ automatic: false, candidates: [{ name: 'Miya', score: .89 }, { name: 'Moskov', score: .88 }] });
+    await desk.applyOcrData({ result: 'win', players: [player(3, 'p1', { heroUsed: 'Miya', heroRecognized: true })] });
+    assert.equal(form.querySelector('[data-field="heroUsed"]').value, '');
+    assert.throws(() => desk.collectDraft(), /Qahramon/);
+    form.querySelector('[data-hero-candidates] button').click();
+    assert.equal(desk.collectDraft().draft.playerStats[0].heroUsed, 'Miya');
   } finally { w.close(); }
 });

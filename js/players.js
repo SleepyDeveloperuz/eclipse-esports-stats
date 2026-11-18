@@ -91,29 +91,8 @@ window.PlayerManager = class PlayerManager {
     const aTier = heroPool.filter(h => h.status === 'backup');
     const jokerTier = heroPool.filter(h => h.status === 'learning');
 
-    // Ban resilience calculation
-    let resilienceLevel = 'medium';
-    let resilienceBadge = 'O‘rtacha Chidamlilik';
-    let resilienceDesc = 'Raqib 3 ta asosiy heroni ban qilsa, zaxirada ishonchli variantlar qoladi.';
-
-    const totalReliable = sTier.length + aTier.length;
-    if (sTier.length >= 4) {
-      resilienceLevel = 'high';
-      resilienceBadge = '🛡️ Yuqori Ban Chidamliligi';
-      resilienceDesc = `Raqib 3 ta asosiy heroni ban qilsa ham, kamida ${sTier.length - 3} ta S-Tier va ${aTier.length} ta A-Tier zaxira variantlar mavjud.`;
-    } else if (sTier.length <= 1 && aTier.length <= 1) {
-      resilienceLevel = 'critical';
-      resilienceBadge = '⚠️ Target Ban xavfi!';
-      resilienceDesc = `Turnir darajasidagi herolar juda kam (${sTier.length} S-Tier). Raqib 2-3 ta target ban bilan o‘yinchini qiyin vaziyatga solishi mumkin.`;
-    } else if (sTier.length >= 2 && totalReliable >= 4) {
-      resilienceLevel = 'good';
-      resilienceBadge = '✅ Yaxshi Ban Chidamliligi';
-      resilienceDesc = `Raqib asosiy herolarni yopsa ham, ${aTier.length} ta Scrimda sinovdan o‘tgan A-Tier zaxira variantlar mavjud.`;
-    } else {
-      resilienceLevel = 'medium';
-      resilienceBadge = '⚖️ O‘rtacha Chidamlilik';
-      resilienceDesc = `Jami ${totalReliable} ta ishonchli hero (${sTier.length} S / ${aTier.length} A). Ban bosimiga ehtiyotkorlik bilan yondashish zarur.`;
-    }
+    const poolCount = sTier.length + aTier.length + jokerTier.length;
+    const poolNote = 'Kapitan kiritgan toifalar; turnir tayyorgarligi yoki banlarga chidamlilik bahosi emas.';
 
     const renderHeroChips = (list, tierClass) => {
       if (!list.length) return '<span class="depth-hero-empty">—</span>';
@@ -127,16 +106,16 @@ window.PlayerManager = class PlayerManager {
             <i class="fa-solid fa-layer-group"></i>
             <strong>Qahramonlar chuqurligi matritsasi</strong>
           </div>
-          <span class="depth-matrix__resilience depth-matrix__resilience--${resilienceLevel}" title="${resilienceDesc}">
-            ${resilienceBadge}
+          <span class="depth-matrix__resilience depth-matrix__resilience--medium" title="${poolNote}">
+            ${poolCount} ta hero
           </span>
         </div>
 
         <div class="depth-matrix__grid">
           <div class="depth-matrix__tier depth-matrix__tier--s">
             <div class="depth-matrix__tier-head">
-              <span class="depth-tier-badge s-tier">🌟 S-Tier</span>
-              <span class="depth-tier-label">Turnir darajasi (100% ishonchli)</span>
+              <span class="depth-tier-badge s-tier">🌟 Comfort</span>
+              <span class="depth-tier-label">Qulay herolar</span>
               <span class="depth-tier-count">${sTier.length} ta</span>
             </div>
             <div class="depth-matrix__heroes">${renderHeroChips(sTier, 'depth-hero-chip--s')}</div>
@@ -144,8 +123,8 @@ window.PlayerManager = class PlayerManager {
 
           <div class="depth-matrix__tier depth-matrix__tier--a">
             <div class="depth-matrix__tier-head">
-              <span class="depth-tier-badge a-tier">⚔️ A-Tier</span>
-              <span class="depth-tier-label">Scrim darajasi (Sinovdan o‘tgan)</span>
+              <span class="depth-tier-badge a-tier">⚔️ Backup</span>
+              <span class="depth-tier-label">Zaxira herolar</span>
               <span class="depth-tier-count">${aTier.length} ta</span>
             </div>
             <div class="depth-matrix__heroes">${renderHeroChips(aTier, 'depth-hero-chip--a')}</div>
@@ -153,8 +132,8 @@ window.PlayerManager = class PlayerManager {
 
           <div class="depth-matrix__tier depth-matrix__tier--joker">
             <div class="depth-matrix__tier-head">
-              <span class="depth-tier-badge joker-tier">🃏 Joker / Pocket</span>
-              <span class="depth-tier-label">Kutilmagan qurol / Maxsus pick</span>
+              <span class="depth-tier-badge joker-tier">📚 Learning</span>
+              <span class="depth-tier-label">O‘rganilayotgan herolar</span>
               <span class="depth-tier-count">${jokerTier.length} ta</span>
             </div>
             <div class="depth-matrix__heroes">${renderHeroChips(jokerTier, 'depth-hero-chip--joker')}</div>
@@ -163,7 +142,7 @@ window.PlayerManager = class PlayerManager {
 
         <div class="depth-matrix__tactical-note">
           <i class="fa-solid fa-shield-halved"></i>
-          <span><strong>Ban tahlili:</strong> ${resilienceDesc}</span>
+          <span>${poolNote}</span>
         </div>
       </div>
     `;
@@ -301,10 +280,10 @@ window.PlayerManager = class PlayerManager {
                 </div>
                 <div class="roster-player-tags">${(p.tags || []).map(tag => `<span>${this.escapeHtml(tag)}</span>`).join('')}</div>
                 ${p.heroPool && p.heroPool.length ? `
-                  <div class="roster-pool-summary" title="Hero Pool: ${p.heroPool.filter(h => h.status === 'comfort').length} S-Tier, ${p.heroPool.filter(h => h.status === 'backup').length} A-Tier, ${p.heroPool.filter(h => h.status === 'learning').length} Joker">
-                    <span class="pool-chip pool-chip--s" title="S-Tier (Turnir)">🌟 ${p.heroPool.filter(h => h.status === 'comfort').length} S</span>
-                    <span class="pool-chip pool-chip--a" title="A-Tier (Scrim)">⚔️ ${p.heroPool.filter(h => h.status === 'backup').length} A</span>
-                    <span class="pool-chip pool-chip--j" title="Pocket/Joker">🃏 ${p.heroPool.filter(h => h.status === 'learning').length} J</span>
+                  <div class="roster-pool-summary" title="Hero Pool: ${p.heroPool.filter(h => h.status === 'comfort').length} Comfort, ${p.heroPool.filter(h => h.status === 'backup').length} Backup, ${p.heroPool.filter(h => h.status === 'learning').length} Learning">
+                    <span class="pool-chip pool-chip--s" title="Comfort · Qulay">🌟 ${p.heroPool.filter(h => h.status === 'comfort').length} C</span>
+                    <span class="pool-chip pool-chip--a" title="Backup · Zaxira">⚔️ ${p.heroPool.filter(h => h.status === 'backup').length} B</span>
+                    <span class="pool-chip pool-chip--j" title="Learning · O‘rganilmoqda">🃏 ${p.heroPool.filter(h => h.status === 'learning').length} L</span>
                   </div>
                 ` : ''}
               </div>
@@ -1148,9 +1127,9 @@ window.PlayerManager = class PlayerManager {
       <label>Teglar<input class="form-input" name="tags" maxlength="128" value="${this.escapeHtml((player.tags || []).join(', '))}" placeholder="Masalan: Shotcaller, Flex, Initiator"></label>
       <p>Vergul bilan ajrating: ko‘pi bilan 5 ta teg, har biri 24 belgigacha. Layn matchlardagi tarixiy rollarni o‘zgartirmaydi.</p>
       <fieldset><legend><i class="fa-solid fa-layer-group"></i> Hero pool · Chuqurlik matritsasi (Captain tanlovi)</legend>
-        <label>🌟 S-Tier (Turnir darajasi — 100% ishonchli)<input class="form-input" name="pool_comfort" maxlength="1700" value="${this.escapeHtml((player.heroPool || []).filter(hero => hero.status === 'comfort').map(hero => hero.heroName).join(', '))}" placeholder="Chou, Khufra, Paquito"></label>
-        <label>⚔️ A-Tier (Scrim darajasi — Sinovdan o‘tgan)<input class="form-input" name="pool_backup" maxlength="1700" value="${this.escapeHtml((player.heroPool || []).filter(hero => hero.status === 'backup').map(hero => hero.heroName).join(', '))}" placeholder="Grock, Minotaur, Ruby"></label>
-        <label>🃏 Joker / Pocket (Maxsus kutilmagan qurol)<input class="form-input" name="pool_learning" maxlength="1700" value="${this.escapeHtml((player.heroPool || []).filter(hero => hero.status === 'learning').map(hero => hero.heroName).join(', '))}" placeholder="Franco, Kaja, Diggie"></label>
+        <label>🌟 Comfort · Qulay herolar<input class="form-input" name="pool_comfort" maxlength="1700" value="${this.escapeHtml((player.heroPool || []).filter(hero => hero.status === 'comfort').map(hero => hero.heroName).join(', '))}" placeholder="Chou, Khufra, Paquito"></label>
+        <label>⚔️ Backup · Zaxira herolar<input class="form-input" name="pool_backup" maxlength="1700" value="${this.escapeHtml((player.heroPool || []).filter(hero => hero.status === 'backup').map(hero => hero.heroName).join(', '))}" placeholder="Grock, Minotaur, Ruby"></label>
+        <label>📚 Learning · O‘rganilayotgan herolar<input class="form-input" name="pool_learning" maxlength="1700" value="${this.escapeHtml((player.heroPool || []).filter(hero => hero.status === 'learning').map(hero => hero.heroName).join(', '))}" placeholder="Franco, Kaja, Diggie"></label>
         <small>Katalogdagi nomlarni vergul bilan ajrating. Jami 20 tagacha; bir hero faqat bitta toifada.</small>
       </fieldset>
       <p role="status" data-roster-status></p><div class="roster-edit-actions"><button type="button" class="btn btn-secondary" data-cancel>Bekor qilish</button><button class="btn btn-primary" type="submit">Saqlash</button></div></form>`;
@@ -1208,65 +1187,33 @@ window.PlayerManager = class PlayerManager {
   }
 
   getPlayerRadarMetrics(stats) {
-    if (!stats) {
-      return {
-        kda: { value: '0.00', score: 0, label: 'KDA Nisbati' },
-        damage: { value: '0%', score: 0, label: 'Damage ulushi' },
-        farm: { value: '0 GPM', score: 0, label: 'Farm / GPM' },
-        push: { value: '0%', score: 0, label: 'Turret Push' },
-        teamfight: { value: '0%', score: 0, label: 'Teamfight %' },
-        survival: { value: '—', score: 50, label: 'Omon qolish' },
-        playstyle: { title: 'Tahlil qilinmoqda', desc: 'Yetarli match mavjud emas' }
-      };
-    }
-
-    const kda = Number(stats.kdaRatio) || 0;
-    const normKda = Math.min(100, Math.max(0, Math.round((kda / 5.5) * 100)));
-
-    const dmgShare = Number(stats.avgDamageShare) || 0;
-    const normDmg = Math.min(100, Math.max(0, Math.round((dmgShare / 30.0) * 100)));
-
-    const gpm = Number(stats.avgGoldPerMinute) || (Number(stats.avgGoldShare) ? Number(stats.avgGoldShare) * 25 : 0);
-    const normFarm = Math.min(100, Math.max(0, Math.round((gpm / 800.0) * 100)));
-
-    const pushShare = Number(stats.avgTurretDamageShare) || 0;
-    const normPush = Math.min(100, Math.max(0, Math.round((pushShare / 30.0) * 100)));
-
-    const tf = Number(stats.avgTeamfightParticipation) || 0;
-    const normTf = Math.min(100, Math.max(0, Math.round((tf / 75.0) * 100)));
-
-    const deaths = Number(stats.avgDeaths);
-    const normSurv = Number.isFinite(deaths) ? Math.max(15, Math.min(100, Math.round(100 - (deaths * 14)))) : 50;
-
-    let playstyleTitle = 'Universal Jangchi';
-    let playstyleDesc = 'Barcha parametrlar bo‘yicha muvozanatli va universal yondashuv.';
-
-    if (normDmg >= 70 && normKda >= 65) {
-      playstyleTitle = 'Bosh Hujumchi (Hyper Carry)';
-      playstyleDesc = 'Yuqori zarba ulushi va dushmanlarni yo‘q qilishga qaratilgan tajovuzkor uslub.';
-    } else if (normPush >= 70) {
-      playstyleTitle = 'Layn Yoriqchi (Split Pusher)';
-      playstyleDesc = 'Minoralarga bosim o‘tkazish va xaritani nazorat qilish ustasi.';
-    } else if (normTf >= 70 && normSurv >= 65) {
-      playstyleTitle = 'Jang Tashabbuskori (Vanguard)';
-      playstyleDesc = 'Jamoaviy to‘qnashuvlarni boshlash va zarbalarni qabul qilish tayanchi.';
-    } else if (normFarm >= 70) {
-      playstyleTitle = 'Resurs Jamg‘aruvchi (Late Scaler)';
-      playstyleDesc = 'Maksimal iqtisodiy ustunlik bilan o‘yinning so‘nggi daqiqalarini hal qiluvchi kuch.';
-    } else if (normSurv >= 75) {
-      playstyleTitle = 'Taktik Posbon (Anchor)';
-      playstyleDesc = 'Kam o‘lish, xavfsiz pozitsiya va barqarorlikni ta’minlovchi o‘yinchi.';
-    }
-
-    return {
-      kda: { value: stats.kdaRatio ? String(stats.kdaRatio) : '—', score: normKda, label: 'KDA Nisbati' },
-      damage: { value: stats.avgDamageShare !== null ? `${stats.avgDamageShare}%` : '—', score: normDmg, label: 'Damage Ulushi' },
-      farm: { value: stats.avgGoldPerMinute ? `${stats.avgGoldPerMinute} GPM` : (stats.avgGoldShare !== null ? `${stats.avgGoldShare}%` : '—'), score: normFarm, label: 'Farm (GPM)' },
-      push: { value: stats.avgTurretDamageShare !== null ? `${stats.avgTurretDamageShare}%` : '—', score: normPush, label: 'Turret Push' },
-      teamfight: { value: stats.avgTeamfightParticipation !== null ? `${stats.avgTeamfightParticipation}%` : '—', score: normTf, label: 'Teamfight %' },
-      survival: { value: Number.isFinite(deaths) ? `${deaths} o‘rt. o‘lim` : '—', score: normSurv, label: 'Omon qolish' },
-      playstyle: { title: playstyleTitle, desc: playstyleDesc }
+    const known = value => (typeof value === 'number' || typeof value === 'string')
+      && String(value).trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : null;
+    const hasMatches = known(stats?.matchesPlayed) > 0;
+    const read = key => hasMatches ? known(stats?.[key]) : null;
+    const metric = (value, label, unit, ceiling) => ({
+      value: value === null ? '—' : `${value}${unit}`,
+      score: value === null ? null : Math.min(100, Math.max(0, Math.round(value / ceiling * 100))), label
+    });
+    const deaths = read('avgDeaths');
+    const metrics = {
+      kda: metric(read('kdaRatio'), 'KDA Nisbati', '', 5.5),
+      damage: metric(read('avgDamageShare'), 'Damage ulushi', '%', 30),
+      farm: metric(read('avgGoldPerMinute'), 'Farm / GPM', ' GPM', 800),
+      push: metric(read('avgTurretDamageShare'), 'Turret Push', '%', 30),
+      teamfight: metric(read('avgTeamfightParticipation'), 'Teamfight %', '%', 75),
+      survival: {
+        value: deaths === null ? '—' : `${deaths} o‘rt. o‘lim`,
+        score: deaths === null ? null : Math.max(0, Math.min(100, Math.round(100 - deaths * 14))),
+        label: 'Omon qolish'
+      }
     };
+    const complete = Object.values(metrics).every(metric => metric.score !== null);
+    return { ...metrics, playstyle: {
+      title: !hasMatches ? 'Match ma’lumoti yo‘q' : complete ? 'Qayd etilgan ko‘rsatkichlar' : 'Qisman ma’lumot',
+      desc: !hasMatches ? 'Tanlangan tarkibda match yo‘q. Reyting hisoblanmadi.'
+        : 'Radar — ko‘rsatkichlarning shartli 0–100 shkalasi, mahorat yoki o‘yin uslubi hukmi emas. Noma’lum qiymatlar — bilan ko‘rsatiladi; to‘liq bo‘lmasa shakl chizilmaydi.'
+    } };
   }
 
   renderPlayerRadarSvg(metrics, playerName) {
@@ -1305,16 +1252,18 @@ window.PlayerManager = class PlayerManager {
 
     const dataPoints = axes.map((ax, i) => {
       const angle = (-90 + i * 60) * (Math.PI / 180);
-      const score = Math.max(12, Math.min(100, metrics[ax.key]?.score || 0));
+      const score = metrics[ax.key]?.score;
+      if (score === null || score === undefined) return null;
       const r = (score / 100) * R;
       const x = cx + r * Math.cos(angle);
       const y = cy + r * Math.sin(angle);
       return { x, y, score, label: ax.label, value: metrics[ax.key]?.value || '' };
     });
 
-    const dataPointsStr = dataPoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const complete = dataPoints.every(p => p !== null);
+    const dataPointsStr = dataPoints.filter(Boolean).map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
 
-    const verticesHtml = dataPoints.map(p => `
+    const verticesHtml = dataPoints.filter(Boolean).map(p => `
       <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="var(--primary)" stroke="#0d0f14" stroke-width="2" />
     `).join('\n');
 
@@ -1332,7 +1281,7 @@ window.PlayerManager = class PlayerManager {
         <div class="player-radar-header">
           <h3>
             <i class="fa-solid fa-hexagon-nodes" style="color:var(--primary);"></i>
-            <span>6-O‘qli Taktik Radar & O‘yin Uslubi</span>
+            <span>6-O‘qli Ko‘rsatkichlar Radari</span>
           </h3>
           <span class="radar-playstyle-banner">
             <i class="fa-solid fa-bolt"></i> ${this.escapeHtml(metrics.playstyle.title)}
@@ -1349,7 +1298,7 @@ window.PlayerManager = class PlayerManager {
               </defs>
               ${gridPolygons}
               ${spokes}
-              <polygon points="${dataPointsStr}" fill="url(#radarGlow)" stroke="var(--primary)" stroke-width="2.5" />
+              ${complete ? `<polygon data-radar-series points="${dataPointsStr}" fill="url(#radarGlow)" stroke="var(--primary)" stroke-width="2.5" />` : '<text x="150" y="145" text-anchor="middle" fill="var(--text-secondary)" font-size="12">Ma’lumot yetarli emas</text>'}
               ${verticesHtml}
               ${labelsHtml}
             </svg>

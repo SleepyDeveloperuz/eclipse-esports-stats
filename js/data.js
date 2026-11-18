@@ -12,6 +12,7 @@ class DataStore {
   static HERO_RESOLUTIONS = new Set(['canonical', 'legacy_name', 'unresolved']);
   static MAX_MATCH_SECONDS = (120 * 60) + 59;
   static MAX_PARTICIPANTS = 5;
+  static CAPACITY = { players: 50, matches: 2500, heroes: 300 };
 
   constructor() {
     this.PLAYERS_KEY = 'eclipse_players';
@@ -55,30 +56,81 @@ class DataStore {
   }
 
   safeStorageSet(key, value) {
-    try {
-      localStorage.setItem(key, value);
-    } catch (error) {
-      if (error && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED' || error.code === 22)) {
-        try {
-          // Faqat vaqtinchalik qoralamalar va keshni tozalash;
-          // Hech qachon uncommitted write (pending) yoki zaxira (backup) o'chirilmaydi!
-          if (typeof localStorage.length === 'number') {
-            for (let i = localStorage.length - 1; i >= 0; i--) {
-              const k = localStorage.key(i);
-              if (k && (k.startsWith('eclipse_full_match_draft_') || k.startsWith('eclipse_ocr_') || k === 'mlbb-jamoa-dasturi-progress' || k === 'eclipse_removed_heroes')) {
-                localStorage.removeItem(k);
-              }
-            }
-          } else {
-            localStorage.removeItem('mlbb-jamoa-dasturi-progress');
-            localStorage.removeItem('eclipse_removed_heroes');
-          }
-          localStorage.setItem(key, value);
-          return;
-        } catch (_) { /* ignore retry failure */ }
-      }
-      throw error;
+    try { localStorage.setItem(key, value); }
+    catch (error) { throw this.storageError(error); }
+  }
+
+  storageError(error) {
+    if (error?.name === 'QuotaExceededError' || error?.name === 'NS_ERROR_DOM_QUOTA_REACHED' || error?.code === 22) {
+      return Object.assign(new Error('Brauzer xotirasi to‘ldi. Saqlash bajarilmadi; mavjud yozuvlar va qoralamalar saqlandi. To‘liq zaxirani eksport qiling.'), { code: 'LOCAL_STORAGE_FULL', cause: error });
     }
+    return error;
+  }
+
+  assertCapacity(data) {
+    for (const [key, limit] of Object.entries(DataStore.CAPACITY)) {
+      if (Array.isArray(data[key]) && data[key].length > limit) {
+        throw Object.assign(new Error(`${limit} ${key === 'matches' ? 'match' : key === 'players' ? 'o‘yinchi' : 'hero'} chegarasi. Yozuvlar qisqartirilmadi. To‘liq zaxirani eksport qiling; arxivlash alohida bajarilishi kerak.`), { code: 'DATA_CAPACITY_EXCEEDED' });
+      }
+    }
+  }
+
+  writeStorageEntries(entries) {
+    const before = new Map(Object.keys(entries).map(key => [key, localStorage.getItem(key)]));
+    const changed = [];
+    try {
+      for (const [key, value] of Object.entries(entries)) {
+        if (before.get(key) === value) continue;
+        if (value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+        changed.push(key);
+      }
+    } catch (error) {
+      // Free only keys changed by this attempt, then restore their original bytes.
+      // Drafts, backups and unsynced work are never evicted to make room.
+      for (const key of changed) localStorage.removeItem(key);
+      for (const key of changed) if (before.get(key) !== null) localStorage.setItem(key, before.get(key));
+      throw this.storageError(error);
+    }
+  }
+
+  normalizedPlayers(players, now) {
+    const seen = new Set();
+    return players.map(player => this.normalizePlayer(player, now)).filter(player => {
+      if (seen.has(player.id)) return false;
+      seen.add(player.id);
+      return true;
+    });
+  }
+
+  normalizedMatches(matches, players, now) {
+    const playerById = new Map(players.map(player => [player.id, player]));
+    const seen = new Set();
+    return matches.map(match => this.normalizeMatch(match, playerById, now)).filter(match => {
+      if (seen.has(match.id)) return false;
+      seen.add(match.id);
+      return true;
+    });
+  }
+
+  replaceSnapshot(data, { entries = {}, recovery = false } = {}) {
+    if (this.migrationError && !recovery) throw this.migrationError;
+    for (const key of ['players', 'matches', 'heroes']) {
+      if (Object.hasOwn(data, key) && !Array.isArray(data[key])) throw new Error('Snapshot formati noto‘g‘ri. Lokal yozuvlar saqlandi.');
+    }
+    const source = { players: this.getPlayers(), matches: this.getMatches(), ...data };
+    this.assertCapacity(source);
+    const now = new Date().toISOString();
+    const players = this.normalizedPlayers(source.players, now);
+    const matches = this.normalizedMatches(source.matches, players, now);
+    this.writeStorageEntries({
+      [this.PLAYERS_KEY]: JSON.stringify(this.scrubValue(players)),
+      [this.MATCHES_KEY]: JSON.stringify(this.scrubValue(matches)),
+      ...(Array.isArray(data.heroes) ? { [this.HEROES_KEY]: JSON.stringify(this.scrubValue(data.heroes)) } : {}),
+      [this.META_KEY]: JSON.stringify({ ...this.readMeta(), schemaVersion: DataStore.SCHEMA_VERSION }),
+      ...entries
+    });
+    this.migrationError = null;
   }
 
   scrubValue(value, depth = 0) {
@@ -308,12 +360,20 @@ class DataStore {
       : 'partial';
   }
 
+  normalizeDataIssues(value) {
+    if (value == null) return [];
+    if (!Array.isArray(value)) return ['invalid_data_issues'];
+    return value.map(issue => typeof issue === 'string' && /^[a-z][a-z0-9_]{0,79}$/.test(issue)
+      ? issue : 'invalid_data_issues');
+  }
+
   normalizeMatch(match, playerById = new Map(), now = new Date().toISOString()) {
     const source = match && typeof match === 'object' ? match : {};
     const rawPlayerStats = Array.isArray(source.playerStats) ? source.playerStats : [];
     const rawGuestStats = Array.isArray(source.guestStats) ? source.guestStats : [];
     const allLegacyStats = rawPlayerStats.slice(0, 20);
-    const issues = [];
+    // Saving, migration and hero resolution must retain unresolved review evidence.
+    const issues = this.normalizeDataIssues(source.dataIssues);
     if (rawPlayerStats.length + rawGuestStats.length > DataStore.MAX_PARTICIPANTS) {
       issues.push('too_many_participants');
     }
@@ -376,20 +436,18 @@ class DataStore {
       ? source.entryMode
       : dataSource === 'submission' ? 'practice_lite' : 'full';
     const uniqueIssues = [...new Set(issues)];
-    const needsReview = uniqueIssues.length > 0;
+    const needsReview = uniqueIssues.length > 0 || source.needsReview === true
+      || source.validForAnalytics === false || source.verificationStatus === 'needs_review';
     const requestedVerification = DataStore.VERIFICATION_STATUSES.has(source.verificationStatus)
       ? source.verificationStatus
       : claimedOcrVerification ? 'verified' : 'unverified';
-    const verificationStatus = needsReview
-      ? 'needs_review'
-      : requestedVerification === 'needs_review'
-        ? claimedOcrVerification ? 'verified' : 'unverified'
-        : requestedVerification;
+    const verificationStatus = needsReview ? 'needs_review' : requestedVerification;
     const ocrVerified = dataSource === 'ocr' && verificationStatus === 'verified';
     const createdAt = this.normalizeTimestamp(source.createdAt, now);
 
     return {
       id: this.cleanId(source.id) || this.generateId(),
+      ...(source.status === 'draft' ? { status: 'draft' } : {}),
       date: normalizedDate,
       matchType,
       result,
@@ -429,35 +487,32 @@ class DataStore {
   }
 
   runMigrations() {
-    const now = new Date().toISOString();
-    const rawPlayers = this.readArray(this.PLAYERS_KEY);
-    const seenPlayerIds = new Set();
-    const players = rawPlayers.slice(0, 50)
-      .map(player => this.normalizePlayer(player, now))
-      .filter(player => {
-        if (seenPlayerIds.has(player.id)) return false;
-        seenPlayerIds.add(player.id);
-        return true;
-      });
-    const playerById = new Map(players.map(player => [player.id, player]));
-    const rawMatches = this.readArray(this.MATCHES_KEY);
-    const seenMatchIds = new Set();
-    const matches = rawMatches.slice(0, 2500)
-      .map(match => this.normalizeMatch(match, playerById, now))
-      .filter(match => {
-        if (seenMatchIds.has(match.id)) return false;
-        seenMatchIds.add(match.id);
-        return true;
-      });
-    const previousVersion = Number(this.readMeta().schemaVersion || 0);
-    const needsSave = previousVersion !== DataStore.SCHEMA_VERSION
-      || JSON.stringify(rawPlayers) !== JSON.stringify(players)
-      || JSON.stringify(rawMatches) !== JSON.stringify(matches);
+    try {
+      const now = new Date().toISOString();
+      const rawPlayers = this.readArray(this.PLAYERS_KEY);
+      const rawMatches = this.readArray(this.MATCHES_KEY);
+      // Unsupported histories remain readable/exportable byte-for-byte. Never
+      // migrate a prefix and overwrite the full source with that smaller subset.
+      this.assertCapacity({ players: rawPlayers, matches: rawMatches });
+      const players = this.normalizedPlayers(rawPlayers, now);
+      const matches = this.normalizedMatches(rawMatches, players, now);
+      const previousVersion = Number(this.readMeta().schemaVersion || 0);
+      const needsSave = previousVersion !== DataStore.SCHEMA_VERSION
+        || JSON.stringify(rawPlayers) !== JSON.stringify(players)
+        || JSON.stringify(rawMatches) !== JSON.stringify(matches);
 
-    if (needsSave) {
-      localStorage.setItem(this.PLAYERS_KEY, JSON.stringify(this.scrubValue(players)));
-      localStorage.setItem(this.MATCHES_KEY, JSON.stringify(this.scrubValue(matches)));
-      localStorage.setItem(this.META_KEY, JSON.stringify({ schemaVersion: DataStore.SCHEMA_VERSION, migratedAt: now }));
+      if (needsSave) {
+        this.writeStorageEntries({
+          [this.PLAYERS_KEY]: JSON.stringify(this.scrubValue(players)),
+          [this.MATCHES_KEY]: JSON.stringify(this.scrubValue(matches)),
+          [this.META_KEY]: JSON.stringify({ schemaVersion: DataStore.SCHEMA_VERSION, migratedAt: now })
+        });
+      }
+      this.migrationError = null;
+      return true;
+    } catch (error) {
+      this.migrationError = error;
+      return false;
     }
   }
 
@@ -505,16 +560,10 @@ class DataStore {
   }
 
   savePlayers(players) {
-    if (Array.isArray(players) && players.length > 50) throw new Error('50 o‘yinchi chegarasi. Roster qisqartirilmadi.');
+    if (this.migrationError) throw this.migrationError;
+    this.assertCapacity({ players });
     const now = new Date().toISOString();
-    const seen = new Set();
-    const normalized = (Array.isArray(players) ? players : [])
-      .map(player => this.normalizePlayer(player, now))
-      .filter(player => {
-        if (seen.has(player.id)) return false;
-        seen.add(player.id);
-        return true;
-      });
+    const normalized = this.normalizedPlayers(Array.isArray(players) ? players : [], now);
     this.safeStorageSet(this.PLAYERS_KEY, JSON.stringify(this.scrubValue(normalized)));
   }
 
@@ -622,17 +671,10 @@ class DataStore {
   }
 
   saveMatches(matches) {
-    if (Array.isArray(matches) && matches.length > 2500) throw new Error('2500 match chegarasi. Yozuvlar o‘chirilmadi; avval backup va arxivlash kerak.');
-    const playerById = new Map(this.getPlayers().map(player => [player.id, player]));
+    if (this.migrationError) throw this.migrationError;
+    this.assertCapacity({ matches });
     const now = new Date().toISOString();
-    const seen = new Set();
-    const normalized = (Array.isArray(matches) ? matches : [])
-      .map(match => this.normalizeMatch(match, playerById, now))
-      .filter(match => {
-        if (seen.has(match.id)) return false;
-        seen.add(match.id);
-        return true;
-      });
+    const normalized = this.normalizedMatches(Array.isArray(matches) ? matches : [], this.getPlayers(), now);
     this.safeStorageSet(this.MATCHES_KEY, JSON.stringify(this.scrubValue(normalized)));
   }
 
@@ -659,9 +701,20 @@ class DataStore {
     const existing = matches[index];
     const now = new Date().toISOString();
     const playerById = new Map(this.getPlayers().map(player => [player.id, player]));
+    // Only the captain's explicit server-side review can release an existing hold.
+    const reviewState = {
+      dataIssues: [...this.normalizeDataIssues(existing.dataIssues), ...this.normalizeDataIssues(matchObj.dataIssues)],
+      needsReview: existing.needsReview === true || matchObj.needsReview === true,
+      validForAnalytics: existing.validForAnalytics !== false && matchObj.validForAnalytics !== false,
+      verificationStatus: existing.verificationStatus === 'needs_review' || matchObj.verificationStatus === 'needs_review'
+        ? 'needs_review' : 'unverified',
+      ocrVerified: false,
+      dataQuality: 'partial'
+    };
     const normalized = this.normalizeMatch({
       ...existing,
       ...matchObj,
+      ...reviewState,
       id,
       createdAt: existing.createdAt || matchObj.createdAt || now,
       updatedAt: now
@@ -716,23 +769,19 @@ class DataStore {
 
   importData(jsonString) {
     try {
+      this.lastImportError = '';
       const data = JSON.parse(jsonString);
       if (!data || typeof data !== 'object' || Array.isArray(data) || data.format || data.state
         || !Array.isArray(data.players) || !Array.isArray(data.matches)) return false;
-      if (data.players.length > 50 || data.matches.length > 2500 || (Array.isArray(data.heroes) && data.heroes.length > 300)) return false;
-      if (Array.isArray(data.players)) this.savePlayers(data.players);
-      if (Array.isArray(data.matches)) {
-        this.saveMatches(data.matches.map(match => ({
+      this.replaceSnapshot({ ...data,
+        matches: data.matches.map(match => ({
           ...match,
           dataSource: match?.dataSource || (match?.dataQuality === 'ocr_verified' ? 'ocr' : 'import')
-        })));
-      }
-      if (Array.isArray(data.heroes)) {
-        localStorage.setItem(this.HEROES_KEY, JSON.stringify(this.scrubValue(data.heroes.slice(0, 300))));
-      }
-      this.runMigrations();
+        }))
+      }, { recovery: true });
       return true;
     } catch (error) {
+      this.lastImportError = error.message;
       console.error('Import failed', error);
       return false;
     }

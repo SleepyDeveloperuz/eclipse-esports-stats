@@ -175,13 +175,30 @@ window.MlbbDataManager = class MlbbDataManager {
     const token = options.admin ? this.auth.getToken() : this.auth.getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
     if (options.body) headers['Content-Type'] = 'application/json';
-    const response = await fetch(path, {
-      method: options.method || 'GET',
-      headers,
-      body: options.body ? JSON.stringify(options.body) : undefined,
-      cache: token ? 'no-store' : 'default'
-    });
-    const payload = await response.json().catch(() => ({}));
+    const method = options.method || 'GET';
+    const controller = new AbortController();
+    let timer;
+    const load = async () => {
+      const response = await fetch(path, {
+        method, headers,
+        body: options.body ? JSON.stringify(options.body) : undefined,
+        cache: token ? 'no-store' : 'default',
+        signal: controller.signal
+      });
+      const payload = await response.json().catch(() => ({}));
+      return { response, payload };
+    };
+    let response, payload;
+    try {
+      // Bound read-only loading, including a stalled response body. A sync
+      // command has a separate server deadline and is never auto-retried here.
+      ({ response, payload } = method === 'GET' ? await Promise.race([load(), new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error('Ma’lumot serveri javob bermadi. Qayta urinib ko‘ring.'));
+          controller.abort();
+        }, 20000);
+      })]) : await load());
+    } finally { clearTimeout(timer); }
     if (!response.ok) {
       const error = new Error(payload.error || 'MLBB ma’lumotlarini olib bo‘lmadi');
       error.status = response.status;
@@ -256,7 +273,7 @@ window.MlbbDataManager = class MlbbDataManager {
       this.getMeta(force),
       this.getPatches(force)
     ]);
-    if (generation !== this.metaLoadGeneration) return { state: this.state, errors: [] };
+    if (generation !== this.metaLoadGeneration) return { state: this.state, errors: [], stale: true };
     const keys = ['heroes', 'meta', 'patches'];
     const errors = [];
     results.forEach((result, index) => {
@@ -295,8 +312,8 @@ window.MlbbDataManager = class MlbbDataManager {
     this.closeDossier();
     this.container.innerHTML = this.loadingMarkup();
     try {
-      const { errors } = await this.load(force);
-      this.renderState(errors);
+      const { errors, stale } = await this.load(force);
+      if (!stale) this.renderState(errors);
     } catch (error) {
       this.container.innerHTML = this.errorMarkup(error);
       this.bindEvents();

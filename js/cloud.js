@@ -21,6 +21,10 @@ window.CloudSync = class CloudSync {
     // Older builds allowed arbitrary Firebase URLs. They are deliberately
     // retired so an Eclipse bearer token can never leave this origin.
     localStorage.removeItem(this.LEGACY_CONFIG_KEY);
+    if (this.db.migrationError) {
+      this.status = 'error';
+      this.lastError = this.db.migrationError.message;
+    }
   }
 
   subscribe(callback) {
@@ -89,26 +93,47 @@ window.CloudSync = class CloudSync {
       : [];
   }
 
-  replaceHeroesFromRemote(data) {
-    if (!Array.isArray(data?.heroes)) return false;
+  remoteHeroes(data) {
+    if (!Array.isArray(data?.heroes)) return null;
     const cleanHeroes = this.cleanHeroes(data.heroes);
     const explicitEmptyCatalog = data.heroCatalogInitialized === true && data.heroes.length === 0;
 
     // An old/empty remote payload must not erase the full built-in MLBB list.
     // An intentional empty catalog is only accepted with the explicit marker.
-    if (cleanHeroes.length === 0 && !explicitEmptyCatalog) return false;
+    if (cleanHeroes.length === 0 && !explicitEmptyCatalog) return null;
+    return cleanHeroes;
+  }
 
-    localStorage.setItem(this.db.HEROES_KEY, JSON.stringify(cleanHeroes));
-    const heroDb = window.EclipseApp?.heroDb;
-    if (heroDb) {
-      heroDb.heroes = cleanHeroes;
-      heroDb.save?.();
+  applyLocalSnapshot(data, { revision, baseline = data, replaceHeroes = true, lastSync = false } = {}) {
+    if (this.db.migrationError) throw this.db.migrationError;
+    const heroes = replaceHeroes ? this.remoteHeroes(data) : null;
+    const snapshot = {
+      ...(Object.hasOwn(data, 'players') ? { players: data.players } : {}),
+      ...(Object.hasOwn(data, 'matches') ? { matches: data.matches } : {}),
+      ...(heroes !== null ? { heroes } : {})
+    };
+    const entries = {
+      [this.REVISION_KEY]: String(revision),
+      [this.BASELINE_KEY]: JSON.stringify(this.buildBaseline(baseline, revision)),
+      ...(lastSync ? { [this.LAST_SYNC_KEY]: new Date().toISOString() } : {})
+    };
+    try { this.db.replaceSnapshot(snapshot, { entries }); }
+    catch (error) {
+      if (error.code !== 'LOCAL_STORAGE_FULL') throw error;
+      // Hash-only baselines still detect conflicts without a second full history.
+      entries[this.BASELINE_KEY] = JSON.stringify(this.buildBaseline(baseline, revision, false));
+      this.db.replaceSnapshot(snapshot, { entries });
     }
-    return true;
+    const heroDb = window.EclipseApp?.heroDb;
+    if (heroes !== null && heroDb) heroDb.heroes = heroes;
   }
 
   async syncDown() {
     const url = this.getEffectiveUrl();
+    if (this.db.migrationError) {
+      this.setStatus('error', this.db.migrationError.message);
+      return false;
+    }
 
     // Never overwrite unsynced local admin work with an older cloud snapshot.
     if (this.hasPendingWrite()) {
@@ -174,12 +199,7 @@ window.CloudSync = class CloudSync {
       if (generation !== this.writeGeneration || localAtStart !== this.localSnapshotSignature()
         || sharedWriteAtStart !== localStorage.getItem(this.WRITE_ID_KEY) || this.hasPendingWrite()) return false;
 
-      if (Array.isArray(data.players)) this.db.savePlayers(data.players);
-      if (Array.isArray(data.matches)) this.db.saveMatches(data.matches);
-      this.replaceHeroesFromRemote(data);
-      this.setRevision(remoteRevision);
-      this.storeBaseline(data, remoteRevision);
-      localStorage.setItem(this.LAST_SYNC_KEY, new Date().toISOString());
+      this.applyLocalSnapshot(data, { revision: remoteRevision, lastSync: true });
       this.setStatus('synced');
       return true;
     } catch (error) {
@@ -258,23 +278,27 @@ window.CloudSync = class CloudSync {
       .map(item => [String(item.id), this.recordVersion(item)]);
   }
 
+  buildBaseline(snapshot, revision, includeRecords = true) {
+    return {
+      version: includeRecords ? 2 : 1,
+      revision,
+      players: this.buildVersionList(snapshot?.players),
+      matches: this.buildVersionList(snapshot?.matches),
+      ...(includeRecords ? { records: { players: snapshot?.players || [], matches: snapshot?.matches || [] } } : {})
+    };
+  }
+
   storeBaseline(snapshot, revision = snapshot?.revision) {
     const parsedRevision = this.parseRevision(revision);
     if (parsedRevision === null) return false;
-    const baseline = {
-      version: 2,
-      revision: parsedRevision,
-      players: this.buildVersionList(snapshot?.players),
-      matches: this.buildVersionList(snapshot?.matches),
-      records: { players: snapshot?.players || [], matches: snapshot?.matches || [] }
-    };
-    try {
-      localStorage.setItem(this.BASELINE_KEY, JSON.stringify(baseline));
-      return true;
-    } catch {
-      localStorage.removeItem(this.BASELINE_KEY);
-      return false;
+    for (const includeRecords of [true, false]) {
+      try {
+        localStorage.setItem(this.BASELINE_KEY, JSON.stringify(this.buildBaseline(snapshot, parsedRevision, includeRecords)));
+        return true;
+      } catch { /* Retry with hashes; the saved match history is untouched. */ }
     }
+    localStorage.removeItem(this.BASELINE_KEY);
+    return false;
   }
 
   getBaseline(expectedRevision) {
@@ -387,11 +411,9 @@ window.CloudSync = class CloudSync {
       error.code = 'LOCAL_MERGE_CONFLICT';
       throw error;
     }
-    this.db.savePlayers(players);
-    this.db.saveMatches(matches);
-    if (!this.getLiveHeroPayload().initialized) this.replaceHeroesFromRemote(remote);
-    this.setRevision(remoteRevision);
-    this.storeBaseline(remote, remoteRevision);
+    this.applyLocalSnapshot({ ...remote, players, matches }, {
+      revision: remoteRevision, baseline: remote, replaceHeroes: !this.getLiveHeroPayload().initialized
+    });
     localStorage.removeItem(this.CONFLICT_KEY);
     this.pendingConflict = null;
   }
@@ -475,6 +497,7 @@ window.CloudSync = class CloudSync {
   async performSyncUp(generation, conflictRetry = 0, writeId) {
     const url = this.getEffectiveUrl();
     try {
+      if (this.db.migrationError) throw this.db.migrationError;
       const token = window.EclipseApp?.authManager?.getToken?.() || '';
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers.Authorization = `Bearer ${token}`;
@@ -533,9 +556,11 @@ window.CloudSync = class CloudSync {
       if (generation === this.writeGeneration) {
         const message = res.status === 404
           ? 'Cloud sync endpointi topilmadi'
-          : payload.error || 'Cloud saqlash bajarilmadi';
+          : payload.error || (res.status === 413
+            ? 'Cloud hajm chegarasi oshdi. Lokal yozuvlar saqlandi. To‘liq zaxirani eksport qiling; arxivlash alohida bajarilishi kerak.'
+            : 'Cloud saqlash bajarilmadi');
         this.setStatus('error', message);
-        window.showToast?.('Cloud saqlash bajarilmadi. Lokal ma’lumot saqlandi va keyingi syncda qayta yuboriladi.', 'warning');
+        window.showToast?.(res.status === 413 ? message : 'Cloud saqlash bajarilmadi. Lokal ma’lumot saqlandi va keyingi syncda qayta yuboriladi.', 'warning');
       }
       return false;
     } catch (error) {

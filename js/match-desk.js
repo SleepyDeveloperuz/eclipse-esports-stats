@@ -2,7 +2,7 @@
 (() => {
   const Base = window.SubmissionManager;
   const metrics = { damageDealt: ['Damage', 10000000], damageReceived: ['Received damage', 10000000], turretDamage: ['Turret damage', 10000000], goldEarned: ['Gold', 1000000], teamfightParticipation: ['Teamfight %', 100] };
-  const teamFields = { teamTurtles: 'Turtle', teamLords: 'Lord', teamTurrets: 'Turret' };
+  const teamFields = { teamTurrets: 'Turret' };
   window.SubmissionManager = class FullMatchDesk extends Base {
     async render(containerId, matchId = null) {
       if (this.container && this.container.id !== containerId && this.container.querySelector('#practiceSubmissionForm')) {
@@ -35,7 +35,7 @@
           <label><span>Zaxira — bu matchda o‘ynamaganlar</span><select multiple class="form-select" id="practiceSubstitutes">${this.availablePlayers().map(p => `<option value="${this.escape(p.id)}">${this.escape(p.name)}</option>`).join('')}</select></label>
         </details>
         <p id="matchDraftStatus" role="status"></p><button type="button" class="btn btn-sm btn-secondary" data-clear-draft>Formani tozalash</button>
-        <label class="submission-note">`);
+        <label class="submission-note">`).replace('<div id="practiceFormError"', '<div data-match-review></div><div id="practiceFormError"');
     }
 
     metricMarkup(values = {}) {
@@ -57,7 +57,7 @@
       if (!row) return;
       row.insertAdjacentHTML('beforeend', this.metricMarkup(values));
       if (Number.isInteger(values.sourceRow) && values.sourceRow >= 1 && values.sourceRow <= 5) row.dataset.sourceRow = String(values.sourceRow);
-      row.dataset.heroSource = ['portrait', 'manual'].includes(values.heroSource) ? values.heroSource : values.heroUsed ? 'manual' : '';
+      row.dataset.heroSource = ['portrait', 'manual', 'ocr'].includes(values.heroSource) ? values.heroSource : values.heroUsed ? 'manual' : '';
       row.dataset.medalSource = ['ocr', 'manual'].includes(values.medalSource) ? values.medalSource : 'manual';
       row.dataset.roleSource = ['ocr', 'roster', 'manual', 'inferred', 'unknown', 'legacy'].includes(values.roleSource) ? values.roleSource : values.rolePlayed ? 'legacy' : 'unknown';
       row._preserveSavedRole = !!(this.editingMatch || this.editingSubmission);
@@ -246,7 +246,7 @@
         if (!current()) return;
         const result = await this.portraitMatcher.match(crop, { prepared: true, cropSize: row._portraitSize, progress });
         if (!current()) return;
-        // The locator gates screenshot geometry; accept the best actual catalog match.
+        // Localization proposes geometry; only a confident matcher result may fill a hero.
         // Matcher similarity ranks alternatives and is not an accuracy probability.
         const candidates = (Array.isArray(result?.candidates) ? result.candidates : [])
           .map(candidate => ({ candidate, hero: this.heroDb.resolve?.(candidate.name) }))
@@ -255,7 +255,7 @@
         row.querySelector('[data-hero-candidates]')?.remove();
         const strip = document.createElement('div'); strip.dataset.heroCandidates = ''; strip.className = 'match-candidates';
         const best = candidates[0]?.hero;
-        if (best) {
+        if (best && result.automatic === true) {
           row.querySelector('[data-field="heroUsed"]').value = best.name;
           expectedHero = best.name; row.dataset.heroSource = 'portrait'; this.heroPreview(row);
         }
@@ -500,6 +500,27 @@
       return true;
     }
     updateFormMode() {
+      const reviewPanel = this.container?.querySelector('[data-match-review]');
+      const existing = this.editingMatch && this.db.getMatches().find(match => match.id === this.editingMatch.id);
+      const held = existing && (existing.needsReview === true || existing.validForAnalytics === false
+        || existing.verificationStatus === 'needs_review'
+        || (existing.dataIssues != null && (!Array.isArray(existing.dataIssues) || existing.dataIssues.length > 0)));
+      if (reviewPanel && this.auth.isAdmin() && held) {
+        if (reviewPanel.dataset.matchId !== existing.id) {
+          reviewPanel.dataset.matchId = existing.id;
+          const issues = Array.isArray(existing.dataIssues) ? existing.dataIssues : ['invalid_data_issues'];
+          const reason = issues.map(issue => window.MatchManager?.prototype.formatDataIssue(issue) || 'Saqlangan ma’lumotlarni tekshirish kerak').join(' · ');
+          reviewPanel.innerHTML = `<section class="match-quality-review" aria-labelledby="matchReviewHeading">
+            <h4 id="matchReviewHeading">Match tekshiruv kutmoqda</h4>
+            <p>${this.escape(reason || 'Oldingi tekshiruv yakunlanmagan.')}</p>
+            <p id="matchReviewHelp">Rasmlar yoki ishonchli yozuv bilan ma’lumotlarni tekshirib, xatolarni tuzating. Quyidagi belgi qo‘yilmasa, match statistikaga kiritilmaydi. Saqlashda aniqlangan xatolar tekshiruvda qoladi.</p>
+            <label for="resolveMatchReview"><input type="checkbox" id="resolveMatchReview" aria-describedby="matchReviewHelp">Ma’lumotlarni tekshirdim va xatolarni tuzatdim</label>
+          </section>`;
+        }
+      } else if (reviewPanel) {
+        reviewPanel.replaceChildren();
+        delete reviewPanel.dataset.matchId;
+      }
       const heading = this.container?.querySelector('#submissionHeading');
       if (heading) heading.textContent = this.editingMatch ? 'Matchni tahrirlash' : this.editingSubmission ? 'Submissionni tuzatish' : 'Match yuborish';
       const button = this.container?.querySelector('#practiceSubmitBtn');
@@ -543,6 +564,8 @@
       form.querySelector('#practiceGuestRows').innerHTML = ''; (saved.guestStats || []).slice(0, 4).forEach(row => this.addGuest(row));
       [...form.querySelector('#practiceSubstitutes').options].forEach(el => { el.selected = saved.substitutes?.includes(el.value) || false; });
       this.updateFormMode();
+      const reviewConfirmation = form.querySelector('#resolveMatchReview');
+      if (reviewConfirmation) reviewConfirmation.checked = false;
       this.formDirty = true;
       this._manualFormEdits = true;
       if (this.ocrSource === 'ocr') this.refreshScanSummary({ collapse: true });
@@ -628,12 +651,12 @@
       super.applyOcrData(data);
       this.container.querySelectorAll('[data-team-field]').forEach(el => { if (el.dataset.teamField !== 'sessionLabel') el.value = data[el.dataset.teamField] ?? ''; });
       this.saveDraft();
-      await this.locateOcrPortraits(context);
+      await this.locateOcrPortraits(context, data.sourceImageIndex);
       await Promise.all([...this.container.querySelectorAll('.submission-player-row')].map(row => row._roleLookupPromise));
       if (!context || this.isOcrContextCurrent(context)) { this.refreshScanSummary({ collapse: true }); this.saveDraft(); }
     }
 
-    async locateOcrPortraits(context = null) {
+    async locateOcrPortraits(context = null, sourceImageIndex = 0) {
       const form = this.container?.querySelector('#practiceSubmissionForm');
       if (!form) return;
       if (!context) {
@@ -642,7 +665,7 @@
           signal: new AbortController().signal, page: page?.classList.contains('active') ? page : null };
       }
       const current = () => this.isOcrContextCurrent(context);
-      const entries = [...form.querySelectorAll('.submission-player-row')].map(row => ({ row, sourceRow: Number(row.dataset.sourceRow), editVersion: row._heroEditVersion || 0, playerId: this.formValue(row, 'playerId') }));
+      const entries = [...form.querySelectorAll('.submission-player-row')].filter(row => row.dataset.heroSource !== 'portrait').map(row => ({ row, sourceRow: Number(row.dataset.sourceRow), editVersion: row._heroEditVersion || 0, playerId: this.formValue(row, 'playerId') }));
       const untouched = entry => current() && entry.row.isConnected && (entry.row._heroEditVersion || 0) === entry.editVersion
         && this.formValue(entry.row, 'playerId') === entry.playerId && entry.row.dataset.heroSource !== 'manual';
       const note = (entry, text) => { if (untouched(entry)) entry.row.querySelector('[data-hero-status]').textContent = text; };
@@ -660,7 +683,8 @@
         const progress = text => eligible.forEach(entry => note(entry, text));
         await this.portraitMatcher.prepare(progress);
         if (!current()) return;
-        for (let imageIndex = 0; imageIndex < context.images.length; imageIndex++) {
+        sourceImageIndex = Number.isInteger(sourceImageIndex) ? sourceImageIndex : 0;
+        for (const imageIndex of [sourceImageIndex].filter(index => index >= 0 && index < context.images.length)) {
           const result = await window.EclipsePortraitLocator.locate(context.images[imageIndex], { references: this.portraitMatcher.references, progress, signal: context.signal });
           if (!current()) return;
           const boxes = Array.isArray(result?.boxes) ? result.boxes : [];

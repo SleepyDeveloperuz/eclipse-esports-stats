@@ -24,7 +24,7 @@ test('manifest, both entry points and PNG dimensions form one installable app', 
     assert.match(read(file), /rel="manifest" href="\/manifest.webmanifest"/);
     assert.match(read(file), /rel="apple-touch-icon"/);
     assert.match(read(file), /data-pwa-install/);
-    assert.match(read(file), /pwa.js\?v=2.30.0/);
+    assert.ok(read(file).includes(`pwa.js?v=${JSON.parse(read('package.json')).version}`));
   }
   const headers = JSON.parse(read('vercel.json')).headers;
   for (const path of ['/sw.js', '/manifest.webmanifest']) {

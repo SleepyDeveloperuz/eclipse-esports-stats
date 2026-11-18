@@ -4,45 +4,26 @@ Barcha yangilanishlar, yangi funksiyalar, arxitektura o'zgarishlari va tuzatishl
 
 ---
 
-## [v2.41.0] — 2026-11-15 (Hozirgi reliz)
+## [v2.42.0] — 2026-11-18
 
-> **Asosiy yo‘nalish:** Turso Serverless SQLite bazasi, Dual-Screenshot Fusion tahlili, iOS/PNG Hero Matcher va Yagona Production Asset Bundling.
+- OCR ekran mosligi, roster aliaslari, guest ajratish va noaniq hero uchun qo‘lda tekshirish kuchaytirildi. PNG dekodlash yoki ikki rasm birlashishi 100% aniqlik kafolati emas.
+- Saqlash, backup/restore va parallel yozishlar tekshirildi. Hajm oshsa yozish aniq xato bilan to‘xtaydi; rasmiy match tarixi limitga moslash uchun kesilmaydi. Qoralamalar, backup va yuborilmagan o‘zgarishlar joy ochish uchun o‘chirilmaydi.
+- Telegram webhook va kapitan amallari uchun kirish nazorati, analytics review holatlari va noma’lum qiymatlar tuzatildi.
+- Lord/Turtle kiritish va OCR talabi olib tashlandi; eski saqlangan qiymatlar saqlanadi.
+- Frontendda tartibli deferred yuklash, qayta urinish, kutish chegaralari, qidiruv va CSP bilan mos tugmalar tekshirildi. Brauzer tezligi o‘lchanmagan.
+- Bot bo‘sh roster/hero poolni uydirma namuna bilan to‘ldirmaydi. Comfort, Backup va Learning toifalari web va botda saqlangan ma’noda ko‘rsatiladi. Noma’lum natija mag‘lubiyat deb sanalmaydi.
+- Lokal reliz tekshiruvi: 614/614 test va 90 manba fayli syntax tekshiruvi o‘tdi. 284 match, 7 o‘yinchi va ularning barcha maydonlari backup/import/restore tekshiruvlarida saqlandi.
+- Batafsil dalillar va cheklovlar: [AUDIT-PROGRESS.md](AUDIT-PROGRESS.md). Quyidagi tarixiy reliz qaydlari joriy xatti-harakat uchun kafolat emas; auditdagi tuzatishlar ustuvor.
 
-### 🗄️ Ma’lumotlar Bazasi va Xotira (Database & Storage)
-- **Turso Serverless SQLite integratsiyasi (`lib/turso-database.js`):**
-  - Redis 5.9 MB monolit JSON xotira chegarasidan to‘liq voz kechilib, atomar tranzaksiyalarni qo‘llab-quvvatlovchi Turso Serverless SQLite bazasiga o‘tildi.
-  - SQLite jadvallarida arizalar, jamoa o‘yinlari va o‘yinchilar statistikasi relatsion tuzilmaga keltirildi.
-- **Tasdiqlangan arizalar uchun avtomatik arxivlash (Circular Retention):**
-  - Tasdiqlangan (`approved`) arizalar hajmi 50 tadan oshganda eng eski yozuvlar avtomatik tozalanadi. Natijada Redis yoki SQLite bazasi hech qachon `TEAM_STORAGE_FULL (413)` xatosiga uchramaydi.
-- **LocalStorage Xavfsiz Tozalash (`js/data.js` - `safeStorageSet`):**
-  - Brauzer xotirasi (`QuotaExceededError`) to‘lib qolganda, zaxira nusxalar (`eclipse_last_backup`) va bulutga yuborilishi kutilayotgan o‘zgarishlar (`eclipse_cloud_pending_write`) daxlsiz saqlanadi. Faqat vaqtinchalik hisoblangan keshlar va tahrir qoralamalari tozalanadi.
+---
 
-### 🎯 AI, OCR & Tasvir Tahlili (AI & Vision)
-- **Dual-Screenshot Fusion (Ikki Skrinshotni Avtomatik Birlashtirish):**
-  - MLBB Scoreboard (KDA, Gold, Medallar) va Data/Damage (Hero Damage, Turret Damage, Damage Taken, Teamfight %) skrinshotlari yuborilganda ikkala rasm o‘zaro solishtirilib, 100% to‘liq metrikalarga ega bitta yozuvga aylantiriladi.
-  - `damageTaken` va `damageReceived` maydonlari sinxronlashtirildi, `scanSnapshot` jarayonida zararlar yo‘qolib ketishi bartaraf etildi.
-- **Sof PNG Pikselli Qahramon Tanigich (`lib/server-hero-matcher.js`):**
-  - Node.js ichki `node:zlib` moduli asosida qo‘shimcha tashqi kutubxonalarsiz ishlovchi yengil PNG dekoderi (`decodePng`) yaratildi.
-  - iPhone (iOS) va Telegram orqali siqilmasdan yuborilgan PNG formatidagi skrinshotlar ham 100% piksellar bo‘yicha aniq taniladi.
-- **Gemini OCR Modellari Yangilanishi:**
-  - Eskirgan Gemini 1.5 modellari rasmiy eng so‘nggi `gemini-2.5-flash` va `gemini-2.0-flash` versiyalariga yangilandi.
+## [v2.41.0] — 2026-11-15
 
-### ⚡ Tezlik va Unifikatsiya (Performance & Architecture)
-- **Yagona Production Asset Bundle (`scripts/build.mjs`):**
-  - Sayt yuklanishida 38 ta alohida JavaScript va CSS fayllari o‘rniga Vercel build jarayonida avtomatik ravishda bitta `public/js/bundle.min.js` (980 KB) va bitta `public/css/bundle.min.css` (336 KB) yaratiladi.
-  - Bosh sahifa ochilishida tarmoq so‘rovlari soni 38 tadan 2 taga qisqardi, yuklanish tezligi 3-4 barobarga oshdi.
-- **Yagona `escapeHtml` Xavfsizlik Funksiyasi:**
-  - 6 ta turli modulda takrorlangan mahalliy `escapeHtml` funksiyalari olib tashlanib, `js/date-utils.js` orqali global `window.escapeHtml` ga birlashtirildi. XSS xavflariga qarshi to‘liq himoya ta’minlandi.
-
-### 🤖 Telegram Bot & Webhook
-- **Kafolatlangan Fallback `answerCallbackQuery`:**
-  - Telegram bot orqali `[✅ Tasdiqlash]` yoki `[❌ Rad etish]` tugmalari bosilganda tugmadagi aylanayotgan loading spinner qotib qolmasligi uchun `try/finally` blokida kafolatlangan javob uzatish kiritildi.
-- **Shaxsiy Limitlar Boshqaruvi:**
-  - Bot so‘rovlari va xavfsizlik limitlari umumiy jamoa hisobidan emas, balki har bir foydalanuvchining shaxsiy Telegram ID si bo‘yicha hisoblanadi.
-
-### 🧪 Sinovlar va Sifat Nazorati (CI/CD)
-- Avtomatlashtirilgan testlar soni **480 tadan 500 taga** oshirildi.
-- 85 ta manba fayli qat’iy sintaktik tekshiruvdan o‘tkazildi, 0 ta xatolik va 0 ta ogohlantirish qayd etildi.
+- **Turso adapteri (`lib/turso-store.js`):** Mantiqiy JSON hujjatlar SQLite’da revision nazorati bilan saqlanadi. Turso sozlanganda u tanlanadi; Redis alternativ backend, avtomatik parallel backup emas.
+- **Submission retention:** Tasdiqlash vaqtida eng ko‘pi bilan 50 ta approved submission hujjati saqlanadi. Redis adapteri hajm bosimida yopilgan submissionlarni ham qisqartirishi mumkin. Bu rasmiy matchlarni o‘chirmaydi va barcha hajm chegaralarini bekor qilmaydi.
+- **Ikki skrinshot va PNG:** Scoreboard/Data birlashtirish va `node:zlib` asosidagi PNG dekoderi qo‘shildi. Ekranlar mosligi va o‘qilgan qiymatlarni tekshirish zarur; noaniq portret qo‘lda tanlanadi.
+- **Production bundle (`scripts/build.mjs`):** Asosiy classic JS fayllari birlashtiriladi, CSS ixchamlanadi. Modullar, shriftlar va boshqa aktivlar alohida qoladi. “38 so‘rovdan 2 taga” yoki “3–4x tezlashdi” degan avvalgi da’volar o‘lchov bilan tasdiqlanmagan.
+- **Telegram callback:** `finally` yo‘li orqali callback javobi yuborishga urinish va foydalanuvchi bo‘yicha limitlar qo‘shildi. Tarmoqdagi yetkazilish kafolatlanmaydi.
 
 ---
 

@@ -35,7 +35,7 @@ test('HTTP200 blocked, truncated, empty, malformed, or structurally invalid outp
     ['empty_response', payload({ candidates: [] })],
     ['empty_response', payload({ candidates: [{ finishReason: 'STOP', content: { parts: [{ thought: true, text: 'hidden' }] } }] })],
     ['invalid_json', payload({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '```json\n{}\n```' }] } }] })],
-    ['invalid_shape', payload({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{"players":[]}' }] } }] })],
+    ['invalid_shape', payload({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{"players":null}' }] } }] })],
     ['invalid_shape', payload({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{"players":[null]}' }] } }] })]
   ];
   for (const [status, badPayload] of cases) await t.test(status, async () => {

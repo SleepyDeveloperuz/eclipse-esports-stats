@@ -105,15 +105,12 @@ window.EclipseApp = {
       this.renderStatistics(this.currentPeriod, document.getElementById('statsDateFrom')?.value, document.getElementById('statsDateTo')?.value);
       this.renderAnalyticsArchive(matches, this.dataStore.getPlayers());
     } else {
-      const filter = document.querySelector('#matchFilterBar .filter-chip.active')?.dataset.filter || 'all';
-      const query = document.getElementById('matchQuickSearch')?.value || '';
-      const filtered = this.filterHistoryMatches(this.getHistoryMatches(matches), filter, query);
-      this.matchManager.renderMatchHistory('matchHistoryContainer', filtered, this.dataStore.getPlayers());
+      this.renderFilteredHistory();
     }
   },
 
   initMotion() {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || !window.IntersectionObserver) return;
     document.documentElement.classList.add('motion-ready');
     this.motionObserver = new IntersectionObserver(entries => {
       entries.forEach(entry => {
@@ -527,7 +524,7 @@ window.EclipseApp = {
             window.showToast('Zaxira nusxa tiklandi.', 'success');
             this.navigate('dashboard');
           } else {
-            window.showToast('Zaxira faylini o‘qib bo‘lmadi.', 'error');
+            window.showToast(this.dataStore.lastImportError || 'Zaxira faylini o‘qib bo‘lmadi.', 'error');
           }
         };
         reader.readAsText(file);
@@ -673,6 +670,9 @@ window.EclipseApp = {
   },
 
   bindQolControls() {
+    document.querySelectorAll('[data-navigate]').forEach(button => {
+      button.addEventListener('click', () => this.navigate(button.dataset.navigate));
+    });
     const hotkeysDialog = document.getElementById('hotkeysDialog');
     const triggerBtn = document.getElementById('hotkeysTriggerBtn');
     const closeBtn = document.getElementById('hotkeysCloseBtn');
@@ -758,7 +758,7 @@ window.EclipseApp = {
     const WIDGET_CONFIG = [
       { id: 'widget-command', name: 'Jamoa Signali & Match', icon: 'fa-signal', default: true },
       { id: 'widget-constellation', name: 'Sinergiya Turkumi (Constellation)', icon: 'fa-circle-nodes', default: true },
-      { id: 'widget-duration', name: 'Power Spike & Davomiylik', icon: 'fa-stopwatch-20', default: true },
+      { id: 'widget-duration', name: 'Davomiylik bo‘yicha natijalar', icon: 'fa-stopwatch-20', default: true },
       { id: 'widget-coach', name: 'AI Coach & Maslahatlar', icon: 'fa-robot', default: true }
     ];
 
@@ -868,9 +868,57 @@ window.EclipseApp = {
 
   RELEASES: [
     {
+      "version": "v2.42.0",
+      "date": "2026-11-18",
+      "badge": "Hozirgi versiya",
+      "title": "Tarix yaxlitligi, aniq OCR va ishonchli hisobotlar",
+      "sections": [
+        {
+          "title": "OCR va roster mosligi",
+          "icon": "fa-images",
+          "badge": "OCR",
+          "items": [
+            "Tasdiqlangan eski IGN’lar rosterga bog‘lanadi; guest Shadow va rosterdagi Shadow as always ajratiladi.",
+            "Scoreboard va Data ekranlari bir matchga tegishliligi tekshiriladi. Noaniq hero qo‘lda tanlanadi, o‘qilmagan raqamlar taxmin bilan to‘ldirilmaydi.",
+            "Lord/Turtle kiritish va OCR talabi olib tashlandi. Eski saqlangan qiymatlar saqlanadi."
+          ]
+        },
+        {
+          "title": "Tarix va saqlash",
+          "icon": "fa-database",
+          "badge": "Ma’lumotlar",
+          "items": [
+            "Parallel saqlash va backup’dan tiklash tekshiruvlari kuchaytirildi. Rasmiy matchlar tarixi hajm limitiga moslash uchun kesilmaydi.",
+            "Xotira to‘lsa, qoralamalar va yuborilmagan o‘zgarishlar saqlanadi; sabab va qayta urinish imkoniyati ko‘rsatiladi.",
+            "Tekshiruvdagi matchlar xatolar alohida tasdiqlanguncha statistikaga kiritilmaydi."
+          ]
+        },
+        {
+          "title": "Telegram va hisobotlar",
+          "icon": "fa-brands fa-telegram",
+          "badge": "Jamoa",
+          "items": [
+            "Webhook siri va ruxsatli Telegram ID’lar tekshiriladi; tasdiqlash va tahrirlash kapitan ID’siga bog‘langan.",
+            "Bo‘sh roster va hero pool namunaviy ma’lumot bilan to‘ldirilmaydi. Comfort, Backup va Learning saqlangan toifalarni ko‘rsatadi.",
+            "Noma’lum natija mag‘lubiyat deb sanalmaydi. Davomiylik va W/L’dan mag‘lubiyat sababi taxmin qilinmaydi."
+          ]
+        },
+        {
+          "title": "Yuklanish va qidiruv",
+          "icon": "fa-bolt",
+          "badge": "Ilova",
+          "items": [
+            "Ilova boshlanmasa yoki so‘rov uzoq kutilsa, qayta urinish ko‘rsatiladi.",
+            "Match tarixi qidiruvi tez yozishni, amaldagi va arxivlangan roster nomlarini hisobga oladi. Sahifaga qaytilganda qidiruv va filtr saqlanadi.",
+            "Yangi fayllar uchun kesh havolalari yangilanadi; skriptlarning yuklanish tartibi saqlanadi."
+          ]
+        }
+      ]
+    },
+    {
       version: 'v2.41.0',
       date: '2026-11-15',
-      badge: 'Hozirgi versiya',
+      badge: 'Oldingi versiya',
       title: 'Turso Serverless SQLite, Dual-Screenshot Fusion va Yagona Production Bundle',
       sections: [
         {
@@ -878,9 +926,9 @@ window.EclipseApp = {
           icon: 'fa-database',
           badge: 'Database',
           items: [
-            'Monolit Redis JSON o‘rniga zamonaviy Turso Serverless SQLite adapteri joriy etildi va 5.9 MB cheklovi bartaraf etildi.',
-            'Tasdiqlangan arizalar uchun avtomatik arxivlash (circular retention) yo‘lga qo‘yildi — baza hajmi aslo to‘lib qolmaydi.',
-            'LocalStorage 5 MB to‘lganida arizalar va zaxira nusxalar o‘chib ketmasligi uchun xavfsiz tozalash kiritildi.'
+            'Turso Serverless SQLite adapteri qo‘shildi. Turso sozlanganida u tanlanadi; Redis alternativ saqlash manbai bo‘lib qoladi.',
+            'Tasdiqlangan ariza hujjatlari uchun saqlash soni cheklangan. Rasmiy matchlar tarixi kesilmaydi; hajm chegarasi oshsa saqlash to‘xtab, sabab ko‘rsatiladi.',
+            'Brauzer xotirasi to‘lganda qoralamalar, backup va yuborilmagan o‘zgarishlar joy ochish uchun o‘chirilmaydi.'
           ]
         },
         {
@@ -888,18 +936,18 @@ window.EclipseApp = {
           icon: 'fa-images',
           badge: 'AI & OCR',
           items: [
-            'Scoreboard va Damage skrinshotlari yuborilganda ikkala rasm birlashtirilib, barcha ko‘rsatkichlar (Hero Damage, Turret, Taken, TF%, KDA) 100% to‘liq yozuvga aylanadi.',
-            'Serverdagi pikselli qahramon tanigichga (Hero Matcher) toza PNG dekoderi qo‘shildi — iPhone (iOS) skrinshotlari ham piksellar bo‘yicha aniq taniladi.',
-            'Gemini OCR modellari rasmiy tezkor <code>gemini-2.5-flash</code> va <code>gemini-2.0-flash</code> talqinlariga yangilandi.'
+            'Bir matchga tegishliligi tekshirilgan Scoreboard va Data ekranlari birlashtiriladi. O‘qilmagan ko‘rsatkichlar noma’lum bo‘lib qoladi.',
+            'Hero matcher PNG skrinshotlarni ham o‘qiydi. Standart result portreti tekshiriladi; noaniq hero qo‘lda tanlanadi.',
+            'OCR rasmda ko‘rinadigan ma’lumotlarni ajratadi; natija kapitan tekshiruvidan keyin rasmiy tarixga kiritiladi.'
           ]
         },
         {
-          title: 'Yagona Production Bundle (3–4x Tezlanish)',
+          title: 'Production Bundle va Tartibli Yuklash',
           icon: 'fa-bolt',
           badge: 'Speed',
           items: [
-            'Sayt ochilishida 38 ta alohida so‘rov o‘rniga atigi 1 ta siqilgan JS (<code>bundle.min.js</code>) va 1 ta CSS (<code>bundle.min.css</code>) yuklanadi.',
-            'Barcha modullar uchun yagona <code>window.escapeHtml</code> integratsiya qilindi va takrorlanuvchi kodlar tozalandi.'
+            'Asosiy JS va CSS fayllari bundlelarga birlashtiriladi. Boshqa aktivlar alohida yuklanadi; real yuklanish tezligi o‘lchanmagan.',
+            'Skriptlarning yuklanish tartibi saqlanadi. Ilova boshlanmasa, qayta urinish imkoniyati ko‘rsatiladi.'
           ]
         },
         {
@@ -907,7 +955,7 @@ window.EclipseApp = {
           icon: 'fa-brands fa-telegram',
           badge: 'Bot',
           items: [
-            'Inline tugmalar bosilganda Telegram yuklanish aylanmasi (loading spinner) qotib qolishi to‘liq bartaraf etildi.',
+            'Inline tugma amali tugagach, callback javobini yuborishga urinish bajariladi; yetkazilish Telegram va tarmoqqa bog‘liq.',
             'Bot limiti umumiy jamoa hisobidan har bir foydalanuvchining shaxsiy Telegram ID siga o‘tkazildi.'
           ]
         }
@@ -1171,6 +1219,7 @@ window.EclipseApp = {
     }
 
     if (pageId !== 'batch' && this.batchManager?.busy) this.batchManager.stop();
+    clearTimeout(this.historySearchTimer);
     document.querySelectorAll('.page-section').forEach(el => {
       el.classList.remove('active');
       el.setAttribute('hidden', '');
@@ -1235,42 +1284,8 @@ window.EclipseApp = {
         this.editingMatchId = null;
         break;
       case 'match-history':
-        const historyMatches = this.getHistoryMatches(matches);
-        this.matchManager.renderMatchHistory('matchHistoryContainer', historyMatches, allPlayers);
-        const filterBar = document.getElementById('matchFilterBar');
-        if (filterBar) {
-          const filterChips = [...filterBar.querySelectorAll('.filter-chip')];
-          filterChips.forEach(chip => {
-            chip.classList.toggle('active', chip.dataset.filter === 'all');
-            chip.setAttribute('aria-pressed', String(chip.dataset.filter === 'all'));
-          });
-          const quickSearchInput = document.getElementById('matchQuickSearch');
-          const runFilter = () => {
-            const activeFilter = filterBar.querySelector('.filter-chip.active')?.dataset.filter || 'all';
-            const query = quickSearchInput?.value || '';
-            const latestMatches = this.getHistoryMatches(this.dataStore.getMatches());
-            const latestPlayers = this.dataStore.getAllPlayers?.() || this.dataStore.getPlayers();
-            const filteredMatches = this.filterHistoryMatches(latestMatches, activeFilter, query);
-            this.matchManager.renderMatchHistory('matchHistoryContainer', filteredMatches, latestPlayers);
-          };
-
-          filterChips.forEach(chip => {
-            chip.onclick = () => {
-              filterChips.forEach(c => {
-                c.classList.remove('active');
-                c.setAttribute('aria-pressed', 'false');
-              });
-              chip.classList.add('active');
-              chip.setAttribute('aria-pressed', 'true');
-              runFilter();
-            };
-          });
-
-          if (quickSearchInput && !quickSearchInput.dataset.bound) {
-            quickSearchInput.dataset.bound = 'true';
-            quickSearchInput.addEventListener('input', runFilter);
-          }
-        }
+        this.bindHistoryFilters();
+        this.renderFilteredHistory();
         break;
       case 'submissions':
         this.submissionManager.render('submissionContainer');
@@ -1313,13 +1328,7 @@ window.EclipseApp = {
   //  DASHBOARD
   // =====================================================================
   getOfficialTeamMatches(matches = []) {
-    return matches.filter(match =>
-      match?.scope === 'team5'
-      && match?.status !== 'draft'
-      && match?.validForAnalytics !== false
-      && match?.needsReview !== true
-      && window.StatsEngine?.hasOfficialTeamContext?.(match) === true
-    );
+    return window.StatsEngine.filterAnalyticsMatches(matches, 'team5');
   },
 
   getAnalyticsMatches(matches = [], mode = this.currentAnalyticsMode) {
@@ -1333,19 +1342,69 @@ window.EclipseApp = {
       || (this.authManager?.isAdmin() && !['team5', 'squad', 'individual'].includes(match.scope)));
   },
 
+  renderFilteredHistory() {
+    clearTimeout(this.historySearchTimer);
+    const filter = document.querySelector('#matchFilterBar .filter-chip.active')?.dataset.filter || 'all';
+    const query = document.getElementById('matchQuickSearch')?.value || '';
+    const matches = this.filterHistoryMatches(this.getHistoryMatches(this.dataStore.getMatches()), filter, query);
+    const players = this.dataStore.getAllPlayers?.() || this.dataStore.getPlayers();
+    this.matchManager.renderMatchHistory('matchHistoryContainer', matches, players, { filtered: filter !== 'all' || Boolean(query.trim()) });
+  },
+
+  bindHistoryFilters() {
+    const bar = document.getElementById('matchFilterBar');
+    if (!bar) return;
+    const chips = [...bar.querySelectorAll('.filter-chip')];
+    if (!chips.some(chip => chip.classList.contains('active'))) {
+      chips.find(chip => chip.dataset.filter === 'all')?.classList.add('active');
+    }
+    chips.forEach(chip => {
+      chip.setAttribute('aria-pressed', String(chip.classList.contains('active')));
+      chip.onclick = () => {
+        chips.forEach(item => {
+          item.classList.toggle('active', item === chip);
+          item.setAttribute('aria-pressed', String(item === chip));
+        });
+        this.renderFilteredHistory();
+      };
+    });
+    const input = document.getElementById('matchQuickSearch');
+    if (!input || input.dataset.bound) return;
+    input.dataset.bound = 'true';
+    const schedule = () => {
+      clearTimeout(this.historySearchTimer);
+      this.historySearchTimer = setTimeout(() => {
+        if (document.querySelector('.page-section.active')?.id === 'page-match-history') this.renderFilteredHistory();
+      }, 150);
+    };
+    let composing = false;
+    input.addEventListener('compositionstart', () => { composing = true; clearTimeout(this.historySearchTimer); });
+    input.addEventListener('compositionend', () => { composing = false; schedule(); });
+    input.addEventListener('input', event => {
+      if (!composing && !event.isComposing) schedule();
+    });
+    input.addEventListener('search', () => { if (!composing) this.renderFilteredHistory(); });
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !composing && !event.isComposing) this.renderFilteredHistory();
+    });
+  },
+
   filterHistoryMatches(matches = [], filterType = 'all', query = '') {
     const list = Array.isArray(matches) ? matches : [];
     const q = (query || '').trim().toLowerCase();
+    const rosterNames = new Map(q ? (this.dataStore?.getAllPlayers?.() || this.dataStore?.getPlayers?.() || [])
+      .map(player => [player.id, String(player.name || '').toLowerCase()]) : []);
 
     return list.filter(match => {
       if (!match) return false;
 
       const matchType = (match.matchType || match.type || '').toLowerCase();
       const isWin = match.result === 'win' || match.result === 'G‘alaba' || match.isWin === true;
+      const isLoss = match.result === 'loss' || match.result === 'Mag‘lubiyat';
 
       // Filter type check
       if (filterType === 'wins' && !isWin) return false;
-      if (filterType === 'losses' && isWin) return false;
+      if (filterType === 'losses' && !isLoss) return false;
       if (filterType === 'team5' && match.scope !== 'team5') return false;
       if (filterType === 'ranked' && matchType !== 'ranked') return false;
       if (filterType === 'scrim' && matchType !== 'scrim') return false;
@@ -1371,7 +1430,7 @@ window.EclipseApp = {
           const hero = (p.heroUsed || p.hero || '').toLowerCase();
           const name = (p.playerName || p.name || '').toLowerCase();
           const role = (p.rolePlayed || p.role || '').toLowerCase();
-          return hero.includes(q) || name.includes(q) || role.includes(q);
+          return hero.includes(q) || name.includes(q) || role.includes(q) || (rosterNames.get(p.playerId) || '').includes(q);
         });
 
         if (!matchPlayerFound) return false;
@@ -1946,13 +2005,13 @@ window.EclipseApp = {
       : `${recentMatches.length} match`;
     const colors = window.ChartHelper.PLAYER_COLORS || ['#e7c36b', '#d98245', '#63b99d', '#d76578', '#9b7bb8', '#c78154'];
 
+    const history = window.StatsEngine.sortMatchesChronologically(allMatches);
     const datasets = [];
     players.forEach((p, idx) => {
       const dataPoints = [];
       recentMatches.forEach((m, timelineIndex) => {
         const ps = (m.playerStats || []).find(s => s.playerId === p.id);
         if (!ps) return; // an omitted point creates an honest gap in the shared timeline
-        const history = window.StatsEngine.sortMatchesChronologically(allMatches);
         const position = history.findIndex(match => match.id === m.id);
         const context = window.StatsEngine.comparisonContext(m, ps.rolePlayed);
         const previousScores = history.slice(0, Math.max(0, position)).flatMap(match =>
@@ -2117,7 +2176,7 @@ window.EclipseApp = {
             <progress max="${Math.max(dataQuality.totalMatches, 1)}" value="${dataQuality.legacyMatches}" aria-label="Legacy manbalar ${dataQuality.legacyMatches} ta"></progress>
           </article>
         </div>
-        <p class="data-readiness__note"><i class="fa-solid fa-shield-halved"></i><span>“To‘liq” metriclar borligini bildiradi, “tasdiqlangan” degani emas. Match coverage: vaqt ${coverage.durationSeconds}/${dataQuality.totalMatches}, Turtle ${coverage.teamTurtles}/${dataQuality.totalMatches}, Lord ${coverage.teamLords}/${dataQuality.totalMatches}, Turret ${coverage.teamTurrets}/${dataQuality.totalMatches}.</span></p>
+        <p class="data-readiness__note"><i class="fa-solid fa-shield-halved"></i><span>“To‘liq” metriclar borligini bildiradi, “tasdiqlangan” degani emas. Match coverage: vaqt ${coverage.durationSeconds}/${dataQuality.totalMatches}, Turret ${coverage.teamTurrets}/${dataQuality.totalMatches}.</span></p>
       </section>
       <div class="stats-grid mb-4">
         <div class="stat-card stat-card--primary">
@@ -2141,7 +2200,7 @@ window.EclipseApp = {
           <div class="stat-card-title"><i class="fa-solid ${isSquadMode ? 'fa-people-group' : 'fa-chess-rook'}"></i> ${isSquadMode ? 'ECL qatnashuvi' : 'Obyektlar'}</div>
           ${isSquadMode
             ? `<div class="stat-card-value">${trackedStats.trackedAppearances}</div><div class="stat-card-desc">appearance · ${trackedStats.guestSlots} guest slot</div>`
-            : `<div class="stat-card-value" style="font-size:1.75rem;"><i class="fa-solid fa-shield-halved" style="color:var(--success);"></i> ${teamStats.totalTurtles ?? '—'} / <i class="fa-solid fa-crown" style="color:var(--secondary);"></i> ${teamStats.totalLords ?? '—'}</div><div class="stat-card-desc">${teamStats.totalTurrets ?? '—'} turret olindi</div>`}
+            : `<div class="stat-card-value" style="font-size:1.75rem;">${teamStats.totalTurrets ?? '—'}</div><div class="stat-card-desc">turret olindi</div>`}
         </div>
       </div>
     `;
@@ -2719,7 +2778,3 @@ window.showToast = function(message, type = 'info', durationMs = 3000) {
     setTimeout(() => toast.remove(), 300);
   }, Math.max(3000, Number(durationMs) || 3000));
 };
-
-document.addEventListener('DOMContentLoaded', () => {
-  window.EclipseApp.init();
-});

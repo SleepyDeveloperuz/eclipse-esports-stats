@@ -2,6 +2,8 @@ import crypto from 'crypto';
 import { readTeamFiles, writeTeamFiles, withTeamTransaction, isTursoConfigured } from '../lib/team-store.js';
 import { normaliseAwardEvidence } from '../lib/match-awards.js';
 import { cleanText, cleanId, cleanDate, parseDuration } from '../lib/utils.js';
+import { telegramSecretMatches } from '../lib/telegram-security.js';
+import { assertDataCapacity, encodeTeamData } from '../lib/data-capacity.js';
 import {
   isAuthConfigured,
   isViewerAuthConfigured,
@@ -190,11 +192,19 @@ function inferCompleteness(playerStats, guestStats) {
     : 'partial';
 }
 
+function normaliseDataIssues(value) {
+  if (value == null) return [];
+  if (!Array.isArray(value)) return ['invalid_data_issues'];
+  return value.map(issue => typeof issue === 'string' && /^[a-z][a-z0-9_]{0,79}$/.test(issue)
+    ? issue : 'invalid_data_issues');
+}
+
 function normaliseMatch(match) {
   const id = cleanId(match?.id);
   const date = cleanDate(match?.date);
   if (!id) return null;
-  const issues = [];
+  // Canonicalizing a value does not resolve the evidence that it needed review.
+  const issues = normaliseDataIssues(match?.dataIssues);
   if (!date) issues.push('invalid_date');
 
   const resultValue = String(match?.result || '').trim().toLowerCase();
@@ -258,19 +268,17 @@ function normaliseMatch(match) {
     ? match.entryMode
     : dataSource === 'submission' ? 'practice_lite' : 'full';
   const uniqueIssues = [...new Set(issues)];
-  const needsReview = uniqueIssues.length > 0;
+  const needsReview = uniqueIssues.length > 0 || match?.needsReview === true
+    || match?.validForAnalytics === false || match?.verificationStatus === 'needs_review';
   const requestedVerification = VERIFICATION_STATUSES.has(match?.verificationStatus)
     ? match.verificationStatus
     : claimedOcrVerification ? 'verified' : 'unverified';
-  const verificationStatus = needsReview
-    ? 'needs_review'
-    : requestedVerification === 'needs_review'
-      ? claimedOcrVerification ? 'verified' : 'unverified'
-      : requestedVerification;
+  const verificationStatus = needsReview ? 'needs_review' : requestedVerification;
   const ocrVerified = dataSource === 'ocr' && verificationStatus === 'verified';
   const createdAt = cleanTimestamp(match?.createdAt);
   return {
     id,
+    ...(match?.status === 'draft' ? { status: 'draft' } : {}),
     date,
     matchType,
     result,
@@ -310,9 +318,10 @@ function normaliseMatch(match) {
 
 export function normalisePayload(input) {
   const source = input && typeof input === 'object' ? input : {};
+  assertDataCapacity(source);
   const invalidHeroes = new Set(['azuma', 'exor', 'mulan']);
   const seenHeroes = new Set();
-  const heroes = Array.isArray(source.heroes) ? source.heroes.slice(0, 300).map(hero => {
+  const heroes = Array.isArray(source.heroes) ? source.heroes.map(hero => {
     const name = cleanText(hero?.name, 80);
     const role = cleanText(hero?.role, 40);
     const key = name.toLocaleLowerCase('en-US');
@@ -337,7 +346,6 @@ export function normalisePayload(input) {
     };
   }).filter(Boolean) : [];
   const seenPlayers = new Set();
-  if (Array.isArray(source.players) && source.players.length > 50) throw new Error('50 o‘yinchi chegarasi. Roster qisqartirilmadi.');
   const players = (Array.isArray(source.players) ? source.players : [])
     .map(normalisePlayer)
     .filter(player => {
@@ -346,9 +354,6 @@ export function normalisePayload(input) {
       return true;
     });
   const seenMatches = new Set();
-  if (Array.isArray(source.matches) && source.matches.length > 2500) {
-    throw new Error('2500 match chegarasi. Hech qanday yozuv qisqartirilmadi; avval backup va arxivlash kerak.');
-  }
   const matches = (Array.isArray(source.matches) ? source.matches : [])
     .map(normaliseMatch)
     .filter(match => {
@@ -363,6 +368,7 @@ export function normalisePayload(input) {
       match.validForAnalytics = false;
       match.verificationStatus = 'needs_review';
       match.ocrVerified = false;
+      match.dataQuality = match.dataCompleteness;
     }
   });
 
@@ -399,8 +405,8 @@ export default async function handler(req, res) {
 
     // Team read can be protected with the optional VIEWER_PASSWORD gate.
     if (req.method === "GET") {
-      const isBotAuthorized = Boolean(process.env.TELEGRAM_BOT_TOKEN
-        && req.headers['x-telegram-bot-token'] === process.env.TELEGRAM_BOT_TOKEN);
+      const isBotAuthorized = ['matches', 'roster'].includes(req.query?.collection)
+        && telegramSecretMatches(req.headers?.['x-telegram-bot-token'], process.env.TELEGRAM_BOT_TOKEN);
       if (isViewerGateRequested() && !isViewerAuthConfigured() && !isBotAuthorized) {
         return res.status(503).json({
           code: 'VIEWER_AUTH_MISCONFIGURED',
@@ -468,7 +474,8 @@ export default async function handler(req, res) {
       if (currentFile?.content) {
         try {
           currentData = normalisePayload(JSON.parse(currentFile.content));
-        } catch {
+        } catch (error) {
+          if (error.code === 'DATA_CAPACITY_EXCEEDED') throw error;
           throw new Error('Cloud baza formati buzilgan');
         }
       }
@@ -489,10 +496,7 @@ export default async function handler(req, res) {
         lastMutationId: crypto.randomUUID(),
         updatedAt: new Date().toISOString()
       });
-      const content = JSON.stringify(nextData, null, 2);
-      if (Buffer.byteLength(content, 'utf8') > 1_500_000) {
-        return { status: 413, body: { error: 'Ma’lumot hajmi ruxsat etilgan chegaradan oshdi' } };
-      }
+      const content = encodeTeamData(nextData);
 
       await writeTeamFiles({ 'eclipse_data.json': { content } });
       return { status: 200, body: {
@@ -506,6 +510,11 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
+    if (error.status === 413) return res.status(413).json({
+      code: error.code, error: error.message,
+      ...(error.collection ? { collection: error.collection, limit: error.limit, actual: error.actual } : {}),
+      ...(error.limitBytes ? { limitBytes: error.limitBytes, actualBytes: error.actualBytes } : {})
+    });
     console.error("API Sync error:", error);
     return res.status(error.status || 500).json({ code: error.code || 'SYNC_ERROR', error: 'Cloud saqlash xizmati vaqtincha javob bermadi. Lokal o‘zgarishlarni saqlab, qayta urinib ko‘ring.' });
   }

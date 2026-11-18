@@ -6,12 +6,18 @@ export const METRICS = {
 export function numeric(value) {
   return ['number', 'string'].includes(typeof value) && String(value).trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : null;
 }
+// Keep this quality gate in parity with the classic-script StatsEngine gate.
+export function isAnalyticsEligible(match) {
+  return !!match && match.status !== 'draft' && match.validForAnalytics !== false && match.needsReview !== true
+    && match.verificationStatus !== 'needs_review'
+    && (match.dataIssues == null || (Array.isArray(match.dataIssues) && match.dataIssues.length === 0));
+}
 export function eligibleMatches(data, scope = 'team5') {
   const roster = new Set((data.players || []).map(p => p.id));
   return (data.matches || []).filter(m => {
     const rows = m.playerStats || [], ids = new Set(rows.map(r => r.playerId));
     const inferred = rows.length === 5 ? 'team5' : rows.length === 1 ? 'individual' : rows.length >= 2 && rows.length <= 4 ? 'squad' : '';
-    return m.status !== 'draft' && m.validForAnalytics !== false && m.needsReview !== true
+    return isAnalyticsEligible(m)
       && ['win', 'loss'].includes(m.result) && /^\d{4}-\d{2}-\d{2}$/.test(m.date || '')
       && rows.length === ids.size && rows.every(r => roster.has(r.playerId)) && m.scope === inferred
       && (scope === 'team5' ? inferred === 'team5' && !(m.guestStats || []).length : ['individual', 'squad'].includes(inferred));

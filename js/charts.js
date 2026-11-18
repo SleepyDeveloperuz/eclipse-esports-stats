@@ -419,7 +419,7 @@ window.ChartHelper = class ChartHelper {
 
     ctx.textAlign = 'right';
     const optional = value => value === null || value === undefined ? '—' : String(value);
-    const objDetails = `TURTLES: ${optional(match.teamTurtles)}   •   LORDS: ${optional(match.teamLords)}   •   TURRETS: ${optional(match.teamTurrets)}`;
+    const objDetails = `TURRETS: ${optional(match.teamTurrets)}`;
     ctx.fillStyle = winGold;
     ctx.fillText(objDetails, W - 60, objY + 21);
 

@@ -19,6 +19,7 @@ function createManager(fetchImpl) {
   const localStorage = createStorage();
   const context = vm.createContext({
     console,
+    AbortController, setTimeout, clearTimeout,
     fetch: fetchImpl,
     localStorage,
     sessionStorage,
