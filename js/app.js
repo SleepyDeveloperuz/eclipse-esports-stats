@@ -124,8 +124,7 @@ window.EclipseApp = {
   refreshMotion(root = document) {
     if (!this.motionObserver) return;
     const selectors = [
-      '.eclipse-identity', '.stat-card', '.form-pulse', '.form-trajectory',
-      '.outcome-module', '.mvp-module', '.match-insights', '.briefing-hero',
+      '.eclipse-identity', '.stat-card', '.form-pulse', '.match-insights', '.briefing-hero',
       '.briefing-panel', '.briefing-admin', '.player-card', '.records-section',
       '.command-module', '.analytics-section-heading', '.analytics-scope-console',
       '.analytics-scope-comparison', '.data-readiness', '.party-distribution', '.archived-roster',
@@ -744,20 +743,13 @@ window.EclipseApp = {
       });
     }
 
-    // Draft Assistant triggers
-    document.querySelectorAll('#draftAssistantBtn, .draft-trigger-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        window.draftAssistant?.open?.();
-      });
-    });
-
     this.initWidgetManager();
   },
 
   initWidgetManager() {
     const WIDGET_CONFIG = [
       { id: 'widget-command', name: 'Jamoa Signali & Match', icon: 'fa-signal', default: true },
-      { id: 'widget-constellation', name: 'Sinergiya Turkumi (Constellation)', icon: 'fa-circle-nodes', default: true },
+      { id: 'widget-constellation', name: 'Birga o‘ynagan juftliklar', icon: 'fa-circle-nodes', default: true },
       { id: 'widget-duration', name: 'Davomiylik bo‘yicha natijalar', icon: 'fa-stopwatch-20', default: true },
       { id: 'widget-coach', name: 'AI Coach & Maslahatlar', icon: 'fa-robot', default: true }
     ];
@@ -868,9 +860,48 @@ window.EclipseApp = {
 
   RELEASES: [
     {
-      "version": "v2.42.0",
+      "version": "v2.43.0",
       "date": "2026-11-18",
       "badge": "Hozirgi versiya",
+      "title": "Yangi Progress, hero pool va tahlil",
+      "sections": [
+        {
+          "title": "Jamoa va hero pool",
+          "icon": "fa-users",
+          "badge": "Roster",
+          "items": [
+            "Kapitan belgilagan Comfort, Backup va Learning herolari nomi bilan ko‘rinadi.",
+            "Har bir o‘yinchi uchun match soni, WR va foydalanish ulushi tarixdan hisoblanadi. Tavsiya mezonlari ilovada ochiladi.",
+            "Birga o‘ynagan juftliklar son, W/L va WR bilan ko‘rsatiladi. Tegishli matchlar satrdan ochiladi."
+          ]
+        },
+        {
+          "title": "Progress va Coach",
+          "icon": "fa-chart-line",
+          "badge": "Tahlil",
+          "items": [
+            "Progress sahifasi joriy va oldingi teng davrni natijalar, trend, ko‘rsatkichlar va matchlar orqali taqqoslaydi.",
+            "Coach’da o‘yinchi va tayyor kuzatuvlar ko‘rinadi. Tafsilotlar shu joyda ochiladi.",
+            "Haftalik fokus hamda tahrirlar tarixiga Progress ichidan kiriladi."
+          ]
+        },
+        {
+          "title": "Statistika va Meta Lab",
+          "icon": "fa-chart-simple",
+          "badge": "Ilova",
+          "items": [
+            "Forma grafigi o‘rniga shaxsiy davrlarni ochib taqqoslaydigan satrlar qo‘yildi.",
+            "Maniac va Savage matchlari bitta filtrlanadigan ro‘yxatda chiqadi.",
+            "Meta Lab yuqori qismi ixchamlandi. Rank, layn, qidiruv hamda ko‘rinish tanlovi tez ishlatiladi. Yangilanish uzilishi tafsilotlari ochiladi.",
+            "Yuqoridagi Draft tugmasi bir marta bosilganda oynani ochadi."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "v2.42.0",
+      "date": "2026-11-18",
+      "badge": "Oldingi versiya",
       "title": "Tarix yaxlitligi, aniq OCR va ishonchli hisobotlar",
       "sections": [
         {
@@ -1615,7 +1646,7 @@ window.EclipseApp = {
     });
     this.renderDashboardBriefing(container);
     window.EclipseCoach?.render(container.querySelector('[data-dashboard-coach]'), this, { compact: true });
-    this.playerManager.renderSynergyConstellation('dashboardConstellationContainer', matches);
+    this.playerManager.renderRosterPairs('dashboardConstellationContainer', matches);
     this._applyWidgetVisibility?.();
   },
 
@@ -1735,8 +1766,6 @@ window.EclipseApp = {
     const teamStats = this.statsEngine.getTeamStats(scopedMatches, { scope: 'all' });
     const mvpCard = document.getElementById('dashMvpCard');
     const mostMvps = this.statsEngine.getMostMvps(scopedMatches, players, { scope: 'all' });
-    const fmt = window.StatsEngine.formatLargeNumber;
-    const metric = value => value === null || value === undefined || !Number.isFinite(Number(value)) ? '—' : this.escapeHtml(value);
     const formTitle = document.getElementById('formPulseTitle');
     const outcomeTitle = document.getElementById('analyticsOutcomeTitle');
     const hallTitle = document.getElementById('hallOfFameTitle');
@@ -1753,22 +1782,20 @@ window.EclipseApp = {
 
     const values = { dashTotalMatches: teamStats.totalMatches, dashWinRate: teamStats.winRate === null ? '—' : `${teamStats.winRate}%`, dashWins: teamStats.wins, dashLosses: teamStats.losses };
     Object.entries(values).forEach(([id, value]) => { const element = document.getElementById(id); if (element) element.textContent = value; });
-    if (mvpCard) {
-      mvpCard.innerHTML = mostMvps ? `
-        <div class="mvp-module__halo" aria-hidden="true"><span></span></div>
-        <header class="mvp-module__header"><div><p class="solar-eyebrow">MVP / ALL TIME</p><h3>MVP yetakchisi</h3></div><span class="mvp-module__rank">#01</span></header>
-        <div class="mvp-module__identity"><span class="mvp-module__crown"><i class="fa-solid fa-crown"></i></span><div><button type="button" class="mvp-module__name" data-player-id="${this.escapeHtml(mostMvps.player.id)}">${this.escapeHtml(mostMvps.player.name)}</button><p>Eng ko‘p MVP olgan o‘yinchi</p></div></div>
-        <div class="mvp-module__metrics"><div><span>KDA</span><strong>${metric(mostMvps.stats.kdaRatio)}</strong></div><div><span>MVP</span><strong>${mostMvps.mvpCount}<small> medal</small></strong></div><div><span>Damage</span><strong>${fmt(mostMvps.stats.totalDamageDealt)}</strong></div></div>`
-        : '<div class="mvp-module__empty"><i class="fa-solid fa-crown"></i><strong>MVP kutilmoqda</strong><p>Yetakchini aniqlash uchun team match kerak.</p></div>';
-      mvpCard.querySelector('[data-player-id]')?.addEventListener('click', event => this.showPlayerProfile(event.currentTarget.dataset.playerId));
+    const meter = document.getElementById('dashOutcomeMeter');
+    const known = teamStats.wins + teamStats.losses;
+    if (meter) {
+      meter.hidden = !known;
+      meter.max = known || 1;
+      meter.value = teamStats.wins;
+      meter.textContent = teamStats.winRate === null ? '—' : `${teamStats.winRate}%`;
     }
-    setTimeout(() => {
-      if (!window.ChartHelper || !document.getElementById('dashWinLossChart')) return;
-      window.ChartHelper.drawPieChart('dashWinLossChart', teamStats.totalMatches ? [
-        { label: 'G‘alaba', value: teamStats.wins, color: '#e7c36b' },
-        { label: 'Mag‘lubiyat', value: teamStats.losses, color: '#673d3d' }
-      ] : [{ label: 'Match yo‘q', value: 1, color: '#302d25' }]);
-    }, 50);
+    const coverage = document.getElementById('dashOutcomeCoverage');
+    if (coverage) coverage.textContent = teamStats.totalMatches > known ? `${teamStats.totalMatches - known} ta natija noma’lum` : '';
+    if (mvpCard) {
+      mvpCard.innerHTML = `<h4>MVP yetakchisi</h4>${mostMvps?.mvpCount ? `<button type="button" class="evidence-link" data-player-id="${this.escapeHtml(mostMvps.player.id)}">${this.escapeHtml(mostMvps.player.name)}</button><p><strong>${mostMvps.mvpCount}</strong> ta MVP · KDA ${this.escapeHtml(mostMvps.stats.kdaRatio ?? '—')}</p>` : '<p>Tanlangan tarkibda MVP qayd etilmagan.</p>'}`;
+      this.bindPlayerProfileLinks(mvpCard);
+    }
   },
 
   renderMatchInsights(containerId, matches, players) {
@@ -1845,218 +1872,22 @@ window.EclipseApp = {
         : `${periodMeta.label} uchun match kutilmoqda.`;
     }
 
-    if (players.length === 0 || matches.length === 0) {
-      container.innerHTML = `
-        <div class="form-pulse__empty">
-          <span><i class="fa-solid fa-wave-square"></i></span>
-          <div><strong>Forma signali hali yo‘q</strong><p>O‘zgarishlarni ko‘rish uchun match va o‘yinchilarni kiriting.</p></div>
-        </div>`;
-      this.renderPerformanceFlowChart([], players, period, windowMeta);
-      return;
-    }
-
-    const escapeHtml = window.escapeHtml || (value => this.escapeHtml(value));
-    const topRiser = trends.find(t => t.comparisonAvailable && t.diff > 0);
-    const topFaller = [...trends].reverse().find(t => t.comparisonAvailable && t.diff < 0);
-
-    const signalMarkup = (trend, type) => {
-      if (!trend) {
-        return `
-          <article class="form-signal form-signal--quiet">
-            <span class="form-signal__icon"><i class="fa-solid fa-minus"></i></span>
-            <div class="form-signal__copy"><small>${type === 'rise' ? 'MOMENTUM' : 'WATCHLIST'}</small><strong>Taqqoslash uchun erta</strong><p>Har ikki davrda shu rol, match turi va tarkibda kamida 3 ta baho kerak. Shaxsiy oldingi davr = 100.</p></div>
-          </article>`;
-      }
-      const positive = type === 'rise';
-      const diff = trend.diff ?? 0;
-      const growthPct = trend.growthPct ?? 0;
-      const sign = diff > 0 ? '+' : '';
-      return `
-        <article class="form-signal form-signal--${type}">
-          <span class="form-signal__icon"><i class="fa-solid ${positive ? 'fa-arrow-up-long' : 'fa-arrow-down-long'}"></i></span>
-          <div class="form-signal__copy">
-            <small>${positive ? 'MOMENTUM LEADER' : 'WATCHLIST'}</small>
-            <button type="button" data-player-id="${escapeHtml(trend.player.id)}">${escapeHtml(trend.player.name)}</button>
-            <p>${positive ? 'Forma ko‘tarildi' : 'Forma pasaydi'}</p>
-          </div>
-          <div class="form-signal__metric">
-            <strong>${sign}${diff.toFixed(2)}</strong>
-            <small>${sign}${growthPct.toFixed(1)}%</small>
-          </div>
-        </article>`;
-    };
-
-    const statusMeta = {
-      spiking: ['Keskin o‘sish', 'fa-arrow-up-right-dots'],
-      growing: ['O‘sishda', 'fa-arrow-trend-up'],
-      stable: ['Barqaror', 'fa-minus'],
-      declining: ['Nazorat', 'fa-arrow-trend-down'],
-      falling: ['Pasayishda', 'fa-arrow-down-long'],
-      insufficient: ['Sample yetarli emas', 'fa-circle-minus']
-    };
-
-    const rows = trends.map((trend, index) => {
-      const [statusLabel, statusIcon] = statusMeta[trend.status] || statusMeta.stable;
-      const diff = trend.diff;
-      const growthPct = trend.growthPct;
-      const diffSign = diff !== null && diff > 0 ? '+' : '';
-      const deltaClass = diff === null ? 'is-unavailable' : diff > 0 ? 'is-positive' : diff < 0 ? 'is-negative' : 'is-neutral';
-      const hero = trend.currStats.favoriteHero && !['-', 'Ma’lumot yo‘q'].includes(trend.currStats.favoriteHero)
-        ? trend.currStats.favoriteHero
-        : 'Qahramon aniqlanmagan';
-      return `
-        <article class="form-roster-row">
-          <span class="form-roster-row__rank">${String(index + 1).padStart(2, '0')}</span>
-          <div class="form-roster-row__player">
-            <button type="button" data-player-id="${escapeHtml(trend.player.id)}">${escapeHtml(trend.player.name)}</button>
-            <small><i class="fa-solid fa-shield-halved"></i> ${escapeHtml(hero)}</small>
-          </div>
-          <span class="form-status form-status--${trend.status}"><i class="fa-solid ${statusIcon}"></i>${statusLabel}</span>
-          <div class="form-roster-row__score">
-            <small>Joriy</small><strong>${trend.currentScore === null ? '—' : trend.currentScore.toFixed(2)}</strong>
-            <span>Oldingi ${trend.prevScore === null ? '—' : trend.prevScore.toFixed(2)}</span>
-          </div>
-          <div class="form-roster-row__delta ${deltaClass}">
-            <strong>${diff === null ? '—' : `${diffSign}${diff.toFixed(2)}`}</strong><small>${growthPct === null ? `n${trend.window.currentValidSamples} / n${trend.window.previousValidSamples}` : `${diffSign}${growthPct.toFixed(1)}%`}</small>
-          </div>
-          <div class="form-roster-row__kda">
-            <small>KDA</small><strong>${trend.currStats.kdaRatio ?? '—'}</strong>
-            <span>${trend.currStats.avgKills ?? '—'}/${trend.currStats.avgDeaths ?? '—'}/${trend.currStats.avgAssists ?? '—'}</span>
-          </div>
-        </article>`;
-    }).join('');
-
-    container.innerHTML = `
-      <div class="form-pulse__signals">
-        ${signalMarkup(topRiser, 'rise')}
-        ${signalMarkup(topFaller, 'fall')}
-      </div>
-      <div class="form-roster">
-        <div class="form-roster__heading">
-          <span>Forma reytingi</span>
-          <small>${windowMeta ? `${windowMeta.currentLabel} vs ${windowMeta.previousLabel}` : periodMeta.label} · ${trends.length} active o‘yinchi</small>
-        </div>
-        ${rows}
-      </div>`;
-
-    container.querySelectorAll('[data-player-id]').forEach(button => {
-      button.addEventListener('click', () => this.showPlayerProfile(button.dataset.playerId));
-    });
-
-    // Render the performance flowchart
-    this.renderPerformanceFlowChart(matches, players, period, windowMeta);
-  },
-
-  // =====================================================================
-  //  PERFORMANCE FLOW CHART (canvas multi-line chart)
-  // =====================================================================
-  renderPerformanceFlowChart(allMatches, players, period = 'week', trendWindow = null) {
-    const legendContainer = document.getElementById('trendChartLegend');
-    const canvasId = 'trendFlowChart';
-    const canvas = document.getElementById(canvasId);
-    const escapeHtml = value => String(value ?? '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#039;');
-    if (!canvas || !window.ChartHelper) return;
-
-    this.trendChartRenderToken = (this.trendChartRenderToken || 0) + 1;
-    const renderToken = this.trendChartRenderToken;
-    const context = canvas.getContext?.('2d');
-    context?.clearRect(0, 0, canvas.width, canvas.height);
-    const periodMeta = {
-      week: { label: 'SO‘NGGI 7 KUN', short: '7 kun' },
-      month: { label: 'SO‘NGGI 30 KUN', short: '30 kun' },
-      year: { label: 'SO‘NGGI 365 KUN', short: '365 kun' }
-    }[period] || { label: 'SO‘NGGI 7 KUN', short: '7 kun' };
-    const calculatedWindow = window.StatsEngine.getPeriodWindows(allMatches, period);
-    const windowMeta = trendWindow || (calculatedWindow ? {
-      currentLabel: calculatedWindow.current.label,
-      previousLabel: calculatedWindow.previous.label,
-      currentFrom: calculatedWindow.current.from,
-      currentTo: calculatedWindow.current.to,
-      previousFrom: calculatedWindow.previous.from,
-      previousTo: calculatedWindow.previous.to
-    } : null);
-    const trajectoryEyebrow = document.getElementById('formTrajectoryEyebrow');
-    const trajectoryDescription = document.getElementById('formTrajectoryDescription');
-    const trajectoryWindow = document.getElementById('formTrajectoryWindow');
-    const trajectorySignal = document.getElementById('formTrajectorySignal');
-    if (trajectoryEyebrow) trajectoryEyebrow.textContent = `FORMA YO‘NALISHI / ${periodMeta.label}`;
-    if (trajectoryDescription) trajectoryDescription.textContent = windowMeta
-      ? `${windowMeta.previousLabel} — ${windowMeta.currentLabel}. 100 — shu o‘yinchining bir xil tarkib, rejim va roldagi avvalgi formasi; bu jamoadoshlar reytingi emas.`
-      : `${periodMeta.short}lik forma uchun match kutilmoqda.`;
-
-    if (allMatches.length === 0 || players.length === 0) {
-      if (legendContainer) legendContainer.innerHTML = '<p style="color:var(--text-muted); font-size:0.8rem;">Grafik uchun hali match ma’lumoti yo‘q.</p>';
-      if (trajectoryWindow) trajectoryWindow.textContent = '0 match';
-      if (trajectorySignal) trajectorySignal.textContent = 'Signal yo‘q';
-      return;
-    }
-
-    const timelineMatches = windowMeta
-      ? window.StatsEngine.filterMatchesByDateWindow(allMatches, { from: windowMeta.previousFrom, to: windowMeta.currentTo })
-      : window.StatsEngine.sortMatchesChronologically(allMatches);
-    const recentMatches = timelineMatches.slice(-30);
-    if (trajectoryWindow) trajectoryWindow.textContent = timelineMatches.length > recentMatches.length
-      ? `${recentMatches.length} / ${timelineMatches.length} match`
-      : `${recentMatches.length} match`;
-    const colors = window.ChartHelper.PLAYER_COLORS || ['#e7c36b', '#d98245', '#63b99d', '#d76578', '#9b7bb8', '#c78154'];
-
-    const history = window.StatsEngine.sortMatchesChronologically(allMatches);
-    const datasets = [];
-    players.forEach((p, idx) => {
-      const dataPoints = [];
-      recentMatches.forEach((m, timelineIndex) => {
-        const ps = (m.playerStats || []).find(s => s.playerId === p.id);
-        if (!ps) return; // an omitted point creates an honest gap in the shared timeline
-        const position = history.findIndex(match => match.id === m.id);
-        const context = window.StatsEngine.comparisonContext(m, ps.rolePlayed);
-        const previousScores = history.slice(0, Math.max(0, position)).flatMap(match =>
-          (match.playerStats || []).filter(stat => stat.playerId === p.id
-            && window.StatsEngine.comparisonContext(match, stat.rolePlayed) === context)
-            .map(stat => window.StatsEngine.numberOrNull(stat.inGameScore))).filter(value => value !== null).slice(-20);
-        const baseline = window.StatsEngine.median(previousScores);
-        const score = window.StatsEngine.numberOrNull(ps.inGameScore);
-        const index = previousScores.length >= 3 && baseline > 0 && score !== null ? 100 * score / baseline : null;
-        if (index === null) return;
-        dataPoints.push({
-          matchId: m.id || `${m.date}-${timelineIndex}`,
-          timelineIndex,
-          matchLabel: String(m.date || '').slice(5) || `#${timelineIndex + 1}`,
-          value: index
-        });
-      });
-
-      if (dataPoints.length > 0) {
-        datasets.push({
-          label: p.name,
-          data: dataPoints,
-          color: colors[idx % colors.length]
-        });
-      }
-    });
-
-    if (datasets.length === 0) {
-      if (legendContainer) legendContainer.innerHTML = '<p style="color:var(--text-muted); font-size:0.8rem;">Shaxsiy forma uchun shu rol va tarkibda oldingi kamida 3 ta baho kerak.</p>';
-      if (trajectorySignal) trajectorySignal.textContent = 'Signal yo‘q';
-      return;
-    }
-
-    if (trajectorySignal) trajectorySignal.innerHTML = `<i></i>${datasets.length} signal`;
-    requestAnimationFrame(() => {
-      if (renderToken === this.trendChartRenderToken && canvas.isConnected && window.ChartHelper.drawMultiLineChart) {
-        window.ChartHelper.drawMultiLineChart(canvasId, datasets);
-      }
-    });
-
-    if (legendContainer) {
-      legendContainer.innerHTML = datasets.map((ds, index) =>
-        `<div class="trend-chart-legend-item" title="${escapeHtml(ds.label)} · ${ds.data.length} sample"><span class="trend-chart-legend-index">${String(index + 1).padStart(2, '0')}</span><span class="dot" style="--signal-color:${ds.color};"></span><span>${escapeHtml(ds.label)} · n${ds.data.length}</span></div>`
-      ).join('');
-    }
+    const esc = value => this.escapeHtml(value);
+    const number = value => Number.isFinite(value) ? value.toFixed(1) : '—';
+    const rows = [...trends].filter(trend => trend.window.currentMatches || trend.window.previousMatches)
+      .sort((a, b) => a.player.name.localeCompare(b.player.name));
+    container.innerHTML = rows.length ? `<div class="evidence-form">${rows.map(trend => {
+      const delta = trend.comparisonAvailable ? `${trend.diff > 0 ? '+' : ''}${number(trend.diff)} punkt` : 'Namuna yetarli emas';
+      return `<details class="evidence-pair"><summary><strong>${esc(trend.player.name)}</strong><span>${trend.window.currentMatches} match</span><span>KDA ${esc(trend.currStats.kdaRatio ?? '—')}</span><b>${delta}</b></summary>
+        <div class="evidence-periods">
+          <div><small>Oldingi davr · ${esc(trend.window.previousLabel)}</small><strong>${number(trend.prevScore)}</strong><span>${trend.window.previousValidSamples} ta baho</span></div>
+          <div><small>Joriy davr · ${esc(trend.window.currentLabel)}</small><strong>${number(trend.currentScore)}</strong><span>${trend.window.currentValidSamples} ta baho</span></div>
+        </div><p>Shaxsiy indeks · oldingi mos kontekst = 100. Taqqoslash uchun har ikki davrda kamida uchta mos baho kerak.</p>
+        <p>Joriy davr · WR ${trend.currStats.winRate == null ? '—' : esc(trend.currStats.winRate) + '%'} · K/D/A ${[trend.currStats.avgKills, trend.currStats.avgDeaths, trend.currStats.avgAssists].map(value => esc(value ?? '—')).join(' / ')}</p>
+        <button type="button" class="evidence-link" data-player-id="${esc(trend.player.id)}">Profilni ochish</button>
+      </details>`;
+    }).join('')}</div>` : '<p class="evidence-empty">Bu davrda forma taqqoslash uchun match yo‘q.</p>';
+    this.bindPlayerProfileLinks(container);
   },
 
   // =====================================================================
@@ -2502,19 +2333,11 @@ window.EclipseApp = {
       damageReceived: trackedStats.totalDamageReceived,
       turretDamage: trackedStats.totalTurretDamage,
       gold: trackedStats.totalGoldEarned,
-      savageList: trackedStats.savageList,
-      maniacList: trackedStats.maniacList,
-      totalSavages: trackedStats.totalSavages,
-      totalManiacs: trackedStats.totalManiacs
     } : {
       damageDealt: teamStats.teamTotalDamageDealt,
       damageReceived: teamStats.teamTotalDamageReceived,
       turretDamage: teamStats.teamTotalTurretDamage,
       gold: teamStats.teamTotalGold,
-      savageList: teamStats.savageList,
-      maniacList: teamStats.maniacList,
-      totalSavages: teamStats.totalSavages,
-      totalManiacs: teamStats.totalManiacs
     };
     const fmt = window.StatsEngine.formatLargeNumber;
     const fmtDate = window.StatsEngine.formatDateFormatted;
@@ -2526,8 +2349,7 @@ window.EclipseApp = {
 
     const awardsContainer = document.getElementById('awardsContainer');
     const recordsContainer = document.getElementById('recordsContainer');
-    const savageHallContainer = document.getElementById('savageHallContainer');
-    const maniacHallContainer = document.getElementById('maniacHallContainer');
+
 
     if (awardsContainer) {
       const today = window.EclipseDateUtils?.today?.() || new Date().toLocaleDateString('en-CA');
@@ -2710,41 +2532,44 @@ window.EclipseApp = {
       this.bindPlayerProfileLinks(recordsContainer);
     }
 
-    if (savageHallContainer && maniacHallContainer) {
-      let savageHtml = `
-        <div class="card mb-4">
-          <h3 class="card-title mb-3" style="color:var(--secondary);"><i class="fa-solid fa-fire"></i> Savage Hall of Fame (${aggregateStats.totalSavages})</h3>
-      `;
-      if (aggregateStats.savageList.length === 0) {
-        savageHtml += `<p style="color:var(--text-muted);">Hozircha Savage qayd etilmagan.</p>`;
-      } else {
-        savageHtml += `<ul style="display:flex; flex-direction:column; gap:0.5rem;">`;
-        aggregateStats.savageList.forEach(s => {
-          const pName = players.find(p => p.id === s.playerId)?.name || 'Noma’lum o‘yinchi';
-          savageHtml += `<li style="padding:0.5rem 1rem; background:rgba(var(--secondary-rgb),0.05); border-radius:6px; display:flex; justify-content:space-between; align-items:center;"><span><i class="fa-solid fa-fire" style="color:var(--secondary); margin-right:4px;"></i> <strong>${this.escapeHtml(pName)}</strong> · <em>${this.escapeHtml(s.heroUsed || 'Hero yo‘q')}</em></span> <span style="color:var(--text-muted); font-size:0.8rem;">${this.escapeHtml(fmtDate(s.date))}</span></li>`;
-        });
-        savageHtml += `</ul>`;
-      }
-      savageHtml += `</div>`;
-      savageHallContainer.innerHTML = savageHtml;
+    this.renderAchievements(matches, players);
+  },
 
-      let maniacHtml = `
-        <div class="card mb-4">
-          <h3 class="card-title mb-3" style="color:var(--primary);"><i class="fa-solid fa-bolt"></i> Maniac Hall of Fame (${aggregateStats.totalManiacs})</h3>
-      `;
-      if (aggregateStats.maniacList.length === 0) {
-        maniacHtml += `<p style="color:var(--text-muted);">Hozircha Maniac qayd etilmagan.</p>`;
-      } else {
-        maniacHtml += `<ul style="display:flex; flex-direction:column; gap:0.5rem;">`;
-        aggregateStats.maniacList.forEach(m => {
-          const pName = players.find(p => p.id === m.playerId)?.name || 'Noma’lum o‘yinchi';
-          maniacHtml += `<li style="padding:0.5rem 1rem; background:rgba(var(--primary-rgb),0.05); border-radius:6px; display:flex; justify-content:space-between; align-items:center;"><span><i class="fa-solid fa-bolt" style="color:var(--primary); margin-right:4px;"></i> <strong>${this.escapeHtml(pName)}</strong> · <em>${this.escapeHtml(m.heroUsed || 'Hero yo‘q')}</em></span> <span style="color:var(--text-muted); font-size:0.8rem;">${this.escapeHtml(fmtDate(m.date))}</span></li>`;
-        });
-        maniacHtml += `</ul>`;
-      }
-      maniacHtml += `</div>`;
-      maniacHallContainer.innerHTML = maniacHtml;
-    }
+  renderAchievements(matches, players) {
+    const mount = document.getElementById('matchAchievements');
+    const evidence = window.EclipseRosterEvidence;
+    if (!mount || !evidence) return;
+    const esc = value => this.escapeHtml(value);
+    const entries = evidence.achievements(matches, players);
+    const count = kind => new Set(entries.filter(entry => entry.kind === kind).map(entry => entry.match.id)).size;
+    let visible = 6;
+    mount.innerHTML = `<section class="evidence-panel"><header class="evidence-heading"><div><h4>Maniac va Savage</h4><p>${count('Savage')} matchda Savage · ${count('Maniac')} matchda Maniac</p><small>Har bir o‘yinchi va match uchun eng yuqori qayd ko‘rsatiladi.</small></div>
+      <label>O‘yinchi<select data-achievement-player><option value="">Barcha o‘yinchilar</option>${players.filter(p => entries.some(item => item.player.id === p.id)).map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label></header>
+      <div data-achievement-rows></div><button type="button" class="btn btn-secondary" data-achievement-more>Yana ko‘rsatish</button></section>`;
+    const list = mount.querySelector('[data-achievement-rows]');
+    const more = mount.querySelector('[data-achievement-more]');
+    const picker = mount.querySelector('[data-achievement-player]');
+    const draw = () => {
+      const filtered = entries.filter(item => !picker.value || item.player.id === picker.value);
+      list.innerHTML = filtered.length ? `<ul class="evidence-awards">${filtered.slice(0, visible).map(({ kind, match, row, player }) => {
+        const hero = this.heroDb?.resolve(row);
+        const name = hero?.name || row.heroUsed || 'Qahramon noma’lum';
+        return `<li>${evidence.portrait(hero || { name }, esc)}<span><strong>${esc(player.name)}</strong><small>${esc(name)} · ${esc(match.date || 'Sana noma’lum')}</small></span>
+          <b class="award-${kind.toLowerCase()}">${kind}</b><button type="button" class="evidence-link" data-achievement-match="${esc(match.id)}">Matchni ochish</button></li>`;
+      }).join('')}</ul>` : '<p>Bu tanlovda yutuq qayd etilmagan.</p>';
+      more.hidden = filtered.length <= visible;
+    };
+    picker.addEventListener('change', () => { visible = 6; draw(); });
+    more.addEventListener('click', () => {
+      const firstNew = visible;
+      visible += 6; draw();
+      list.querySelectorAll('[data-achievement-match]')[firstNew]?.focus();
+    });
+    list.addEventListener('click', event => {
+      const button = event.target.closest('[data-achievement-match]');
+      if (button) this.matchManager.renderMatchDetailModal(button.dataset.achievementMatch, players);
+    });
+    draw();
   },
 
   bindPlayerProfileLinks(root = document) {

@@ -101,3 +101,48 @@ export function moments(rows) {
   }
   return [...selected.values()].sort((a, b) => b.match.date.localeCompare(a.match.date));
 }
+
+// Compare adjacent calendar windows. Team counts use matches; averages use known
+// player observations, so a missing measurement contributes no value or sample.
+export function progressOverview(data, { scope = 'team5', days = 30, end = '', matchType = '', playerId = '', hero = '', role = '' } = {}) {
+  const seen = new Set();
+  const all = eligibleMatches(data, scope).filter(match => {
+    const time = Date.parse(match.date + 'T00:00:00Z');
+    if (!Number.isFinite(time) || new Date(time).toISOString().slice(0, 10) !== match.date
+      || seen.has(match.id) || (matchType && match.matchType !== matchType)) return false;
+    seen.add(match.id);
+    return true;
+  });
+  const limit = [7, 30, 90].includes(Number(days)) ? Number(days) : 30;
+  const anchor = end || all.at(-1)?.date;
+  const anchorDate = new Date(anchor ? anchor + 'T00:00:00Z' : NaN);
+  if (!Number.isFinite(anchorDate.getTime()) || anchorDate.toISOString().slice(0, 10) !== anchor) return null;
+  const offset = days => new Date(anchorDate.getTime() + days * 86400000).toISOString().slice(0, 10);
+  const current = { from: offset(1 - limit), to: anchor };
+  const previous = { from: offset(1 - 2 * limit), to: offset(-limit) };
+  const collect = (range, id = playerId) => {
+    const matches = [], rows = [];
+    for (const match of all) {
+      if (match.date < range.from || match.date > range.to) continue;
+      const subset = match.playerStats.filter(row => (!id || row.playerId === id)
+        && (!id || !hero || row.heroUsed === hero) && (!id || !role || row.rolePlayed === role));
+      if (!subset.length) continue;
+      matches.push(match);
+      rows.push(...subset.map(row => ({ match, row })));
+    }
+    const wins = matches.filter(match => match.result === 'win').length;
+    return { ...range, matches, rows, count: matches.length, wins, losses: matches.length - wins,
+      winRate: matches.length ? wins * 100 / matches.length : null, metrics: summarize(rows).metrics };
+  };
+  const currentResult = collect(current), previousResult = collect(previous);
+  const chunk = limit === 7 ? 1 : limit === 30 ? 7 : 14;
+  const trend = [];
+  for (let day = 1 - limit; day <= 0; day += chunk) {
+    const from = offset(day), to = offset(Math.min(0, day + chunk - 1));
+    const matches = currentResult.matches.filter(match => match.date >= from && match.date <= to);
+    trend.push({ from, to, count: matches.length, wins: matches.filter(match => match.result === 'win').length });
+  }
+  return { current: currentResult, previous: previousResult, trend, players: (data.players || []).map(player => ({
+    player, current: collect(current, player.id), previous: collect(previous, player.id)
+  })).filter(item => item.current.count || item.previous.count) };
+}

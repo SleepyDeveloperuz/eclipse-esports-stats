@@ -290,64 +290,6 @@ domTest('DraftAssistant creates board, handles slot picking, damage balance and 
   dom.window.close();
 });
 
-domTest('PlayerManager renders team chemistry tandem banner when synergy is detected', () => {
-  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>', {
-    runScripts: 'outside-only'
-  });
-  const { window } = dom;
-
-  window.eval(readFileSync(new URL('../js/date-utils.js', import.meta.url), 'utf8'));
-  window.eval(readFileSync(new URL('../js/players.js', import.meta.url), 'utf8'));
-
-  const samplePlayers = [
-    { id: 'p1', name: 'Heavenlyyy', primaryRole: 'EXP Laner', active: true },
-    { id: 'p2', name: 'Vortex', primaryRole: 'Jungler', active: true }
-  ];
-
-  const mockDb = {
-    getPlayers: () => samplePlayers,
-    getActivePlayers: () => samplePlayers,
-    getArchivedPlayers: () => [],
-    getMatches: () => []
-  };
-
-  const mockStatsEngine = {
-    getPlayerTrends: () => [],
-    getPlayerStats: () => ({ matchesPlayed: 10, winRate: 70, kdaRatio: '3.5', mvpCount: 2 }),
-    getPlayerRoleBreakdown: () => ({ bestRole: 'EXP Laner' }),
-    getPlayerHeroAnalytics: () => ({ uniqueHeroesCount: 5, mostPicked: { heroName: 'Chou', useRate: 50, winRate: 80 } }),
-    getSynergyStats: () => ({
-      duos: [
-        {
-          player1: { id: 'p1', name: 'Heavenlyyy' },
-          player2: { id: 'p2', name: 'Vortex' },
-          matchesTogether: 8,
-          wins: 7,
-          losses: 1,
-          winRate: '87.5',
-          combinedKda: '4.20'
-        }
-      ]
-    })
-  };
-  window.StatsEngine = { ROLE_COLORS: {} };
-
-  const pm = new window.PlayerManager(mockDb, {});
-  pm.statsEngine = mockStatsEngine;
-
-  pm.renderPlayersList('container');
-
-  const container = window.document.getElementById('container');
-  const banner = container.querySelector('.team-chemistry-highlight');
-  assert.ok(banner, 'Team chemistry banner is rendered');
-  assert.match(banner.innerHTML, /Heavenlyyy/);
-  assert.match(banner.innerHTML, /Vortex/);
-  assert.match(banner.innerHTML, /87\.5%/);
-  assert.match(banner.innerHTML, /#1 TANDEM/);
-
-  dom.window.close();
-});
-
 domTest('EclipseShareCard generates 1200x630 canvas and triggers PNG download', async () => {
   const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', { runScripts: 'outside-only' });
   const { window } = dom;
@@ -510,47 +452,6 @@ domTest('StatsEngine computes duration breakdown (early, mid, late) and renders 
   dom.window.close();
 });
 
-domTest('PlayerManager renders interactive Synergy Constellation SVG graph', () => {
-  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="constellationContainer"></div></body></html>', {
-    runScripts: 'outside-only'
-  });
-  const { window } = dom;
-
-  window.eval(readFileSync(new URL('../js/date-utils.js', import.meta.url), 'utf8'));
-  window.eval(readFileSync(new URL('../js/players.js', import.meta.url), 'utf8'));
-
-  const mockDb = {
-    getAllPlayers: () => [
-      { id: 'p1', name: 'Heavenlyyy', matchesCount: 15 },
-      { id: 'p2', name: 'God_speed', matchesCount: 14 },
-      { id: 'p3', name: 'Tofik', matchesCount: 13 },
-      { id: 'p4', name: 'Trouble', matchesCount: 12 },
-      { id: 'p5', name: 'Hiko', matchesCount: 11 }
-    ]
-  };
-
-  const mockMatches = [
-    { result: 'win', players: [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }, { id: 'p4' }, { id: 'p5' }] },
-    { result: 'win', players: [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }, { id: 'p4' }, { id: 'p5' }] },
-    { result: 'loss', players: [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }, { id: 'p4' }, { id: 'p5' }] }
-  ];
-
-  const pm = new window.PlayerManager(mockDb, {});
-  pm.renderSynergyConstellation('constellationContainer', mockMatches);
-
-  const container = window.document.getElementById('constellationContainer');
-  assert.ok(container.querySelector('.synergy-constellation-card'), 'Constellation card created');
-  assert.ok(container.querySelector('.constellation-svg'), 'SVG constellation present');
-  const links = container.querySelectorAll('.constellation-link');
-  // 5 players -> 10 pairs
-  assert.equal(links.length, 10, 'All 10 pair links rendered');
-  const nodes = container.querySelectorAll('.constellation-node');
-  assert.equal(nodes.length, 5, '5 player nodes rendered');
-  assert.ok(container.querySelector('#constellationTooltip'), 'Tooltip element present');
-
-  dom.window.close();
-});
-
 domTest('Dashboard Widget Manager renders modal, toggles visibility, and persists to localStorage', () => {
   const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(indexHtml, /themeSwitcherBtn/, 'index.html has themeSwitcherBtn');
@@ -701,7 +602,7 @@ domTest('Player profile share card button downloads player card without throwing
   dom.window.close();
 });
 
-domTest('ProgressHub QoL redesign provides week navigator, quick player switcher, and hero chips', async () => {
+domTest('Progress keeps weekly navigation and filters evidence inline by player and hero', async () => {
   const dom = new JSDOM('<!DOCTYPE html><html><body><div id="progressContainer"></div></body></html>', {
     runScripts: 'outside-only',
     url: 'https://eclipse-esports.uz/'
@@ -760,28 +661,25 @@ domTest('ProgressHub QoL redesign provides week navigator, quick player switcher
   prevBtn.click();
   assert.notEqual(hub.date, initialDate, 'Clicking previous week shifts the week date');
 
-  // 2. Personal tab: Quick player switcher
-  hub.tab = 'compare';
+  hub.tab = 'overview';
+  hub.end = '2026-10-15';
   hub.draw();
 
-  const playerChips = hub.container.querySelectorAll('[data-select-player]');
-  assert.equal(playerChips.length, 2, '2 quick player switcher buttons rendered');
-  assert.ok(playerChips[0].classList.contains('active'), 'First player is active initially');
+  assert.equal(hub.container.querySelector('[data-select-player="p1"]').getAttribute('aria-pressed'), 'true');
+  hub.container.querySelector('[data-select-player="p2"]').click();
+  assert.equal(hub.playerId, 'p2');
+  assert.equal(hub.container.querySelector('[data-select-player="p2"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(hub.container.querySelectorAll('[data-progress-match]').length, 0);
+  hub.container.querySelector('[data-select-player="p1"]').click();
+  assert.equal(hub.container.querySelectorAll('[data-progress-match]').length, 2);
+  hub.container.querySelector('.progress-extra').open = true;
 
-  playerChips[1].click();
-  assert.equal(hub.playerId, 'p2', 'Clicking player chip switches active player');
-
-  // 3. Hero Journey: Hero chip picker when no hero is selected
-  hub.playerId = 'p1';
-  hub.hero = '';
-  hub.tab = 'journey';
-  hub.draw();
-
-  const heroChips = hub.container.querySelectorAll('[data-select-hero]');
-  assert.ok(heroChips.length >= 1, 'Top hero chips rendered when hero is unselected');
-
-  heroChips[0].click();
-  assert.ok(hub.hero, 'Clicking hero chip selects that hero for journey analysis');
+  const hero = hub.container.querySelector('[data-progress-filter="hero"]');
+  hero.value = hero.options[1].value;
+  hero.dispatchEvent(new window.Event('change'));
+  assert.ok(hub.hero);
+  assert.equal(hub.container.querySelector('.progress-extra').open, true);
+  assert.equal(window.document.activeElement.dataset.progressFilter, 'hero');
 
   dom.window.close();
 });

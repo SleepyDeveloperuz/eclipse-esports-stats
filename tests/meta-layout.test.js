@@ -85,7 +85,7 @@ domTest('desktop, tablet and phone CSS constrain controls and keep table scrolli
 test('both entry pages reference the corrected, cache-busted layout styles', () => {
   const version = JSON.parse(read('package.json')).version;
   for (const file of ['index.html', 'meta-lab.html']) {
-    for (const style of ['public-meta', 'meta-explore', 'meta-qol', 'style']) {
+    for (const style of ['public-meta', 'meta-explore', 'meta-qol', 'style', 'evidence']) {
       assert.ok(read(file).includes(`${style}.css?v=${version}`));
     }
   }
@@ -96,11 +96,11 @@ domTest('compact controls wrap on mobile and preserve usable targets on both ent
     const w = surface({ privatePage, width });
     try {
       const root = w.document.querySelector('#metaLabContainer'); root.classList.add('meta-qol');
-      root.innerHTML = '<div class="meta-workspace"><div class="meta-workspace-heading"><header>Tierlist</header></div><div class="meta-workspace-controls"><div class="meta-rank-picker"><span>Rank</span><button class="btn">Mythical Glory+</button></div></div><div class="meta-tier-tools"><label><input></label><button class="meta-filter-toggle btn">Filtrlar</button><div class="meta-extra-filters"><div class="meta-tier-legend"><button>SS</button></div></div></div><button hidden>Hidden</button></div>';
+      root.innerHTML = '<div class="meta-workspace"><div class="meta-workspace-heading"><header>Tierlist</header></div><div class="meta-workspace-controls"><div class="meta-rank-picker"><span>Rank</span><button class="btn">Mythical Glory+</button></div></div><div class="meta-tier-tools"><label><input></label><label class="meta-compact-lane"><select aria-label="Layn"><option>Hammasi</option></select></label><button class="meta-filter-toggle btn">Filtrlar</button><output data-meta-result-count>8 hero</output><div class="meta-extra-filters"><div class="meta-tier-legend"><button>SS</button></div></div></div><button hidden>Hidden</button></div>';
       const style = selector => w.getComputedStyle(root.querySelector(selector));
       assert.equal(style('.meta-workspace').minWidth, '0');
       assert.equal(style('.meta-tier-tools').display, 'grid', `${width}px: filters must not inherit a column flex axis`);
-      assert.equal(style('.meta-tier-tools').gridTemplateColumns, 'minmax(0,1fr) auto');
+      assert.equal(style('.meta-tier-tools').gridTemplateColumns, width <= 720 ? 'minmax(0, 1fr) minmax(0, 1fr) auto' : 'minmax(7rem, 1fr) auto auto auto');
       assert.equal(style('.meta-tier-tools > label').flexBasis, 'auto', `${width}px: search width must not become its height`);
       assert.equal(style('.meta-tier-tools > label').minWidth, '0');
       assert.equal(style('input').height, '44px');
@@ -110,15 +110,15 @@ domTest('compact controls wrap on mobile and preserve usable targets on both ent
       assert.equal(style('.meta-tier-legend button').minHeight, '44px');
       assert.equal(style('input').fontSize, '1rem');
       assert.equal(style('[hidden]').display, 'none');
-      assert.equal(style('.meta-filter-toggle').display, width <= 700 ? 'inline-flex' : 'none');
-      assert.equal(style('.meta-extra-filters').display, width <= 700 ? 'none' : 'flex');
+      assert.equal(style('.meta-filter-toggle').display, 'inline-flex');
+      assert.equal(style('.meta-compact-lane select').minHeight, '44px');
+      assert.equal(style('.meta-extra-filters').display, 'none');
+      assert.equal(style('[data-meta-result-count]').gridColumn, 'auto');
       root.querySelector('.meta-extra-filters').classList.add('is-expanded');
       assert.equal(style('.meta-extra-filters').display, 'flex');
-      if (width <= 700) {
-        assert.equal(style('.meta-rank-picker').gridTemplateColumns, 'repeat(2,minmax(0,1fr))');
-        assert.equal(style('.meta-workspace-controls').display, 'grid');
-      }
-      assert.equal(style('.meta-workspace-heading').gridTemplateColumns, width <= 1000 ? 'minmax(0,1fr)' : 'minmax(0,1fr) auto');
+      assert.equal(style('.meta-rank-picker').flexWrap, 'wrap');
+      assert.equal(style('.meta-workspace-controls').display, 'flex');
+      assert.equal(style('.meta-workspace-heading').gridTemplateColumns.replaceAll(' ', ''), width <= 720 ? 'minmax(0,1fr)' : 'minmax(0,1fr)auto');
     } finally { w.close(); }
   }
 });

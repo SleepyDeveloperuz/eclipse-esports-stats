@@ -44,7 +44,7 @@ domTest('Progress all tabs render with escaped names, viewer has no correction o
       const hub = new w.ProgressHub(app); hub.container = w.document.getElementById('progressContainer'); hub.data = data; hub.date = '2026-09-16'; hub.scope = 'squad'; hub.playerId = 'p1'; hub.hero = 'Miya';
       hub.reports = [{ ...model.weeklyReport(data, hub.date, hub.scope), id: '2026-09-14_squad', publishedAt: '2026-09-16T00:00:00Z' }];
       hub.history = { entries: [], revision: 1 };
-      for (const tab of ['weekly', 'compare', 'journey', 'moments', 'history']) { hub.tab = tab; hub.draw(); assert.ok(hub.container.textContent.length > 100); assert.equal(hub.container.querySelectorAll('script').length, 0); }
+      for (const tab of ['overview', 'weekly', 'history']) { hub.tab = tab; hub.draw(); assert.ok(hub.container.textContent.length > 100); assert.equal(hub.container.querySelectorAll('script').length, 0); }
       if (!admin) { assert.equal(hub.container.querySelector('[data-progress-tab="history"]'), null); assert.equal(hub.container.querySelector('[data-progress-action="publish"]'), null); }
     } finally { w.close(); }
   }
@@ -67,10 +67,10 @@ domTest('Weekly and Moment PNG exports create bounded downloadable canvases with
 domTest('Weekly focus keeps unsaved edits across filters and conflicts; viewer can read but never edit', async () => {
   const { w, app, data } = setup();
   try {
-    const hub = new w.ProgressHub(app); hub.container = w.document.getElementById('progressContainer'); hub.data = data; hub.scope = 'squad'; hub.draw();
+    const hub = new w.ProgressHub(app); hub.container = w.document.getElementById('progressContainer'); hub.data = data; hub.scope = 'squad'; hub.tab = 'weekly'; hub.draw();
     const task = hub.container.querySelector('#weekly-focus-task'); assert.ok(task);
     task.value = 'Review <script>one death</script>'; task.dispatchEvent(new w.Event('input'));
-    hub.tab = 'compare'; hub.draw(); hub.tab = 'weekly'; hub.draw();
+    hub.tab = 'overview'; hub.draw(); hub.tab = 'weekly'; hub.draw();
     assert.equal(hub.container.querySelector('#weekly-focus-task').value, task.value);
     hub.request = async () => { throw new Error('conflict'); };
     await assert.rejects(hub.action('save-focus'), /conflict/);
@@ -130,5 +130,32 @@ domTest('Batch preserves ready queue on navigation and never resends accepted ma
     batch.items[1].worker.request = async () => { second++; if (second === 1) throw Object.assign(new Error('try later'), { status: 429 }); return { submission: {} }; };
     await batch.send(batch.generation); batch.render(); await batch.send(batch.generation);
     assert.equal(first, 1); assert.equal(second, 2); assert.ok(batch.items.every(i => i.state === 'sent'));
+  } finally { w.close(); }
+});
+
+domTest('Progress displays results before weekly tools load, and keeps local results after a server error', async () => {
+  const { w, app, data } = setup(false);
+  try {
+    let finishWeekly;
+    w.fetch = async path => {
+      if (path === '/api/sync') return { ok: true, json: async () => ({ data }) };
+      return new Promise(resolve => { finishWeekly = () => resolve({ ok: true, json: async () => ({ reports: [] }) }); });
+    };
+    const hub = new w.ProgressHub(app);
+    hub.scope = 'squad';
+    const work = hub.render();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.ok(hub.container.querySelector('[data-progress-match="m1"]'));
+    hub.container.querySelector('[data-progress-tab="weekly"]').click();
+    assert.match(hub.container.textContent, /Hisobotlar yuklanmoqda/);
+    finishWeekly();
+    await work;
+    assert.match(hub.container.textContent, /publish qilinmagan/);
+    w.fetch = async () => { throw new Error('Offline'); };
+    await hub.render();
+    assert.match(hub.container.textContent, /Qurilmadagi matchlar/);
+    assert.ok(hub.container.querySelector('[data-progress-match="m1"]'));
+    hub.container.querySelector('[data-progress-tab="weekly"]').click();
+    assert.match(hub.container.textContent, /server bilan bog‘lanish kerak/);
   } finally { w.close(); }
 });

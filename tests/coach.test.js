@@ -79,9 +79,9 @@ test('Dashboard keeps chosen teammate even when localStorage unavailable; profil
   const { w, el, calls, render } = ui();
   try {
     Object.defineProperty(w, 'localStorage', { get() { throw new Error('blocked'); } });
-    render({ compact: true }); const select = el.querySelector('[data-coach-player]'); select.value = 'p2'; select.dispatchEvent(new w.Event('change'));
+    render({ compact: true }); el.querySelector('[data-coach-player="p2"]').click();
     const type = el.querySelector('[data-coach-type]'); type.value = 'casual'; type.dispatchEvent(new w.Event('change'));
-    assert.equal(el.querySelector('[data-coach-player]').value, 'p2');
+    assert.equal(el.querySelector('[data-coach-player="p2"]').getAttribute('aria-pressed'), 'true');
     el.querySelector('[data-coach-profile]').click(); assert.deepEqual(calls, ['p2']);
   } finally { w.close(); }
 });

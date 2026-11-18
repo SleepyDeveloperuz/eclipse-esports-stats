@@ -278,10 +278,14 @@ window.MlbbDataManager = class MlbbDataManager {
     const errors = [];
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') this.state[keys[index]] = result.value;
-      else { if (keys[index] === 'meta') this.state.meta = null; errors.push(result.reason); }
+      else {
+        const key = keys[index];
+        if (key === 'meta' && this.state.meta?.data?.rank !== this.selectedRank) this.state.meta = null;
+        errors.push({ source: key, reason: result.reason });
+      }
     });
     if (this.state.heroes?.data?.length) await this.hydrateClientCatalog(this.state.heroes.data);
-    if (!Object.values(this.state).some(Boolean)) throw errors[0] || new Error('Meta Lab ma’lumoti topilmadi');
+    if (!Object.values(this.state).some(Boolean)) throw errors[0]?.reason || new Error('Meta Lab ma’lumoti topilmadi');
     return { state: this.state, errors };
   }
 
@@ -310,10 +314,10 @@ window.MlbbDataManager = class MlbbDataManager {
     this.container = document.getElementById(containerId);
     if (!this.container) return;
     this.closeDossier();
-    this.container.innerHTML = this.loadingMarkup();
+    if (!Object.values(this.state).some(Boolean) || !this.container.querySelector('.meta-lab-view')) this.container.innerHTML = this.loadingMarkup();
     try {
       const { errors, stale } = await this.load(force);
-      if (!stale) this.renderState(errors);
+      if (!stale) { this.sourceErrors = errors; this.renderState(errors); }
     } catch (error) {
       this.container.innerHTML = this.errorMarkup(error);
       this.bindEvents();
@@ -472,7 +476,7 @@ window.MlbbDataManager = class MlbbDataManager {
       : `<span class="meta-hero-fallback ${className}" aria-hidden="true">${this.escape(String(hero?.name || '?').slice(0, 1))}</span>`;
   }
 
-  renderState(errors = []) {
+  renderState(errors = this.sourceErrors || []) {
     if (!this.container) return;
     const heroes = this.state.heroes?.data || [];
     const tiers = this.state.meta?.data?.eclipse || [];
@@ -481,9 +485,20 @@ window.MlbbDataManager = class MlbbDataManager {
     const freshness = this.freshnessMeta(this.state.meta);
     const health = this.state.meta?.health?.data || null;
     const healthPresentation = this.healthPresentation(health, freshness);
-    const errorNote = errors.length
-      ? `<div class="meta-lab-partial"><i class="fa-solid fa-triangle-exclamation"></i><span>${errors.length} ta ma’lumot manbasi yuklanmadi. Mavjud bo‘lsa, oxirgi saqlangan nusxa ko‘rsatiladi.</span></div>`
-      : '';
+    const sources = { heroes: 'Hero katalogi', meta: 'Rank statistikasi', patches: 'Patch Radar' };
+    const affected = new Set(errors.map(error => sources[error.source]).filter(Boolean));
+    const datasetLabels = { catalog: sources.heroes, rank: sources.meta, patches: sources.patches };
+    for (const [key, status] of Object.entries(health?.datasets || {})) {
+      if (datasetLabels[key] && ['stale', 'missing', 'partial'].includes(status)) affected.add(datasetLabels[key]);
+    }
+    const rankStates = Object.entries(health?.ranks || {}).filter(([, value]) => value?.error || ['partial', 'error', 'failed', 'missing', 'stale'].includes(value?.status));
+    const errorNote = affected.size || errors.length || rankStates.length || this.rankError
+      ? `<div class="meta-lab-partial" role="status"><strong>Yangilanishda uzilish</strong>
+         <p>${this.escape([...affected].join(', ') || (this.rankError ? this.rankLabel?.(this.selectedRank) || 'Rank statistikasi' : 'Rank manbalari'))}</p>
+         ${rankStates.length ? `<p>Ranklar: ${this.escape(rankStates.map(([rank]) => this.rankLabel?.(rank) || rank).join(', '))}</p>` : ''}
+         <p>Mavjud oxirgi saqlangan nusxa ko‘rsatiladi.</p></div>` : '';
+    const statusLabel = errors.length || this.rankError ? 'Yangilanishda uzilish' : healthPresentation.label;
+
 
     const isDirectProvider = this.state.meta?.source?.provider === 'Mobile Legends public data';
     const provenanceNote = isDirectProvider
@@ -527,7 +542,7 @@ window.MlbbDataManager = class MlbbDataManager {
           ].map(([view, icon, label]) => `<button type="button" data-meta-view="${view}" class="${this.currentView === view ? 'active' : ''}" aria-pressed="${this.currentView === view}"><i class="fa-solid ${icon}"></i>${label}</button>`).join('')}
         </nav>
         <div class="meta-lab-health">
-          <details class="meta-health-details"><summary><span class="meta-health ${healthPresentation.className}"><i class="fa-solid ${healthPresentation.icon}"></i>${healthPresentation.label}</span></summary><p>Manba holati: ${this.escape(this.state.meta?.status || 'missing')}. ${health?.partial ? 'Umumiy yangilanish qisman bajarilgan. ' : ''}LKG — oxirgi saqlangan nusxa; bu barcha manbalar yangi degani emas. Ma’lumot sanasiga ham qarang.</p></details>
+          <details class="meta-health-details"><summary><span class="meta-health ${healthPresentation.className}"><i class="fa-solid ${healthPresentation.icon}"></i>${statusLabel}</span></summary><div class="meta-health-content"><p>Manba holati: ${this.escape(this.state.meta?.status || 'missing')}. ${health?.partial ? 'Umumiy yangilanish qisman bajarilgan. ' : ''}LKG — oxirgi saqlangan nusxa; bu barcha manbalar yangi degani emas. Ma’lumot sanasiga ham qarang.</p></div></details>
           <small>${this.formatDate(this.state.meta?.updatedAt)}</small>
           ${this.auth.isAdmin() ? '<button type="button" class="btn btn-sm btn-secondary" data-meta-action="sync"><i class="fa-solid fa-rotate"></i> Yangilash</button>' : ''}
         </div>

@@ -154,7 +154,7 @@ domTest('compact tier workspace groups existing controls with the board without 
     assert.equal(root.querySelector('.tier-view-toolbar'), null);
     assert.ok(root.querySelector('.meta-workspace-about .meta-lab-hero'));
     assert.equal(root.querySelector('.meta-workspace-about').open, false);
-    assert.match(panel.querySelector('.meta-workspace-info summary').textContent, /tajribaviy/);
+    assert.match(root.querySelector('.meta-workspace-reference .meta-workspace-info summary').textContent, /tajribaviy/);
     assert.equal(panel.querySelector('[data-meta-clear]').hidden, true);
   } finally { window.close(); }
 });
@@ -263,5 +263,28 @@ domTest('late draft and invalidated cache cannot overwrite new state; PNG keeps 
     for (const done of waiting) done({ data: { matchups: {} } }); await tick(); assert.match(window.document.querySelector('.meta-decision').textContent, /Patch Impact/);
     let done; manager.request = () => new Promise(r => { done = r; }); const pending = manager.cachedRequest('race', '/fixture'); manager.clearCache(); done({ data: 'old' }); await pending; assert.equal(manager.cache.has('race'), false);
     assert.equal(manager.posterLayout(buildEclipseTier([row(.5, { pickRate: null })], context)).bands.find(b => b.tier === 'U').heroes.length, 1);
+  } finally { window.close(); }
+});
+
+domTest('tier retains the same-rank snapshot when refreshing fails and identifies the failed source', async () => {
+  const { window, manager } = surface('tier');
+  try {
+    await manager.render();
+    const rank = manager.state.meta.data.rank;
+    const saved = manager.state.meta.data.eclipse.length;
+    manager.getMeta = async () => { throw new Error('Fixture rank source unavailable'); };
+    await manager.render('metaLabContainer', true);
+    assert.equal(manager.state.meta.data.rank, rank);
+    assert.equal(manager.container.querySelectorAll('.solar-tier-hero').length, saved);
+    const health = manager.container.querySelector('.meta-health-details');
+    assert.match(health.querySelector('summary').textContent, /uzilish/);
+    assert.match(health.querySelector('.meta-lab-partial').textContent, /Rank statistikasi/);
+    const select = manager.container.querySelector('[data-compact-lane]');
+    select.value = 'roam';
+    select.dispatchEvent(new window.Event('change'));
+    assert.equal(manager.laneFilter, 'roam');
+    manager.container.querySelector('[data-meta-clear]').click();
+    assert.equal(manager.laneFilter, 'all');
+    assert.equal(select.value, 'all');
   } finally { window.close(); }
 });

@@ -34,7 +34,7 @@ function bundleAssets(output) {
   if (!indexHtml.includes('<html') || !indexHtml.includes('js/heroes.js')) return;
 
   const jsFiles = [
-    'heroes.js', 'date-utils.js', 'data.js', 'stats.js', 'charts.js',
+    'heroes.js', 'date-utils.js', 'data.js', 'stats.js', 'charts.js', 'roster-evidence.js',
     'players.js', 'match.js', 'auth.js', 'cloud.js', 'mlbb.js',
     'briefing.js', 'scan-details.js', 'image-upload.js', 'submissions.js',
     'hero-matcher.js', 'portrait-locator.js', 'match-desk.js', 'tier-board.js',

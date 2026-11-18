@@ -9,9 +9,9 @@
     <meta name="apple-mobile-web-app-title" content="Eclipse">
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
-    <link rel="stylesheet" href="/css/pwa.css?v=2.42.0">
-    <script src="/js/pwa.js?v=2.42.0" defer></script>
-    <script src="/js/bootstrap.js?v=2.42.0" defer></script>
+    <link rel="stylesheet" href="/css/pwa.css?v=2.43.0">
+    <script src="/js/pwa.js?v=2.43.0" defer></script>
+    <script src="/js/bootstrap.js?v=2.43.0" defer></script>
     <title>Eclipse Esports — Stats Tracker</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,12 +20,13 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     
-    <link rel="stylesheet" href="css/style.css?v=2.42.0">
-    <link rel="stylesheet" href="css/coach.css?v=2.42.0">
-    <link rel="stylesheet" href="css/public-meta.css?v=2.42.0">
-    <link rel="stylesheet" href="css/meta-explore.css?v=2.42.0">
-    <link rel="stylesheet" href="css/meta-decisions.css?v=2.42.0">
-    <link rel="stylesheet" href="css/meta-qol.css?v=2.42.0">
+    <link rel="stylesheet" href="css/style.css?v=2.43.0">
+    <link rel="stylesheet" href="css/coach.css?v=2.43.0">
+    <link rel="stylesheet" href="css/public-meta.css?v=2.43.0">
+    <link rel="stylesheet" href="css/meta-explore.css?v=2.43.0">
+    <link rel="stylesheet" href="css/meta-decisions.css?v=2.43.0">
+    <link rel="stylesheet" href="css/meta-qol.css?v=2.43.0">
+    <link rel="stylesheet" href="css/evidence.css?v=2.43.0">
     
     <link rel="icon" type="image/svg+xml" href="assets/eclipse-mark.svg?v=2.16.0">
 </head>
@@ -80,9 +81,9 @@
                 <button type="button" class="sidebar-footer-close-btn" id="sidebarFooterCloseBtn" aria-label="Menyuni yopish">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i> <span>Menyuni yopish</span>
                 </button>
-                <button type="button" class="sidebar-status-pill" id="versionChangelogBtn" aria-label="Versiya yangiliklari (v2.42.0)" title="Versiya yangiliklari (v2.42.0) — o‘zgarishlarni ko‘rish">
+                <button type="button" class="sidebar-status-pill" id="versionChangelogBtn" aria-label="Versiya yangiliklari (v2.43.0)" title="Versiya yangiliklari (v2.43.0) — o‘zgarishlarni ko‘rish">
                     <span class="status-dot"></span>
-                    <span>Eclipse Live System v2.42.0</span>
+                    <span>Eclipse Live System v2.43.0</span>
                     <span class="sidebar-status-pill__badge">Yangiliklar</span>
                 </button>
                 <p class="sidebar-shortcuts-hint"><kbd>Esc</kbd> Yopish &middot; <kbd>S</kbd> Practice</p>
@@ -104,7 +105,7 @@
                 </div>
                 <button type="button" class="quick-cmd-trigger" id="quickCmdTrigger" aria-label="Tezkor qidiruv"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> <span>Qidiruv</span> <kbd>⌘K</kbd></button>
                 <button type="button" class="theme-switcher-btn topbar-icon-btn" id="themeSwitcherBtn" aria-label="Mavzular va ovoz (T)" title="Mavzular va ovoz (T)" hidden style="display:none;"><i class="fa-solid fa-palette" aria-hidden="true"></i></button>
-                <button type="button" class="draft-trigger-btn topbar-icon-btn" id="draftAssistantBtn" aria-label="Draft Assistant (D)" title="Draft Assistant (D)"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></button>
+                <button type="button" class="draft-trigger-btn topbar-icon-btn" id="draftAssistantBtn" aria-label="Draft yordamchisini ochish (D)" title="Draft yordamchisi (D)" aria-haspopup="dialog" aria-controls="draftAssistantDialog"><i class="fa-solid fa-chess-knight" aria-hidden="true"></i><span>Draft</span></button>
                 <button type="button" class="hotkeys-trigger-btn topbar-icon-btn" id="hotkeysTriggerBtn" aria-label="Klaviatura tugmalari (?)" title="Klaviatura tugmalari (?)"><kbd>?</kbd></button>
                 <div id="topbarAuthContainer" style="margin-left:auto;"></div>
             </header>
@@ -296,6 +297,13 @@
                     <header class="analytics-section-heading">
                         <div><p class="section-eyebrow">FORM LAB</p><h3>Forma va ritm</h3><p>Bu bloklar kundalik dashboarddan ajratilgan chuqur tahlildir.</p></div>
                     </header>
+                    <section class="evidence-results" aria-labelledby="analyticsOutcomeTitle">
+                        <div><h4 id="analyticsOutcomeTitle">Jamoa natijasi</h4><div class="evidence-result-numbers"><strong id="dashWinRate">—</strong><span><b id="dashTotalMatches">0</b> match</span></div>
+                            <meter id="dashOutcomeMeter" min="0" max="1" value="0" aria-label="G‘alabalar ulushi" hidden></meter>
+                            <p><b id="dashWins">0</b> g‘alaba · <b id="dashLosses">0</b> mag‘lubiyat <small id="dashOutcomeCoverage"></small></p>
+                        </div>
+                        <div id="dashMvpCard" aria-live="polite"></div>
+                    </section>
                     <section class="form-pulse" aria-labelledby="formPulseTitle">
                         <header class="form-pulse__header">
                             <div><p class="form-pulse__eyebrow">PERFORMANCE SIGNAL</p><h3 id="formPulseTitle">O‘yinchilar formasi</h3><p id="formPulseDescription">Tanlangan davr va undan oldingi teng davrdagi forma signallari.</p></div>
@@ -307,29 +315,13 @@
                         </header>
                         <div id="dashTrendsContent" role="tabpanel" aria-labelledby="trendTabWeek" tabindex="0"></div>
                     </section>
-                    <section class="form-trajectory mt-3" aria-labelledby="formTrajectoryTitle">
-                        <header class="form-trajectory__header">
-                            <div><p class="solar-eyebrow" id="formTrajectoryEyebrow">SHAXSIY FORMA / TANLANGAN DAVR</p><h3 id="formTrajectoryTitle">Forma yo‘nalishi</h3><p id="formTrajectoryDescription">O‘zining oldingi shu rol va tarkibdagi baholariga nisbatan o‘sish. Oldingi mediana = 100.</p></div>
-                            <div class="form-trajectory__readout" aria-label="Grafik ma’lumoti"><span><small>Oyna</small><strong id="formTrajectoryWindow">Tanlangan davr</strong></span><span><small>Signal</small><strong id="formTrajectorySignal"><i></i> Kutilmoqda</strong></span></div>
-                        </header>
-                        <div class="form-trajectory__stage"><span class="form-trajectory__axis">SHAXSIY FORMA · 100 = BASELINE</span><div class="trend-chart-container"><canvas id="trendFlowChart" aria-label="O‘yinchilar shaxsiy forma yo‘nalishi grafigi"></canvas></div></div>
-                        <div class="form-trajectory__footer"><span class="form-trajectory__legend-label">ROSTER SIGNALS</span><div class="trend-chart-legend" id="trendChartLegend"></div></div>
-                    </section>
-                    <section class="eclipse-results mt-3" aria-label="Barcha vaqt natijasi va MVP">
-                        <article class="outcome-module">
-                            <header class="outcome-module__header"><div><p class="solar-eyebrow">ALL-TIME OUTCOME</p><h3 id="analyticsOutcomeTitle">Jamoa natijasi</h3></div><span class="outcome-module__total"><strong id="dashTotalMatches">0</strong> match</span></header>
-                            <div class="outcome-module__body"><div class="outcome-orbit"><canvas id="dashWinLossChart" aria-label="G‘alaba va mag‘lubiyat nisbati"></canvas><div class="outcome-orbit__center"><strong id="dashWinRate">0%</strong><span>WIN RATE</span></div></div><div class="outcome-ledger"><div class="outcome-ledger__row outcome-ledger__row--win"><span><i></i> G‘alaba</span><strong id="dashWins">0</strong></div><div class="outcome-ledger__row outcome-ledger__row--loss"><span><i></i> Mag‘lubiyat</span><strong id="dashLosses">0</strong></div></div></div>
-                        </article>
-                        <article class="mvp-module" id="dashMvpCard" aria-live="polite"></article>
-                    </section>
                     <section class="match-insights mt-3" id="analyticsMatchInsights" aria-live="polite"></section>
                 </section>
                 <section class="hall-of-fame" aria-labelledby="hallOfFameTitle">
                     <header class="analytics-section-heading"><div><p class="section-eyebrow">ARCHIVE / ALL TIME</p><h3 id="hallOfFameTitle">Hall of Fame</h3><p>Rekordlar, MVP sovrinlari va tarixiy match cho‘qqilari.</p></div></header>
                     <div id="awardsContainer"></div>
                     <div id="recordsContainer"></div>
-                    <div id="savageHallContainer"></div>
-                    <div id="maniacHallContainer"></div>
+                    <div id="matchAchievements"></div>
                 </section>
             </section>
 
@@ -472,8 +464,53 @@
                 <article class="changelog-release">
                     <div class="changelog-release__head">
                         <div class="changelog-release__meta">
-                            <span class="changelog-release__version">v2.42.0</span>
+                            <span class="changelog-release__version">v2.43.0</span>
                             <span class="changelog-release__badge">Hozirgi versiya</span>
+                        </div>
+                        <time class="changelog-release__date">2026-11-18</time>
+                    </div>
+                    <h4 class="changelog-release__title">Yangi Progress, hero pool va tahlil</h4>
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-users" aria-hidden="true"></i> Jamoa va hero pool</span>
+                            <span class="changelog-section__tag">Roster</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Kapitan belgilagan Comfort, Backup va Learning herolari nomi bilan ko‘rinadi.</li>
+                            <li>Har bir o‘yinchi uchun match soni, WR va foydalanish ulushi tarixdan hisoblanadi. Tavsiya mezonlari ilovada ochiladi.</li>
+                            <li>Birga o‘ynagan juftliklar son, W/L va WR bilan ko‘rsatiladi. Tegishli matchlar satrdan ochiladi.</li>
+                        </ul>
+                    </div>
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Progress va Coach</span>
+                            <span class="changelog-section__tag">Tahlil</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Progress sahifasi joriy va oldingi teng davrni natijalar, trend, ko‘rsatkichlar va matchlar orqali taqqoslaydi.</li>
+                            <li>Coach’da o‘yinchi va tayyor kuzatuvlar ko‘rinadi. Tafsilotlar shu joyda ochiladi.</li>
+                            <li>Haftalik fokus hamda tahrirlar tarixiga Progress ichidan kiriladi.</li>
+                        </ul>
+                    </div>
+                    <div class="changelog-section">
+                        <div class="changelog-section__head">
+                            <span class="changelog-section__title"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i> Statistika va Meta Lab</span>
+                            <span class="changelog-section__tag">Ilova</span>
+                        </div>
+                        <ul class="changelog-section__list">
+                            <li>Forma grafigi o‘rniga shaxsiy davrlarni ochib taqqoslaydigan satrlar qo‘yildi.</li>
+                            <li>Maniac va Savage matchlari bitta filtrlanadigan ro‘yxatda chiqadi.</li>
+                            <li>Meta Lab yuqori qismi ixchamlandi. Rank, layn, qidiruv hamda ko‘rinish tanlovi tez ishlatiladi. Yangilanish uzilishi tafsilotlari ochiladi.</li>
+                            <li>Yuqoridagi Draft tugmasi bir marta bosilganda oynani ochadi.</li>
+                        </ul>
+                    </div>
+                </article>
+
+                <article class="changelog-release">
+                    <div class="changelog-release__head">
+                        <div class="changelog-release__meta">
+                            <span class="changelog-release__version">v2.42.0</span>
+                            <span class="changelog-release__badge">Oldingi versiya</span>
                         </div>
                         <time class="changelog-release__date">2026-11-18</time>
                     </div>
@@ -507,6 +544,7 @@
                         </div>
                         <ul class="changelog-section__list">
                             <li>Webhook siri va ruxsatli Telegram ID’lar tekshiriladi; tasdiqlash va tahrirlash kapitan ID’siga bog‘langan.</li>
+                            <li>Telegram webhook production’da ishga tushirildi. Bot <code>/start</code> buyrug‘ini qabul qildi va javob qaytardi.</li>
                             <li>Bo‘sh roster va hero pool namunaviy ma’lumot bilan to‘ldirilmaydi. Comfort, Backup va Learning saqlangan toifalarni ko‘rsatadi.</li>
                             <li>Noma’lum natija mag‘lubiyat deb sanalmaydi. Davomiylik va W/L’dan mag‘lubiyat sababi taxmin qilinmaydi.</li>
                         </ul>
@@ -642,40 +680,41 @@
             </div>
             <footer class="changelog-modal__footer">
                 <span>Eclipse Esports · Professional MLBB Analytics Center</span>
-                <span>v2.42.0 Live</span>
+                <span>v2.43.0 Live</span>
             </footer>
         </div>
     </dialog>
 
-    <script src="js/heroes.js?v=2.42.0" defer></script>
-    <script src="js/date-utils.js?v=2.42.0" defer></script>
-    <script src="js/data.js?v=2.42.0" defer></script>
-    <script src="js/stats.js?v=2.42.0" defer></script>
-    <script src="js/charts.js?v=2.42.0" defer></script>
-    <script src="js/players.js?v=2.42.0" defer></script>
-    <script src="js/match.js?v=2.42.0" defer></script>
-    <script src="js/auth.js?v=2.42.0" defer></script>
-    <script src="js/cloud.js?v=2.42.0" defer></script>
-    <script src="js/mlbb.js?v=2.42.0" defer></script>
-    <script src="js/briefing.js?v=2.42.0" defer></script>
-    <script src="js/scan-details.js?v=2.42.0" defer></script>
-    <script src="js/image-upload.js?v=2.42.0" defer></script>
-    <script src="js/submissions.js?v=2.42.0" defer></script>
-    <script src="js/hero-matcher.js?v=2.42.0" defer></script>
-    <script src="js/portrait-locator.js?v=2.42.0" defer></script>
-    <script src="js/match-desk.js?v=2.42.0" defer></script>
-    <script src="js/tier-board.js?v=2.42.0" defer></script>
-    <script src="js/meta-explore.js?v=2.42.0" defer></script>
-    <script src="js/meta-decision-model.js?v=2.42.0" defer></script>
-    <script src="js/meta-decisions.js?v=2.42.0" defer></script>
-    <script src="js/command-palette.js?v=2.42.0" defer></script>
-    <script src="js/share-card.js?v=2.42.0" defer></script>
-    <script src="js/draft-helper.js?v=2.42.0" defer></script>
-    <script src="js/scouting.js?v=2.42.0" defer></script>
-    <script src="js/theme.js?v=2.42.0" defer></script>
-    <script src="js/app.js?v=2.42.0" defer></script>
-    <script type="module" src="js/progress.js?v=2.42.0"></script>
-    <script type="module" src="js/coach.js?v=2.42.0"></script>
-    <script type="module" src="js/batch.js?v=2.42.0"></script>
+    <script src="js/heroes.js?v=2.43.0" defer></script>
+    <script src="js/date-utils.js?v=2.43.0" defer></script>
+    <script src="js/data.js?v=2.43.0" defer></script>
+    <script src="js/stats.js?v=2.43.0" defer></script>
+    <script src="js/charts.js?v=2.43.0" defer></script>
+    <script src="js/roster-evidence.js?v=2.43.0" defer></script>
+    <script src="js/players.js?v=2.43.0" defer></script>
+    <script src="js/match.js?v=2.43.0" defer></script>
+    <script src="js/auth.js?v=2.43.0" defer></script>
+    <script src="js/cloud.js?v=2.43.0" defer></script>
+    <script src="js/mlbb.js?v=2.43.0" defer></script>
+    <script src="js/briefing.js?v=2.43.0" defer></script>
+    <script src="js/scan-details.js?v=2.43.0" defer></script>
+    <script src="js/image-upload.js?v=2.43.0" defer></script>
+    <script src="js/submissions.js?v=2.43.0" defer></script>
+    <script src="js/hero-matcher.js?v=2.43.0" defer></script>
+    <script src="js/portrait-locator.js?v=2.43.0" defer></script>
+    <script src="js/match-desk.js?v=2.43.0" defer></script>
+    <script src="js/tier-board.js?v=2.43.0" defer></script>
+    <script src="js/meta-explore.js?v=2.43.0" defer></script>
+    <script src="js/meta-decision-model.js?v=2.43.0" defer></script>
+    <script src="js/meta-decisions.js?v=2.43.0" defer></script>
+    <script src="js/command-palette.js?v=2.43.0" defer></script>
+    <script src="js/share-card.js?v=2.43.0" defer></script>
+    <script src="js/draft-helper.js?v=2.43.0" defer></script>
+    <script src="js/scouting.js?v=2.43.0" defer></script>
+    <script src="js/theme.js?v=2.43.0" defer></script>
+    <script src="js/app.js?v=2.43.0" defer></script>
+    <script type="module" src="js/progress.js?v=2.43.0"></script>
+    <script type="module" src="js/coach.js?v=2.43.0"></script>
+    <script type="module" src="js/batch.js?v=2.43.0"></script>
 </body>
 </html>

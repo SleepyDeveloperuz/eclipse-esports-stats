@@ -9,11 +9,11 @@
     }
     extraViews() { return [...super.extraViews(), ['impact', 'fa-bolt', 'Patch Impact'], ['draft', 'fa-chess', 'Draft yordamchisi'], ['movers', 'fa-arrow-trend-up', 'Meta Movers']]; }
     statsMarkup(row) { return super.statsMarkup(row) + (row?.quality ? `<p class="meta-quality">${this.escape(quality[row.quality.status] || 'Dastlabki')} · match soni noma’lum</p>` : ''); }
-    renderState(errors = []) {
+    renderState(errors = this.sourceErrors || []) {
       const focused = document.activeElement;
-      const navigation = ['data-meta-view', 'data-tier-view', 'data-meta-rank'].find(name => focused?.hasAttribute(name));
+      const navigation = ['data-meta-view', 'data-tier-view', 'data-meta-rank', 'data-compact-lane'].find(name => focused?.hasAttribute(name));
       const navigationValue = navigation && focused.getAttribute(navigation);
-      const expanded = ['meta-workspace-info', 'meta-workspace-about'].filter(name => this.container?.querySelector(`.${name}`)?.open);
+      const expanded = ['meta-workspace-info', 'meta-workspace-about', 'meta-health-details'].filter(name => this.container?.querySelector(`.${name}`)?.open);
       const control = ['data-decision-view', 'data-impact-patch', 'data-impact-watch', 'data-mover-metric', 'data-draft-lane', 'data-draft-pool', 'data-draft-add'].find(name => focused?.hasAttribute(name));
       const group = focused?.getAttribute('data-draft-add');
       super.renderState(errors);
@@ -68,6 +68,7 @@
         const exportButton = toolbar?.querySelector('[data-tier-export]');
         if (exportButton) { exportButton.textContent = 'PNG yuklash'; exportButton.title = 'Tanlangan rankdagi barcha qahramonlar — qidiruv va tier filtri PNGga ta’sir qilmaydi'; actions.prepend(exportButton); }
         const cancel = toolbar?.querySelector('[data-tier-export-cancel]'); if (cancel) actions.append(cancel);
+        const highlight = toolbar?.querySelector('[data-tier-highlight-movements]');
         if (heading) { titleRow.append(heading, actions); panel.append(titleRow); }
         const controls = element('div', 'meta-workspace-controls');
         if (rank) controls.append(rank);
@@ -78,33 +79,46 @@
           const extra = element('div', 'meta-extra-filters'); extra.id = 'metaExtraFilters';
           const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'btn btn-secondary meta-filter-toggle'; toggle.setAttribute('aria-controls', extra.id);
           toggle.onclick = () => { this.filtersExpanded = !this.filtersExpanded; this.updateCompactFilters(); };
-          if (mode) extra.append(mode);
-          if (laneFilter) extra.append(laneFilter);
+          if (laneFilter) {
+            const laneLabel = element('label', 'meta-compact-lane');
+            const laneSelect = document.createElement('select');
+            laneSelect.dataset.compactLane = '';
+            laneSelect.setAttribute('aria-label', 'Layn filtri');
+            for (const lane of laneFilter.querySelectorAll('[data-lane-filter]')) {
+              const key = lane.dataset.laneFilter;
+              laneSelect.add(new Option(key === 'all' ? 'Barcha laynlar' : lane.textContent.trim(), key, false, key === this.laneFilter));
+            }
+            laneSelect.onchange = () => { this.laneFilter = laneSelect.value; this.applyFilters(); this.syncShareUrl(); };
+            laneLabel.append(laneSelect); laneFilter.remove(); filters.append(laneLabel);
+          }
           if (legend) extra.append(legend);
           const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'btn btn-sm btn-secondary'; clear.dataset.metaClear = ''; clear.textContent = 'Tozalash';
           clear.onclick = () => {
             this.searchQuery = ''; this.tierFilter = 'all'; this.laneFilter = 'all';
             const input = root.querySelector('#metaTierSearch'); if (input) input.value = '';
             root.querySelectorAll('[data-tier-filter]').forEach(button => button.classList.toggle('active', button.dataset.tierFilter === 'all'));
-            root.querySelectorAll('[data-lane-filter]').forEach(button => {
-              const isActive = button.dataset.laneFilter === 'all';
-              button.classList.toggle('active', isActive);
-              button.setAttribute('aria-pressed', String(isActive));
-            });
+            const laneSelect = root.querySelector('[data-compact-lane]');
+            if (laneSelect) laneSelect.value = 'all';
             this.applyFilters(); this.syncShareUrl(); input?.focus();
           };
           const count = document.createElement('output'); count.dataset.metaResultCount = ''; count.setAttribute('aria-live', 'polite');
+          if (highlight) extra.append(highlight);
           extra.append(clear); filters.append(toggle, count, extra); panel.append(filters);
         }
-        panel.append(details);
+        const reference = element('div', 'meta-workspace-reference'); reference.append(details);
         const glossary = element('details', 'meta-workspace-info meta-glossary');
         glossary.innerHTML = '<summary>Qisqa izohlar: Win, Pick, Ban va tier</summary><dl><dt>Win</dt><dd>Tanlangan rank va davrdagi g‘alabalar foizi.</dd><dt>Pick</dt><dd>Qahramonning tanlanish darajasi — manbadagi foiz.</dd><dt>Ban</dt><dd>Qahramonning taqiqlanish darajasi — manbadagi foiz.</dd><dt>Eclipse balli</dt><dd>Win, Pick va Ban asosidagi tajribaviy baho. G‘alaba ehtimoli yoki Moonton rasmiy reytingi emas.</dd><dt>Dastlabki</dt><dd>Barqarorlikni baholash uchun mos tarix hali yetarli emas. Kuchli tier bo‘lsa ham, natija kafolatlanmaydi.</dd></dl>';
-        panel.append(glossary);
+        reference.append(glossary); board.append(reference);
         const status = view.querySelector('.tier-export-status'); if (status) panel.append(status);
         const empty = view.querySelector('[data-board-empty]'); if (empty) panel.append(empty);
       } else panel.append(actions);
       if (shareUrl) panel.append(shareUrl);
-      const warning = root.querySelector('.meta-lab-partial'); if (warning) panel.prepend(warning);
+      const warning = root.querySelector('.meta-lab-partial');
+      if (warning) {
+        const status = bar.querySelector('.meta-health-details');
+        if (status) (status.querySelector('.meta-health-content') || status).append(warning);
+        else panel.prepend(warning);
+      }
       const hero = root.querySelector('.meta-lab-hero');
       if (hero) {
         const about = element('details', 'meta-workspace-about'), label = document.createElement('summary');
@@ -119,14 +133,17 @@
       if (clear) clear.hidden = !this.searchQuery && this.tierFilter === 'all' && (this.laneFilter === 'all' || !this.laneFilter);
       const toggle = root?.querySelector('.meta-filter-toggle'), extra = root?.querySelector('.meta-extra-filters');
       if (toggle && extra) {
-        const active = Number(Boolean(this.searchQuery)) + Number(this.tierFilter !== 'all') + Number(this.laneFilter !== 'all' && Boolean(this.laneFilter));
+        const active = Number(Boolean(this.tierFilter && this.tierFilter !== 'all')) + Number(Boolean(this.laneFilter && this.laneFilter !== 'all'));
         toggle.textContent = `Filtrlar${active ? ` · ${active} faol` : ''}`;
         toggle.setAttribute('aria-expanded', String(Boolean(this.filtersExpanded)));
         extra.classList.toggle('is-expanded', Boolean(this.filtersExpanded));
       }
       if (count) {
         const rows = [...root.querySelectorAll('.solar-tier-hero, .meta-tier-table tbody tr')];
-        count.textContent = `${rows.filter(row => !row.hidden && !row.closest('.solar-tier-row[hidden]')).length} / ${rows.length} hero`;
+        const visible = rows.filter(row => !row.hidden && !row.closest('.solar-tier-row[hidden]')).length;
+        count.textContent = `${visible} / ${rows.length} hero`;
+        const empty = root.querySelector('[data-board-empty]');
+        if (empty) empty.hidden = visible > 0;
       }
     }
     viewMarkup() {

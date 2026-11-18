@@ -1089,15 +1089,15 @@ window.MatchManager = class MatchManager {
     });
   }
 
-  renderMatchDetailModal(matchId, players) {
-    const matches = this.db.getMatches();
+  renderMatchDetailModal(matchId, players, { snapshot = null } = {}) {
+    const matches = snapshot || this.db.getMatches();
     const match = matches.find(item => item.id === matchId);
     if (!match) return;
     const overlay = document.getElementById('modalOverlay');
     const content = document.getElementById('modalContent');
     if (!overlay || !content) return;
 
-    const insights = window.EclipseApp?.statsEngine?.getMatchInsights(match, matches, players) || [];
+    const insights = snapshot ? [] : window.EclipseApp?.statsEngine?.getMatchInsights(match, matches, players) || [];
     const fmt = value => value === null || value === undefined ? '—' : Number(value).toLocaleString('uz-UZ');
     const medalMarkup = stat => ({
       mvp: '<span class="medal medal-mvp">MVP</span>',
@@ -1144,7 +1144,7 @@ window.MatchManager = class MatchManager {
         ${this.insightMarkup(insights)}
         ${subNames.length ? `<div class="match-readout__subs"><i class="fa-solid fa-chair"></i><span>Zaxira</span><strong>${this.escape(subNames.join(', '))}</strong></div>` : ''}
       </div>
-      <div class="modal-footer"><button class="btn btn-secondary" id="modalSharePosterBtn"><i class="fa-solid fa-camera"></i> Match kartasi</button>${window.EclipseApp?.authManager?.isAdmin() ? '<button class="btn btn-primary" id="modalEditBtn"><i class="fa-solid fa-pen"></i> Tahrirlash</button>' : ''}<button class="btn btn-secondary" id="modalOkBtn">Yopish</button></div>`;
+      <div class="modal-footer">${snapshot ? '' : '<button class="btn btn-secondary" id="modalSharePosterBtn"><i class="fa-solid fa-camera"></i> Match kartasi</button>'}${!snapshot && window.EclipseApp?.authManager?.isAdmin() ? '<button class="btn btn-primary" id="modalEditBtn"><i class="fa-solid fa-pen"></i> Tahrirlash</button>' : ''}<button class="btn btn-secondary" id="modalOkBtn">Yopish</button></div>`;
 
     overlay.style.display = 'flex';
     overlay.removeAttribute('hidden');

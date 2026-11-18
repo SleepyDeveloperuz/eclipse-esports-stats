@@ -4,11 +4,24 @@ Barcha yangilanishlar, yangi funksiyalar, arxitektura o'zgarishlari va tuzatishl
 
 ---
 
+## [v2.43.0] — 2026-11-18
+
+- Draft tugmasidagi ikki hodisa bir bosishda oynani ochib-yopardi. Endi bitta hodisa ishlaydi va tugma nomi ko‘rinadi.
+- Beshburchak sinergiya grafigi juftliklar ro‘yxatiga almashtirildi. Match dalillari har bir satrdan ochiladi.
+- Coach o‘yinchilar, tayyor kontekstlar va namuna yetishmagan kontekstlarni ko‘rsatadi. Forma tahlili va MVP natijalari ixchamlandi.
+- Maniac va Savage bitta tasmada chiqadi. Har bir o‘yinchi va match uchun eng yuqori qayd ko‘rsatiladi.
+- Progress joriy va oldingi davrlar, W/L, trend, o‘yinchi ko‘rsatkichlari va match dalillari atrofida qayta qurildi. Haftalik fokus va tahrirlar tarixi alohida ochiladi.
+- Meta Lab yuqori qismi ixchamlandi. Yangilanishda uzilish bo‘lsa, tanlangan rankning mavjud nusxasi saqlanadi va ta’sirlangan manbalar ko‘rsatiladi.
+- Roster kartasi va profilda kapitan tanlovi hamda tarixdan hisoblangan hero pool ko‘rinadi. Hero match soni, W/L, WR va foydalanish ulushi uchun bir xil filtrlar ishlatiladi.
+
+---
+
 ## [v2.42.0] — 2026-11-18
 
 - OCR ekran mosligi, roster aliaslari, guest ajratish va noaniq hero uchun qo‘lda tekshirish kuchaytirildi. PNG dekodlash yoki ikki rasm birlashishi 100% aniqlik kafolati emas.
 - Saqlash, backup/restore va parallel yozishlar tekshirildi. Hajm oshsa yozish aniq xato bilan to‘xtaydi; rasmiy match tarixi limitga moslash uchun kesilmaydi. Qoralamalar, backup va yuborilmagan o‘zgarishlar joy ochish uchun o‘chirilmaydi.
 - Telegram webhook va kapitan amallari uchun kirish nazorati, analytics review holatlari va noma’lum qiymatlar tuzatildi.
+- Telegram webhook production’da sozlandi. Haqiqiy `/start` buyrug‘i qabul qilindi va bot javob qaytardi. Siri yo‘q yoki noto‘g‘ri so‘rovlar `401` bilan rad etilishi tekshirildi.
 - Lord/Turtle kiritish va OCR talabi olib tashlandi; eski saqlangan qiymatlar saqlanadi.
 - Frontendda tartibli deferred yuklash, qayta urinish, kutish chegaralari, qidiruv va CSP bilan mos tugmalar tekshirildi. Brauzer tezligi o‘lchanmagan.
 - Bot bo‘sh roster/hero poolni uydirma namuna bilan to‘ldirmaydi. Comfort, Backup va Learning toifalari web va botda saqlangan ma’noda ko‘rsatiladi. Noma’lum natija mag‘lubiyat deb sanalmaydi.

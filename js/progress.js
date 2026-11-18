@@ -1,4 +1,4 @@
-import { METRICS, eligibleMatches, observations, compareResults, heroJourney, weeklyReport, moments } from './progress-model.js?v=2.27.0';
+import { METRICS, eligibleMatches, observations, progressOverview, weeklyReport } from './progress-model.js?v=2.43.0';
 import { FOCUS_METRICS, adjacentWeek, focusBaseline, focusSignals, compareFocus } from './weekly-focus-model.js?v=2.35.0';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = value => value === null || value === undefined ? '—' : Number(value).toLocaleString('en-US', { maximumFractionDigits: 1 });
@@ -7,11 +7,15 @@ const scopeName = scope => scope === 'team5' ? 'Team 5' : 'Practice · 1–4';
 const button = (action, label, disabled = false) => `<button type="button" class="btn btn-secondary" data-progress-action="${action}" ${disabled ? 'disabled' : ''}>${label}</button>`;
 export class ProgressHub {
   constructor(app) {
-    this.app = app; this.tab = 'weekly'; this.scope = 'team5'; this.date = today(); this.playerId = ''; this.hero = ''; this.role = ''; this.matchType = 'ranked';
+    this.app = app;
+    this.tab = 'overview'; this.scope = app.currentAnalyticsMode === 'squad' ? 'squad' : 'team5';
+    this.date = today(); this.days = '30'; this.end = ''; this.playerId = ''; this.hero = ''; this.role = ''; this.matchType = '';
+    this.evidenceLimit = 8; this.evidencePeriod = 'current';
     this.data = null; this.reports = []; this.focuses = []; this.focusRevision = 0; this.focusDrafts = new Map(); this.history = null; this.generation = 0;
   }
   async request(feature, body) {
     const response = await fetch(`/api/submissions${feature ? `?feature=${feature}` : ''}`, { method: body ? 'PATCH' : 'GET', cache: 'no-store',
+      ...(!body && typeof AbortSignal.timeout === 'function' ? { signal: AbortSignal.timeout(15000) } : {}),
       headers: { Authorization: `Bearer ${this.app.authManager.getAccessToken()}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}) });
     const result = await response.json();
@@ -21,52 +25,128 @@ export class ProgressHub {
   async render() {
     this.container = document.getElementById('progressContainer');
     const generation = ++this.generation;
+    if (!this.container) return;
     this.container.innerHTML = '<p role="status">Eclipse Progress yuklanmoqda…</p>';
+    this.toolsLoading = true;
+    this.localFallback = false;
     try {
-      const response = await fetch('/api/sync', { cache: 'no-store', headers: { Authorization: `Bearer ${this.app.authManager.getAccessToken()}` } });
+      const response = await fetch('/api/sync', { cache: 'no-store',
+        ...(typeof AbortSignal.timeout === 'function' ? { signal: AbortSignal.timeout(15000) } : {}),
+        headers: { Authorization: `Bearer ${this.app.authManager.getAccessToken()}` } });
       if (!response.ok) throw new Error('Statistika yuklanmadi. Qayta urinib ko‘ring.');
       const data = await response.json();
-      const weekly = await this.request('weekly');
-      const history = this.app.authManager.isAdmin() ? await this.request('history') : null;
       if (generation !== this.generation) return;
-      this.data = data.data || data; this.reports = weekly.reports; this.history = history;
-      this.focuses = weekly.focuses || []; this.focusRevision = weekly.focusRevision || 0;
-      this.scanQuality = null;
-      if (this.app.authManager.isAdmin()) {
-        try { this.scanQuality = await this.request('scan_quality'); } catch (_) { this.scanQuality = { unavailable: true }; }
-        if (generation !== this.generation) return;
-      }
-      if (!this.data.players?.some(p => p.id === this.playerId)) this.playerId = this.data.players?.[0]?.id || '';
+      this.data = data.data || data;
+      if (!this.data.players?.some(p => p.id === this.playerId)) this.playerId = '';
       this.draw();
     } catch (error) {
       if (generation !== this.generation) return;
-      this.container.innerHTML = `<p role="alert">${esc(error.message)}</p>${button('refresh', 'Qayta urinish')}`; this.bind();
+      this.toolsLoading = false;
+      const db = this.app.dataStore;
+      if (db?.getMatches && db?.getPlayers) {
+        this.data = { matches: db.getMatches(), players: db.getAllPlayers?.() || db.getPlayers() };
+        this.localFallback = true;
+        this.tab = 'overview';
+        this.draw();
+      } else {
+        this.container.innerHTML = `<p role="alert">${esc(error.message)}</p>${button('refresh', 'Qayta urinish')}`;
+        this.bind();
+      }
+      return;
     }
+
+    const admin = this.app.authManager.isAdmin();
+    const [weekly, history, quality] = await Promise.allSettled([
+      this.request('weekly'), admin ? this.request('history') : null, admin ? this.request('scan_quality') : null
+    ]);
+    if (generation !== this.generation) return;
+    this.toolsLoading = false;
+    this.weeklyError = weekly.status === 'rejected';
+    this.reports = weekly.value?.reports || [];
+    this.focuses = weekly.value?.focuses || [];
+    this.focusRevision = weekly.value?.focusRevision || 0;
+    this.history = history.value;
+    this.historyError = history.status === 'rejected';
+    this.scanQuality = quality.status === 'rejected' ? { unavailable: true } : quality.value;
+    if (this.tab !== 'overview') this.draw();
   }
+
   options(list, selected) { return list.map(([value, label]) => `<option value="${esc(value)}" ${value === selected ? 'selected' : ''}>${esc(label)}</option>`).join(''); }
   select(key, label, options) { return `<label>${label}<select class="form-select" data-progress-filter="${key}">${this.options(options, this[key])}</select></label>`; }
-  rows() { return observations(eligibleMatches(this.data, this.scope), this); }
   draw() {
-    const tabs = [['weekly', 'Eclipse Weekly'], ['compare', 'Win vs Loss'], ['journey', 'Hero Journey'], ['moments', 'Eclipse Moments']];
-    if (this.app.authManager.isAdmin()) tabs.push(['history', 'Corrections & Undo']);
-    if (!tabs.some(([id]) => id === this.tab)) this.tab = 'weekly';
-    const personal = ['compare', 'journey', 'moments'].includes(this.tab);
-    const candidates = observations(eligibleMatches(this.data, this.scope), { playerId: this.playerId });
-    const heroes = [...new Set(candidates.map(o => o.row.heroUsed))].filter(Boolean).sort();
-    if (this.hero && !heroes.includes(this.hero)) this.hero = '';
-    this.container.innerHTML = `<header class="progress-heading"><div><p class="section-eyebrow">ECLIPSE / PROGRESS</p><h2>Your next chapter.</h2><p>O‘zingizning natijalaringiz. Aniq kontekst. Haqiqiy o‘sish.</p></div>${button('refresh', 'Yangilash')}</header>
-      <nav class="progress-tabs" aria-label="Progress bo‘limlari">${tabs.map(([id, label]) => `<button type="button" data-progress-tab="${id}" aria-pressed="${id === this.tab}">${label}</button>`).join('')}</nav>
-      ${personal ? `<div class="progress-player-chips" aria-label="O‘yinchini tez tanlash"><span class="player-chips-label">O‘yinchi:</span><div class="player-chips-track">${(this.data.players || []).map(p => `<button type="button" class="progress-player-chip ${p.id === this.playerId ? 'active' : ''}" data-select-player="${esc(p.id)}"><span class="player-avatar-circle">${esc(p.name.slice(0, 2).toUpperCase())}</span><span class="player-chip-name">${esc(p.name)}</span></button>`).join('')}</div></div>` : ''}
-      <div class="progress-filters">${this.tab !== 'history' ? this.select('scope', 'Statistika tarkibi', [['team5', 'Team 5'], ['squad', 'Practice · 1–4']]) : ''}
-      ${this.tab === 'weekly' ? `<label>Hafta sanasi<input type="date" class="form-input" data-progress-filter="date" value="${esc(this.date)}"></label>` : ''}
-      ${personal ? this.select('playerId', 'O‘yinchi', this.data.players.map(p => [p.id, `${p.name}${p.active === false ? ' · arxiv' : ''}`]))
-        + this.select('hero', 'Qahramon', [['', 'Barcha qahramonlar'], ...heroes.map(h => [h, h])])
-        + this.select('role', 'Layn', [['', 'Barcha laynlar'], ...['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'].map(r => [r, r])])
-        + this.select('matchType', 'Match turi', [['ranked', 'Ranked'], ['scrim', 'Scrim'], ['tournament', 'Tournament'], ['casual', 'Casual']]) : ''}</div>
-      <div class="progress-content">${this.tab === 'weekly' ? this.weeklyMarkup() : this.tab === 'compare' ? this.compareMarkup() : this.tab === 'journey' ? this.journeyMarkup() : this.tab === 'moments' ? this.momentsMarkup() : this.historyMarkup()}</div>
-      <p class="progress-feedback" role="status" aria-live="polite"></p>`;
+    const views = [['overview', 'Natijalar'], ['weekly', 'Haftalik fokus']];
+    if (this.app.authManager.isAdmin()) views.push(['history', 'Tahrirlar']);
+    if (!views.some(([id]) => id === this.tab)) this.tab = 'overview';
+    const toolbar = `<nav class="progress-destinations" aria-label="Progress bo‘limlari">${views.map(([id, label]) => `<button type="button" data-progress-tab="${id}" aria-pressed="${id === this.tab}">${label}</button>`).join('')}</nav>`;
+    const tools = this.tab !== 'overview' && this.toolsLoading ? '<p role="status">Hisobotlar yuklanmoqda…</p>'
+      : this.tab !== 'overview' && this.localFallback ? '<p role="alert">Bu bo‘lim uchun server bilan bog‘lanish kerak. Yangilab ko‘ring.</p>'
+        : this.tab === 'weekly' ? `<div class="evidence-controls">${this.select('scope', 'Tarkib', [['team5', 'Team 5'], ['squad', 'Practice · 1–4']])}<label>Hafta sanasi<input type="date" data-progress-filter="date" value="${esc(this.date)}"></label></div>
+      ${this.weeklyError ? '<p role="alert">Haftalik hisobot yuklanmadi. Yangilab ko‘ring.</p>' : this.weeklyMarkup()}` :
+      this.tab === 'history' ? (this.historyError ? '<p role="alert">Tahrirlar tarixi yuklanmadi. Yangilab ko‘ring.</p>' : this.historyMarkup()) : '';
+    this.container.innerHTML = `<section class="progress-workspace">
+      <header class="evidence-heading"><div><h2>Eclipse Progress</h2><p>Joriy va oldingi davr natijalari</p></div>${button('refresh', 'Yangilash')}</header>
+      ${toolbar}
+      ${this.localFallback ? '<p role="status">Serverga ulanib bo‘lmadi. Qurilmadagi matchlar ko‘rsatilmoqda.</p>' : ''}
+      ${this.tab === 'overview' ? this.overviewMarkup() : tools}
+      <p class="progress-feedback" role="status" aria-live="polite"></p></section>`;
     this.bind();
   }
+
+  overviewMarkup() {
+    const visiblePlayers = this.data.players || [];
+    const candidates = this.playerId ? observations(eligibleMatches(this.data, this.scope), { playerId: this.playerId, matchType: this.matchType }) : [];
+    const heroes = [...new Set(candidates.map(o => o.row.heroUsed).filter(Boolean))].sort();
+    if (!heroes.includes(this.hero)) this.hero = '';
+    const report = progressOverview(this.data, this);
+    const playerButtons = [['', 'Jamoa'], ...visiblePlayers.map(p => [p.id, p.name])];
+    const controls = `<div class="progress-people" role="group" aria-label="Natijalar kimniki">${playerButtons.map(([id, name]) => `
+      <button type="button" data-select-player="${esc(id)}" aria-pressed="${id === this.playerId}">${esc(name)}</button>`).join('')}</div>
+      <div class="evidence-controls progress-period-tools">${this.select('scope', 'Tarkib', [['team5', 'Team 5'], ['squad', 'Practice · 1–4']])}
+        ${this.select('days', 'Davr', [['7', '7 kun'], ['30', '30 kun'], ['90', '90 kun']])}
+        <label>Davr oxiri<input type="date" data-progress-filter="end" value="${esc(this.end || report?.current.to || '')}"></label>
+        <details class="progress-extra" ${this.extraExpanded ? 'open' : ''}><summary>Filtrlar${this.matchType ? ' · ' + esc(this.matchType) : ''}${this.hero ? ' · ' + esc(this.hero) : ''}</summary>
+          <div class="evidence-controls">${this.select('matchType', 'Match turi', [['', 'Barchasi'], ['ranked', 'Ranked'], ['scrim', 'Scrim'], ['tournament', 'Turnir'], ['casual', 'Casual']])}
+          ${this.playerId ? this.select('hero', 'Hero', [['', 'Barcha herolar'], ...heroes.map(hero => [hero, hero])]) +
+            this.select('role', 'Layn', [['', 'Barcha laynlar'], ...['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'].map(role => [role, role])]) : ''}</div>
+        </details>
+      </div>`;
+    if (!report) return controls + '<p class="evidence-empty">Bu tarkib va turda natijasi ma’lum match yo‘q.</p>';
+    const percent = value => value === null ? '—' : `${fmt(value)}%`;
+    const change = (a, b, unit = '') => a === null || b === null ? '—' : `${b > a ? '+' : ''}${fmt(b - a)}${unit}`;
+    const { current, previous } = report;
+    const period = this.evidencePeriod === 'previous' ? previous : current;
+    const byId = new Map(period.rows.map(o => [o.match.id, o]));
+    this.momentList = this.playerId ? [...period.rows].reverse().map(o => ({ ...o, reasons: [] })) : [];
+    return `${controls}<div class="progress-windows">
+      ${[['Joriy davr', current], ['Oldingi davr', previous]].map(([label, value]) => `<section><h3>${label}</h3><small>${value.from} – ${value.to}</small>
+      <div class="evidence-result-numbers"><strong>${percent(value.winRate)}</strong><span>${value.count} match</span></div><p>${value.wins}W · ${value.losses}L</p>
+      ${value.count ? `<meter min="0" max="${value.count}" value="${value.wins}" aria-label="${label} g‘alabalar ulushi"></meter>` : ''}</section>`).join('')}
+      <div class="progress-window-delta"><span>WR farqi</span><strong>${change(previous.winRate, current.winRate, ' punkt')}</strong><small>${previous.count} → ${current.count} match</small></div></div>
+      <section class="evidence-panel"><header class="evidence-heading"><div><h3>G‘alabalar bo‘yicha trend</h3><p>Joriy davr · qisqa oraliqlar bo‘yicha</p></div></header>
+        <div class="progress-history-bars">${report.trend.map(bucket => {
+          const label = bucket.from === bucket.to ? bucket.from.slice(5) : `${bucket.from.slice(5)} – ${bucket.to.slice(5)}`;
+          return `<div><small>${label}</small><strong>${bucket.count ? percent(100 * bucket.wins / bucket.count) : '—'}</strong>
+            ${bucket.count ? `<meter min="0" max="${bucket.count}" value="${bucket.wins}" aria-label="${label} g‘alaba ulushi"></meter>` : ''}
+            <small>${bucket.count} match</small></div>`;
+        }).join('')}</div></section>
+      <section class="evidence-panel"><header class="evidence-heading"><div><h3>Ko‘rsatkichlar</h3><p>Oldingi → joriy. n — qiymati ma’lum kuzatuv.</p></div></header>
+        <div class="progress-measures">${Object.entries(METRICS).map(([key, name]) => {
+          const a = previous.metrics[key], b = current.metrics[key];
+          return `<div><h4>${esc(name)}</h4><p><strong>${fmt(a.mean)}</strong> → <strong>${fmt(b.mean)}</strong></p><small>n=${a.n} → ${b.n} · farq ${change(a.mean, b.mean)}</small></div>`;
+        }).join('')}</div></section>
+      ${!this.playerId ? `<section class="evidence-panel"><h3>O‘yinchilar</h3><div class="evidence-form">${report.players.map(({ player, current: c, previous: p }) => `
+        <button class="progress-player-row" type="button" data-select-player="${esc(player.id)}"><strong>${esc(player.name)}</strong><span>${p.count} → ${c.count} match</span><span>WR ${percent(p.winRate)} → ${percent(c.winRate)}</span><span aria-hidden="true">↗</span></button>`).join('') || '<p>Mos qatnashuvlar yo‘q.</p>'}</div></section>` : ''}
+      <section class="evidence-panel"><header class="evidence-heading"><div><h3>Match dalillari</h3><p>${period.count} match · ${period.from} – ${period.to}</p></div>
+        ${this.select('evidencePeriod', 'Ko‘rilayotgan davr', [['current', 'Joriy'], ['previous', 'Oldingi']])}</header>
+        <ol class="progress-evidence-list">${[...period.matches].reverse().slice(0, this.evidenceLimit).map((match, index) => {
+          const row = this.playerId ? byId.get(match.id)?.row : null;
+          return `<li><button type="button" class="evidence-match" data-progress-match="${esc(match.id)}">
+            <b>${match.result === 'win' ? 'G‘alaba' : 'Mag‘lubiyat'}</b><span>${esc(match.date)} · ${esc(row?.heroUsed || match.matchType || 'Tur noma’lum')}</span>${row ? `<small>Rating ${fmt(row.inGameScore)}</small>` : ''}</button>${row ? button(`moment-${index}`, 'PNG') : ''}</li>`;
+        }).join('')}</ol>
+        ${!period.count ? '<p>Bu davrda mos match yo‘q.</p>' : ''}${period.count > this.evidenceLimit ? button('more-evidence', 'Yana ko‘rsatish') : ''}
+      </section>`;
+  }
+
   weeklyMarkup() {
     const draft = weeklyReport(this.data, this.date, this.scope);
     const saved = this.reports.find(r => r.start === draft.start && r.scope === draft.scope);
@@ -248,183 +328,6 @@ export class ProgressHub {
       <p>Ko‘p to‘ldirilgan yoki o‘zgartirilgan maydonlar: ${q.pilot.fields.map(([field, n]) => `${esc(field)} (${n})`).join(' · ') || 'Hali yo‘q'}.</p>
       <p class="progress-note">Skan vaqti rasm tayyorlash, AI va hero tekshiruvini qamraydi; fayl tanlash vaqtini emas. Sana, match turi, izoh va yuboruvchi kirmaydi. Faqat maydon nomlari va vaqt saqlanadi, rasmlar va qiymatlar saqlanmaydi. Oxirgi 300 urinish; ${q.pruned} eskisi chiqarilgan. Oflayn yoki sahifa yopilgan urinishlar yetib kelmasligi mumkin.</p></details>`;
   }
-  metricTable(left, right, labels) {
-    return `<div class="progress-table-wrap"><table><caption>Ma’lum qiymatlar bo‘yicha o‘rtacha · n = metrika mavjud matchlar</caption><thead><tr><th>Metrika</th><th>${labels[0]}</th><th>${labels[1]}</th><th>Farq</th></tr></thead><tbody>${Object.entries(METRICS).map(([key, label]) => {
-      const a = left.metrics[key], b = right.metrics[key], diff = a.mean === null || b.mean === null ? null : b.mean - a.mean;
-      return `<tr><th>${label}</th><td>${fmt(a.mean)} <small>n=${a.n}</small></td><td>${fmt(b.mean)} <small>n=${b.n}</small></td><td>${diff > 0 ? '+' : ''}${fmt(diff)}</td></tr>`;
-    }).join('')}</tbody></table></div>`;
-  }
-  compareMarkup() {
-    const result = compareResults(this.rows());
-    const metricsList = Object.entries(METRICS);
-    return `<article class="progress-report">
-      <div class="compare-header">
-        <div>
-          <p class="section-eyebrow">OBSERVE / DON'T ASSUME</p>
-          <h3>Win vs Loss — what changes?</h3>
-          <p class="compare-subtitle">${result.win.count} Win · ${result.loss.count} Loss · ${esc(scopeName(this.scope))} · ${esc(this.matchType)} · Barcha vaqt</p>
-        </div>
-      </div>
-      ${result.early ? '<p class="progress-sample-note">⚠️ Har ikki tomonda kamida 5 match bo‘lmaguncha xulosa qilishga erta.</p>' : ''}
-      <div class="compare-metric-cards">
-        ${metricsList.map(([key, label]) => {
-          const a = result.loss.metrics[key], b = result.win.metrics[key];
-          const diff = a.mean === null || b.mean === null ? null : b.mean - a.mean;
-          const maxVal = Math.max(a.mean || 0, b.mean || 0, 1);
-          const lossWidth = a.mean ? Math.min(100, Math.round((a.mean / maxVal) * 100)) : 0;
-          const winWidth = b.mean ? Math.min(100, Math.round((b.mean / maxVal) * 100)) : 0;
-          const isDeath = key === 'deathsPerMinute';
-          const isPositive = diff !== null && (isDeath ? diff < 0 : diff > 0);
-          return `<div class="compare-metric-card">
-            <div class="compare-metric-header">
-              <span class="compare-metric-title">${label}</span>
-              ${diff !== null ? `<span class="compare-diff-badge ${isPositive ? 'diff-positive' : 'diff-negative'}">${diff > 0 ? '+' : ''}${fmt(diff)}</span>` : '<span class="text-dim">—</span>'}
-            </div>
-            <div class="compare-dual-bars">
-              <div class="compare-bar-row">
-                <span class="bar-tag bar-loss-tag">Loss</span>
-                <div class="bar-track"><div class="bar-fill bar-loss-fill" style="width: ${lossWidth}%"></div></div>
-                <span class="bar-val">${fmt(a.mean)}</span>
-              </div>
-              <div class="compare-bar-row">
-                <span class="bar-tag bar-win-tag">Win</span>
-                <div class="bar-track"><div class="bar-fill bar-win-fill" style="width: ${winWidth}%"></div></div>
-                <span class="bar-val">${fmt(b.mean)}</span>
-              </div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-      ${this.metricTable(result.loss, result.win, ['Loss', 'Win'])}
-      <details class="progress-info-toggle">
-        <summary>ℹ️ Taqqoslash qoidalari va eslatmalar</summary>
-        <p class="progress-note">${!this.hero || !this.role ? 'Turli hero yoki layn aralashgan. Aniqroq taqqoslash uchun ikkalasini tanlang. ' : ''}Farq mag‘lubiyat sababini isbotlamaydi. Raqib kuchi va match sharoiti tenglashtirilmagan. Farq = Win − Loss. Yetishmagan metrikalar nolga aylantirilmaydi.</p>
-      </details>
-    </article>`;
-  }
-  journeyMarkup() {
-    const candidates = observations(eligibleMatches(this.data, this.scope), { playerId: this.playerId });
-    const heroStats = new Map();
-    candidates.forEach(o => {
-      const h = o.row.heroUsed;
-      if (!h) return;
-      const s = heroStats.get(h) || { name: h, count: 0, wins: 0 };
-      s.count++;
-      if (o.match.result === 'win') s.wins++;
-      heroStats.set(h, s);
-    });
-    const topHeroes = [...heroStats.values()].sort((a, b) => b.count - a.count).slice(0, 8);
-
-    if (!this.hero) {
-      return `<div class="progress-empty journey-hero-picker">
-        <h3>Qaysi hero bilan yo‘lingizni ko‘ramiz?</h3>
-        <p>Quyidagi eng ko‘p o‘ynalgan qahramonlardan birini tanlang yoki yuqoridagi filtrdan foydalaning:</p>
-        ${topHeroes.length ? `<div class="journey-chips-grid">${topHeroes.map(h => `
-          <button type="button" class="journey-hero-chip" data-select-hero="${esc(h.name)}">
-            <span class="journey-hero-name">${esc(h.name)}</span>
-            <span class="journey-hero-meta">${h.count} match · ${Math.round(h.wins * 100 / h.count)}% WR</span>
-          </button>
-        `).join('')}</div>` : '<p class="text-dim">Ushbu parametrlar bo‘yicha matchlar topilmadi.</p>'}
-      </div>`;
-    }
-    const result = heroJourney(this.rows()), player = this.data.players.find(p => p.id === this.playerId);
-    const pool = player?.heroPool?.find(h => h.heroName === this.hero);
-    return `<article class="progress-report">
-      <div class="journey-header">
-        <div>
-          <p class="section-eyebrow">HERO JOURNEY / ${esc(pool?.status || 'Captain status belgilanmagan')}</p>
-          <h3>${esc(this.hero)}</h3>
-          <p class="journey-subtitle">${result.count} match · ${esc(this.matchType)} · ${esc(this.role || 'Barcha laynlar')}</p>
-        </div>
-        ${topHeroes.length > 1 ? `<div class="journey-quick-switch">
-          <span class="quick-switch-label">Tezkor:</span>
-          ${topHeroes.map(h => `<button type="button" class="journey-mini-chip ${h.name === this.hero ? 'active' : ''}" data-select-hero="${esc(h.name)}">${esc(h.name)} (${h.count})</button>`).join('')}
-        </div>` : ''}
-      </div>
-      ${!result.window ? '<p class="text-dim">Taqqoslash uchun kamida 2 ta match kerak.</p>' : `
-        <div class="journey-summary-card">
-          <div class="journey-window-note">Dastlabki ${result.window} va eng so‘nggi ${result.window} match taqqoslanmoqda.${result.window < 5 ? ' <small class="text-dim">(Hali kichik sample)</small>' : ''}</div>
-          <div class="journey-progress-pill">
-            <span>Win Rate dinamikasi:</span>
-            <strong class="journey-rate-start">${fmt(result.first.winRate)}%</strong>
-            <span class="journey-arrow">→</span>
-            <strong class="journey-rate-end">${fmt(result.recent.winRate)}%</strong>
-            ${result.recent.winRate !== null && result.first.winRate !== null ? `
-              <span class="journey-delta ${(result.recent.winRate - result.first.winRate) >= 0 ? 'text-win' : 'text-loss'}">
-                (${(result.recent.winRate - result.first.winRate) >= 0 ? '+' : ''}${fmt(result.recent.winRate - result.first.winRate)}%)
-              </span>
-            ` : ''}
-          </div>
-        </div>
-        ${this.metricTable(result.first, result.recent, ['Dastlabki', 'So‘nggi'])}
-        <p class="text-dim"><small>${result.excludedMiddle} ta o‘rtadagi match taqqoslashga kirmagan.</small></p>
-      `}
-      <h4>Yuqori ratingli matchlar</h4>
-      <div class="journey-matches-list">
-        ${result.best.map(o => this.matchLine(o)).join('') || '<p class="text-dim">Rating ma’lumoti yo‘q.</p>'}
-      </div>
-      <details class="progress-info-toggle">
-        <summary>ℹ️ Metodologiya</summary>
-        <p class="progress-note">Bu qayd etilgan natijalar yo‘nalishi; avtomatik “mastery” bahosi emas. ${!this.role ? 'Laynlar aralashgan bo‘lishi mumkin.' : ''}</p>
-      </details>
-    </article>`;
-  }
-  matchLine(o) {
-    const isWin = o.match.result === 'win';
-    return `<div class="progress-match ${isWin ? 'match-win' : 'match-loss'}">
-      <div class="progress-match-info">
-        <span class="match-badge ${isWin ? 'badge-win' : 'badge-loss'}">${isWin ? 'W' : 'L'}</span>
-        <span class="match-date">${esc(o.match.date)}</span>
-        <span class="match-hero">${esc(o.row.heroUsed)}</span>
-        <span class="match-kda">${esc(o.row.kills)}/${esc(o.row.deaths)}/${esc(o.row.assists)}</span>
-      </div>
-      <div class="progress-match-score">
-        <span class="score-label">Rating</span>
-        <strong>${fmt(o.row.inGameScore)}</strong>
-      </div>
-    </div>`;
-  }
-  momentsMarkup() {
-    const rows = this.rows(); this.momentList = moments(rows);
-    return `<div class="moments-container">
-      <div class="moments-intro">
-        <p class="moments-lead">Har bir o‘yinchining shaxsiy rekordlari va eng yorqin matchlari.</p>
-        <details class="progress-info-toggle">
-          <summary>ℹ️ Rekordlar qanday aniqlanadi?</summary>
-          <p class="progress-note">Rekordlar faqat tanlangan tarkib, hero, layn va match turidagi saqlangan natijalar orasidan olinadi. Bir xil rekordlar “teng rekord” deb belgilanadi.</p>
-        </details>
-      </div>
-      <div class="moment-grid">
-        ${this.momentList.map((o, i) => `
-          <article class="progress-report moment-card">
-            <div class="moment-card-header">
-              <p class="section-eyebrow">ECLIPSE MOMENT</p>
-              <span class="moment-star-badge">✨ REKORD</span>
-            </div>
-            <h3>${esc(o.row.heroUsed)}</h3>
-            ${this.matchLine(o)}
-            <div class="moment-reasons">
-              ${o.reasons.map(r => `<span class="moment-reason-pill">${esc(r)}</span>`).join('')}
-            </div>
-            <div class="moment-card-footer">
-              ${button(`moment-${i}`, '📸 Moment PNG yuklash')}
-            </div>
-          </article>
-        `).join('') || '<div class="progress-empty"><h3>Hali rekord yoki MVP topilmadi.</h3><p>Istalgan qayd etilgan matchni pastdan tanlab kartochka yaratishingiz mumkin.</p></div>'}
-      </div>
-      ${rows.length ? `
-        <div class="moment-custom-picker">
-          <h4>Shaxsiy tanlov orqali kartochka yaratish</h4>
-          <label class="progress-pick">Matchni tanlang
-            <select class="form-select" id="momentPick">
-              ${this.options([...rows].reverse().map(o => [o.match.id, `${o.match.date} · ${o.row.heroUsed} · ${o.match.result === 'win' ? 'W' : 'L'}`]), '')}
-            </select>
-          </label>
-          ${button('moment-picked', '📸 Tanlangan match PNG')}
-        </div>
-      ` : ''}
-    </div>`;
-  }
   historyMarkup() {
     if (!this.app.authManager.isAdmin()) return '';
     const entries = this.history?.entries || [];
@@ -443,21 +346,30 @@ export class ProgressHub {
     };
     this.container.querySelector('#weekly-focus-task')?.addEventListener('input', rememberFocus);
     this.container.querySelector('#weekly-focus-metric')?.addEventListener('change', rememberFocus);
-    this.container.querySelectorAll('[data-progress-tab]').forEach(b => b.onclick = () => { this.tab = b.dataset.progressTab; this.draw(); });
-    this.container.querySelectorAll('[data-progress-filter]').forEach(el => el.onchange = () => { if (el.value || el.dataset.progressFilter !== 'date') this[el.dataset.progressFilter] = el.value; this.draw(); });
+    const redraw = (attribute, value) => {
+      this.extraExpanded = this.container.querySelector('.progress-extra')?.open || false;
+      this.draw();
+      [...this.container.querySelectorAll(`[${attribute}]`)].find(node => node.getAttribute(attribute) === value)?.focus({ preventScroll: true });
+    };
+    this.container.querySelectorAll('[data-progress-tab]').forEach(b => b.onclick = () => {
+      this.tab = b.dataset.progressTab; redraw('data-progress-tab', this.tab);
+    });
+    this.container.querySelectorAll('[data-progress-filter]').forEach(el => el.onchange = () => {
+      const key = el.dataset.progressFilter;
+      if (el.value || key !== 'date') this[key] = el.value;
+      this.evidenceLimit = 8; redraw('data-progress-filter', key);
+    });
     this.container.querySelectorAll('[data-week-nav]').forEach(b => b.onclick = () => {
       const offset = Number(b.dataset.weekNav);
       this.date = offset === 0 ? today() : adjacentWeek(this.date, offset);
-      this.draw();
+      redraw('data-week-nav', b.dataset.weekNav);
     });
     this.container.querySelectorAll('[data-select-player]').forEach(b => b.onclick = () => {
-      this.playerId = b.dataset.selectPlayer;
-      this.hero = '';
-      this.draw();
+      this.playerId = b.dataset.selectPlayer; this.hero = ''; this.role = ''; this.evidenceLimit = 8;
+      redraw('data-select-player', this.playerId);
     });
-    this.container.querySelectorAll('[data-select-hero]').forEach(b => b.onclick = () => {
-      this.hero = b.dataset.selectHero;
-      this.draw();
+    this.container.querySelectorAll('[data-progress-match]').forEach(b => b.onclick = () => {
+      this.app.matchManager?.renderMatchDetailModal(b.dataset.progressMatch, this.data.players, { snapshot: this.data.matches });
     });
     this.container.querySelectorAll('[data-report]').forEach(el => el.onclick = () => { const report = this.reports.find(r => r.id === el.dataset.report); this.date = report.start; this.scope = report.scope; this.draw(); });
     this.container.querySelectorAll('[data-progress-action]').forEach(b => b.onclick = async () => {
@@ -469,9 +381,15 @@ export class ProgressHub {
   }
   async action(action) {
     if (action === 'refresh') return this.render();
+    if (action === 'more-evidence') {
+      const firstNew = this.evidenceLimit;
+      this.evidenceLimit += 8; this.draw();
+      this.container.querySelectorAll('[data-progress-match]')[firstNew]?.focus();
+      return;
+    }
     if (action === 'weekly-png') return exportProgressPng(this.app, { report: this.shownReport, draft: this.app.authManager.isAdmin() });
     if (action.startsWith('moment-')) {
-      const o = action === 'moment-picked' ? this.rows().find(o => o.match.id === this.container.querySelector('#momentPick').value) : this.momentList[Number(action.slice(7))];
+      const o = this.momentList[Number(action.slice(7))];
       return exportProgressPng(this.app, { moment: o, player: this.data.players.find(p => p.id === this.playerId), scope: this.scope });
     }
     if (!this.app.authManager.isAdmin()) throw new Error('Faqat Captain uchun.');

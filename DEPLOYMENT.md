@@ -1,6 +1,6 @@
 # Eclipse Esports — Deployment & Infrastructure Guide
 
-Current release: **v2.42.0 — Data Integrity, OCR Review, Telegram Access & Frontend Reliability**
+Current release: **v2.43.0 — Team Analytics, Progress and Hero Pools**
 
 ---
 

@@ -81,15 +81,18 @@
     }
     async selectRank(rank) {
       if (!ranks[rank] || this.exporting) return;
+      this.rankSnapshots ||= new Map();
+      if (this.state.meta?.data?.rank) this.rankSnapshots.set(this.state.meta.data.rank, this.state.meta);
       this.selectedRank = rank;
       const generation = this.metaLoadGeneration = (this.metaLoadGeneration || 0) + 1;
-      this.state.meta = null; this.rankLoading = true; this.rankError = null;
+      this.state.meta = this.rankSnapshots.get(rank) || null; this.rankLoading = true; this.rankError = null;
       this.renderState();
       try {
         const payload = await this.getMeta();
         if (generation !== this.metaLoadGeneration) return;
         if (payload?.data?.rank !== rank) throw new Error('Manba tanlangan rankni qaytarmadi. Qayta urinib ko‘ring.');
         this.state.meta = payload;
+        this.sourceErrors = (this.sourceErrors || []).filter(error => error.source !== 'meta');
       } catch (error) { if (generation === this.metaLoadGeneration) this.rankError = error.message; }
       finally { if (generation === this.metaLoadGeneration) { this.rankLoading = false; this.renderState(); } }
     }

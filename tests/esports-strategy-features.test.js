@@ -292,50 +292,6 @@ test('Scouting Manager: initializes dossiers, records H2H and filters rivals', (
   assert.ok(manager.teams.some(t => t.name === 'RRQ Hoshi'));
 });
 
-test('Hero pool shows recorded categories without inferring tournament readiness', () => {
-  const playerSource = readFileSync(new URL('../js/players.js', import.meta.url), 'utf8');
-  const windowObj = {
-    EclipseApp: { authManager: { isAdmin: () => true } }
-  };
-  const context = vm.createContext({
-    window: windowObj,
-    document: { getElementById: () => null },
-    console
-  });
-  vm.runInContext(playerSource, context);
-  const PlayerManager = windowObj.PlayerManager;
-  assert.ok(PlayerManager);
-
-  const pm = new PlayerManager({ getPlayers: () => [], getMatches: () => [] }, null);
-
-  // Recorded comfort and backup choices remain visible.
-  const highPool = [
-    { heroId: 1, heroName: 'Chou', status: 'comfort' },
-    { heroId: 2, heroName: 'Khufra', status: 'comfort' },
-    { heroId: 3, heroName: 'Ruby', status: 'comfort' },
-    { heroId: 4, heroName: 'Paquito', status: 'comfort' },
-    { heroId: 5, heroName: 'Grock', status: 'backup' },
-    { heroId: 6, heroName: '<b>Learning hero</b>', status: 'learning' }
-  ];
-  const before = structuredClone(highPool);
-  const highHtml = pm.renderHeroPoolDepthMatrix(highPool);
-  assert.ok(highHtml.includes('6 ta hero'));
-  assert.doesNotMatch(highHtml, /100%|S-Tier|A-Tier|Yuqori Ban Chidamliligi/);
-  assert.ok(highHtml.includes('🌟 Comfort'));
-  assert.ok(highHtml.includes('Chou'));
-  assert.ok(highHtml.includes('📚 Learning'));
-  assert.ok(highHtml.includes('&lt;b&gt;Learning hero&lt;/b&gt;'));
-  assert.deepEqual(highPool, before);
-
-  // A short list does not establish a target-ban weakness.
-  const lowPool = [
-    { heroId: 1, heroName: 'Fanny', status: 'comfort' }
-  ];
-  const lowHtml = pm.renderHeroPoolDepthMatrix(lowPool);
-  assert.ok(lowHtml.includes('1 ta hero'));
-  assert.doesNotMatch(lowHtml, /Target Ban xavfi/);
-});
-
 test('MLBB Highlights: badge 4 detects Maniac, badge 5 detects Savage and inherently sets Maniac', () => {
   const roster = [{ id: 'p1', name: 'Heavenlyyy' }, { id: 'p2', name: 'Shadow' }];
   const heroes = [{ id: 1, name: 'Chou' }, { id: 2, name: 'Ling' }];

@@ -126,7 +126,7 @@
 
     getHeroCatalog() {
       // Pull fresh heroes from MlbbDataManager, PublicMetaApp, or HeroDatabase
-      const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+      const manager = window.publicMetaApp || window.EclipseApp?.mlbbData || window.EclipseApp?.mlbbManager;
       const catalog = manager?.state?.heroes?.data;
       if (Array.isArray(catalog) && catalog.length) return catalog;
 
@@ -156,7 +156,7 @@
     }
 
     getMetaTiers() {
-      const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+      const manager = window.publicMetaApp || window.EclipseApp?.mlbbData || window.EclipseApp?.mlbbManager;
       const meta = manager?.state?.meta?.data?.eclipse;
       if (Array.isArray(meta) && meta.length) return meta;
       return [];
@@ -168,7 +168,7 @@
         const res = await fetch('/api/mlbb-heroes');
         const json = await res.json();
         if (json?.data) {
-          const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+          const manager = window.publicMetaApp || window.EclipseApp?.mlbbData || window.EclipseApp?.mlbbManager;
           if (manager) {
             if (!manager.state) manager.state = {};
             manager.state.heroes = json;
@@ -398,9 +398,6 @@
     open() {
       if (!this.dialog || !this.dialog.isConnected) this.createDialog();
       this.closePicker();
-      this.renderSlots();
-      this.renderAnalysis();
-      this.ensureCatalog();
       if (typeof this.dialog.showModal === 'function') {
         if (!this.dialog.open) {
           this.dialog.showModal();
@@ -408,6 +405,9 @@
       } else {
         this.dialog.setAttribute('open', '');
       }
+      this.renderSlots();
+      this.renderAnalysis();
+      this.ensureCatalog();
     }
 
     close() {
@@ -507,7 +507,7 @@
           `;
         }
         const portrait = hero.images?.minimap || hero.images?.portrait || '';
-        const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+        const manager = window.publicMetaApp || window.EclipseApp?.mlbbData || window.EclipseApp?.mlbbManager;
         const heroLanes = manager?.heroLanesLabels ? manager.heroLanesLabels(hero) : (hero.lanes || []);
         const laneLabel = heroLanes.join(' · ') || (hero.roles || []).join(' · ') || 'MLBB';
         return `
@@ -591,7 +591,7 @@
         if (takenHeroIds.has(h.id || h.name)) return false;
         if (search && !h.name.toLowerCase().includes(search)) return false;
         if (activeLane !== 'all') {
-          const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+          const manager = window.publicMetaApp || window.EclipseApp?.mlbbData || window.EclipseApp?.mlbbManager;
           const heroLanes = manager?.heroLanes ? manager.heroLanes(h) : (h.lanes || []).map(l => String(l).toLowerCase());
           if (!heroLanes.some(l => l.includes(activeLane))) return false;
         }
@@ -605,7 +605,7 @@
 
       grid.innerHTML = filtered.map(h => {
         const portrait = h.images?.minimap || h.images?.portrait || '';
-        const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+        const manager = window.publicMetaApp || window.EclipseApp?.mlbbData || window.EclipseApp?.mlbbManager;
         const heroLanes = manager?.heroLanesLabels ? manager.heroLanesLabels(h) : (h.lanes || []);
         const laneStr = heroLanes.join(' · ') || (h.roles || []).join(' · ') || '';
         const heroId = Number(h.id || h.heroId);
@@ -675,7 +675,7 @@
 
       // 3. Lane Coverage
       const coveredLanes = new Set();
-      const manager = window.publicMetaApp || window.EclipseApp?.mlbbManager;
+      const manager = window.publicMetaApp || window.EclipseApp?.mlbbData || window.EclipseApp?.mlbbManager;
       allies.forEach(h => {
         const lanes = manager?.heroLanes ? manager.heroLanes(h) : (h.lanes || []);
         lanes.forEach(l => coveredLanes.add(String(l).toLowerCase()));

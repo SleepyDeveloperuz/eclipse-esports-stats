@@ -85,69 +85,6 @@ window.PlayerManager = class PlayerManager {
     `;
   }
 
-  renderHeroPoolDepthMatrix(heroPool) {
-    if (!Array.isArray(heroPool) || !heroPool.length) return '';
-    const sTier = heroPool.filter(h => h.status === 'comfort');
-    const aTier = heroPool.filter(h => h.status === 'backup');
-    const jokerTier = heroPool.filter(h => h.status === 'learning');
-
-    const poolCount = sTier.length + aTier.length + jokerTier.length;
-    const poolNote = 'Kapitan kiritgan toifalar; turnir tayyorgarligi yoki banlarga chidamlilik bahosi emas.';
-
-    const renderHeroChips = (list, tierClass) => {
-      if (!list.length) return '<span class="depth-hero-empty">—</span>';
-      return list.map(h => `<span class="depth-hero-chip ${tierClass}">${this.escapeHtml(h.heroName || '')}</span>`).join('');
-    };
-
-    return `
-      <div class="roster-hero-pool depth-matrix" aria-label="Captain belgilagan hero pool va chuqurlik matritsasi">
-        <div class="depth-matrix__header">
-          <div class="depth-matrix__title">
-            <i class="fa-solid fa-layer-group"></i>
-            <strong>Qahramonlar chuqurligi matritsasi</strong>
-          </div>
-          <span class="depth-matrix__resilience depth-matrix__resilience--medium" title="${poolNote}">
-            ${poolCount} ta hero
-          </span>
-        </div>
-
-        <div class="depth-matrix__grid">
-          <div class="depth-matrix__tier depth-matrix__tier--s">
-            <div class="depth-matrix__tier-head">
-              <span class="depth-tier-badge s-tier">🌟 Comfort</span>
-              <span class="depth-tier-label">Qulay herolar</span>
-              <span class="depth-tier-count">${sTier.length} ta</span>
-            </div>
-            <div class="depth-matrix__heroes">${renderHeroChips(sTier, 'depth-hero-chip--s')}</div>
-          </div>
-
-          <div class="depth-matrix__tier depth-matrix__tier--a">
-            <div class="depth-matrix__tier-head">
-              <span class="depth-tier-badge a-tier">⚔️ Backup</span>
-              <span class="depth-tier-label">Zaxira herolar</span>
-              <span class="depth-tier-count">${aTier.length} ta</span>
-            </div>
-            <div class="depth-matrix__heroes">${renderHeroChips(aTier, 'depth-hero-chip--a')}</div>
-          </div>
-
-          <div class="depth-matrix__tier depth-matrix__tier--joker">
-            <div class="depth-matrix__tier-head">
-              <span class="depth-tier-badge joker-tier">📚 Learning</span>
-              <span class="depth-tier-label">O‘rganilayotgan herolar</span>
-              <span class="depth-tier-count">${jokerTier.length} ta</span>
-            </div>
-            <div class="depth-matrix__heroes">${renderHeroChips(jokerTier, 'depth-hero-chip--joker')}</div>
-          </div>
-        </div>
-
-        <div class="depth-matrix__tactical-note">
-          <i class="fa-solid fa-shield-halved"></i>
-          <span>${poolNote}</span>
-        </div>
-      </div>
-    `;
-  }
-
   renderPlayersList(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -171,38 +108,6 @@ window.PlayerManager = class PlayerManager {
     const trendByPlayer = new Map(trends.map(item => [item.player.id, item]));
     const totalAppearances = players.reduce((sum, player) => sum + this.statsEngine.getPlayerStats(matches, player.id).matchesPlayed, 0);
 
-    const synergy = this.statsEngine?.getSynergyStats?.(matches, players, { minimumMatches: 2, scope: 'all' });
-    const duos = synergy?.duos || [];
-    let chemistryBannerHtml = '';
-    if (duos.length > 0) {
-      const topDuos = duos.slice(0, 2);
-      const duoCardsHtml = topDuos.map((duo, idx) => `
-        <div class="chemistry-duo-card ${idx === 0 ? 'is-best' : ''}">
-          <div class="chemistry-duo-card__names">
-            <span class="chemistry-duo-rank">👑 #${idx + 1} TANDEM</span>
-            <strong>${this.escapeHtml(duo.player1.name)} + ${this.escapeHtml(duo.player2.name)}</strong>
-            <small>${duo.wins}W - ${duo.losses}L · KDA: ${duo.combinedKda || '—'}</small>
-          </div>
-          <div class="chemistry-duo-card__stats">
-            <span class="chemistry-stat-wr">${duo.winRate}%</span>
-            <span class="chemistry-stat-matches">${duo.matchesTogether} match birga</span>
-          </div>
-        </div>
-      `).join('');
-
-      chemistryBannerHtml = `
-        <section class="team-chemistry-highlight" aria-label="Eng samarali tandemlar">
-          <div class="team-chemistry-highlight__header">
-            <span class="badge" style="background:rgba(228, 196, 110, 0.15); color:var(--primary); font-weight:800;"><i class="fa-solid fa-bolt"></i> TANDEM SYNERGY</span>
-            <h4>Jamoaning eng kuchli tandemlari</h4>
-          </div>
-          <div class="team-chemistry-highlight__grid">
-            ${duoCardsHtml}
-          </div>
-        </section>
-      `;
-    }
-
     let html = `
       <section class="roster-command" aria-label="Eclipse faol tarkibi">
         <div>
@@ -216,7 +121,6 @@ window.PlayerManager = class PlayerManager {
           <span><strong>${String(totalAppearances).padStart(2, '0')}</strong> ishtirok</span>
         </div>
       </section>
-      ${chemistryBannerHtml}
       <div class="player-roster-grid">
     `;
 
@@ -279,16 +183,11 @@ window.PlayerManager = class PlayerManager {
                   <span class="role-signal" style="--role-color:${bestRoleColor};"></span>${roleLabel}
                 </div>
                 <div class="roster-player-tags">${(p.tags || []).map(tag => `<span>${this.escapeHtml(tag)}</span>`).join('')}</div>
-                ${p.heroPool && p.heroPool.length ? `
-                  <div class="roster-pool-summary" title="Hero Pool: ${p.heroPool.filter(h => h.status === 'comfort').length} Comfort, ${p.heroPool.filter(h => h.status === 'backup').length} Backup, ${p.heroPool.filter(h => h.status === 'learning').length} Learning">
-                    <span class="pool-chip pool-chip--s" title="Comfort · Qulay">🌟 ${p.heroPool.filter(h => h.status === 'comfort').length} C</span>
-                    <span class="pool-chip pool-chip--a" title="Backup · Zaxira">⚔️ ${p.heroPool.filter(h => h.status === 'backup').length} B</span>
-                    <span class="pool-chip pool-chip--j" title="Learning · O‘rganilmoqda">🃏 ${p.heroPool.filter(h => h.status === 'learning').length} L</span>
-                  </div>
-                ` : ''}
+
               </div>
             </div>
 
+            <div data-roster-hero-pool="${safePlayerId}"></div>
             <div class="player-signature">
               <span>Eng ko‘p o‘ynalgan hero</span>
               <div>
@@ -351,6 +250,10 @@ window.PlayerManager = class PlayerManager {
       btn.addEventListener('click', e => this.showEditModal(e.currentTarget.dataset.id)));
     container.querySelectorAll('.delete-player-btn').forEach(btn =>
       btn.addEventListener('click', e => this.showDeleteConfirm(e.currentTarget.dataset.id)));
+    for (const mount of container.querySelectorAll('[data-roster-hero-pool]')) {
+      const player = players.find(p => p.id === mount.dataset.rosterHeroPool);
+      if (player) this.renderRosterHeroPool(mount, player);
+    }
     container.querySelectorAll('.view-profile-btn').forEach(btn =>
       btn.addEventListener('click', e => window.EclipseApp.showPlayerProfile(e.currentTarget.dataset.id)));
     container.querySelectorAll('.restore-player-btn').forEach(btn =>
@@ -599,119 +502,6 @@ window.PlayerManager = class PlayerManager {
   //  DUO & TRIO SYNERGY MATRIX
   // =========================================================================
 
-  renderSynergyMatrix(containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    const players = this.db.getAllPlayers?.() || this.db.getPlayers();
-    const matches = this.db.getMatches();
-
-    const synergy = this.statsEngine.getSynergyStats(matches, players);
-
-    if (synergy.duos.length === 0) {
-      container.innerHTML = `
-        <div class="card text-center" style="padding: 2.5rem;">
-          <h3 style="color:var(--text-muted);"><i class="fa-solid fa-handshake-slash"></i> No Synergy Data Yet</h3>
-          <p style="color:var(--text-secondary);">Log more matches with your team roster to discover the highest winrate player pairings and trio cores!</p>
-        </div>
-      `;
-      return;
-    }
-
-    let duosTableRows = '';
-    synergy.duos.forEach((d, idx) => {
-      const isTop = idx === 0 && d.matchesTogether >= 2;
-      duosTableRows += `
-        <tr style="${isTop ? 'background:rgba(var(--secondary-rgb),0.04); font-weight:600;' : ''}">
-          <td><strong>#${idx + 1}</strong></td>
-          <td>
-            <strong>${d.player1.name}</strong> + <strong>${d.player2.name}</strong>
-            ${isTop ? ' <span class="badge" style="background:var(--secondary); color:#000; font-size:0.65rem;">👑 #1 DUO</span>' : ''}
-          </td>
-          <td><span class="badge" style="background:rgba(var(--primary-rgb),0.1); color:var(--primary); font-size:0.75rem;">${d.comboLabel}</span></td>
-          <td><strong>${d.matchesTogether}</strong> (${d.wins}W - ${d.losses}L)</td>
-          <td><strong style="color:${d.winRateNum >= 75 ? 'var(--secondary)' : d.winRateNum >= 50 ? 'var(--success)' : 'var(--danger)'}; font-size:1.05rem;">${d.winRate}%</strong></td>
-          <td><strong style="color:var(--primary);">${d.combinedKda}</strong></td>
-        </tr>
-      `;
-    });
-
-    container.innerHTML = `
-      <div class="card mb-4" style="background: linear-gradient(135deg, rgba(var(--secondary-rgb),0.03) 0%, var(--bg-card-glass) 100%);">
-        <div style="margin-bottom:1.5rem;">
-          <span class="badge" style="background:linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%); color:#000; font-weight:800;">
-            <i class="fa-solid fa-sparkles"></i> TEAM CHEMISTRY & WINNING COMBOS
-          </span>
-          <h3 style="font-size:1.5rem; color:var(--text-primary); margin:0.35rem 0 0.15rem 0;">
-            <i class="fa-solid fa-handshake-angle" style="color:var(--secondary);"></i> Duo & Trio Synergy Matrix
-          </h3>
-          <p style="color:var(--text-secondary); margin:0; font-size:0.875rem;">
-            Discover which teammate pairings have the highest tactical win rate, combined KDA, and map dominance when deployed together.
-          </p>
-        </div>
-
-        <!-- HIGHLIGHT CARDS -->
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
-          ${synergy.topDuo ? `
-            <div class="synergy-card gold-synergy">
-              <span class="badge" style="background:var(--secondary); color:#000; font-weight:bold;"><i class="fa-solid fa-crown"></i> #1 DEADLIEST DUO</span>
-              <h3 style="font-size:1.4rem; color:var(--secondary); margin:0.5rem 0 0.25rem 0;">${synergy.topDuo.player1.name} & ${synergy.topDuo.player2.name}</h3>
-              <p style="color:var(--text-muted); font-size:0.8rem; margin:0 0 0.75rem 0;">${synergy.topDuo.comboLabel}</p>
-              <div style="display:flex; justify-content:space-between; background:rgba(0,0,0,0.3); padding:0.6rem 1rem; border-radius:8px;">
-                <div>Win Rate<br><strong style="color:var(--secondary); font-size:1.15rem;">${synergy.topDuo.winRate}%</strong></div>
-                <div>Matches<br><strong>${synergy.topDuo.matchesTogether}</strong></div>
-                <div>Duo KDA<br><strong style="color:var(--primary); font-size:1.15rem;">${synergy.topDuo.combinedKda}</strong></div>
-              </div>
-            </div>
-          ` : ''}
-
-          ${synergy.topTrio ? `
-            <div class="synergy-card cyan-synergy">
-              <span class="badge" style="background:var(--primary); color:#000; font-weight:bold;"><i class="fa-solid fa-triangle"></i> BEST TRIO CORE</span>
-              <h3 style="font-size:1.4rem; color:var(--primary); margin:0.5rem 0 0.25rem 0;">${synergy.topTrio.players.map(p => p.name).join(' + ')}</h3>
-              <p style="color:var(--text-muted); font-size:0.8rem; margin:0 0 0.75rem 0;">3-Player Winning Anchor</p>
-              <div style="display:flex; justify-content:space-between; background:rgba(0,0,0,0.3); padding:0.6rem 1rem; border-radius:8px;">
-                <div>Trio Win Rate<br><strong style="color:var(--success); font-size:1.15rem;">${synergy.topTrio.winRate}%</strong></div>
-                <div>Matches Together<br><strong>${synergy.topTrio.matchesTogether}</strong></div>
-              </div>
-            </div>
-          ` : ''}
-
-          ${synergy.mostPlayedDuo ? `
-            <div class="synergy-card">
-              <span class="badge" style="background:rgba(255,255,255,0.1); color:var(--text-primary); font-weight:bold;"><i class="fa-solid fa-shield"></i> MOST BATTLE-TESTED DUO</span>
-              <h3 style="font-size:1.4rem; color:var(--text-primary); margin:0.5rem 0 0.25rem 0;">${synergy.mostPlayedDuo.player1.name} & ${synergy.mostPlayedDuo.player2.name}</h3>
-              <p style="color:var(--text-muted); font-size:0.8rem; margin:0 0 0.75rem 0;">${synergy.mostPlayedDuo.comboLabel}</p>
-              <div style="display:flex; justify-content:space-between; background:rgba(0,0,0,0.3); padding:0.6rem 1rem; border-radius:8px;">
-                <div>Matches<br><strong style="color:var(--primary); font-size:1.15rem;">${synergy.mostPlayedDuo.matchesTogether} Games</strong></div>
-                <div>Win Rate<br><strong style="color:var(--secondary); font-size:1.15rem;">${synergy.mostPlayedDuo.winRate}%</strong></div>
-              </div>
-            </div>
-          ` : ''}
-        </div>
-
-        <!-- DUOS RANKING TABLE -->
-        <h4 style="font-size:1.1rem; color:var(--text-primary); margin-bottom:0.75rem;"><i class="fa-solid fa-list-ol"></i> All Teammate Pairwise Synergy Rankings</h4>
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Teammate Pairing</th>
-                <th>Tactical Combo</th>
-                <th>Matches (W-L)</th>
-                <th>Combined Win Rate</th>
-                <th>Duo KDA</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${duosTableRows}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-  }
-
   renderPlayerProfile(containerId, playerId, matches) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -917,7 +707,7 @@ window.PlayerManager = class PlayerManager {
               ${titleBadge}
             </div>
             <div class="roster-player-tags">${player.primaryRole ? `<span>Asosiy layn: ${this.escapeHtml(player.primaryRole)}</span>` : ''}${(player.tags || []).map(tag => `<span>${this.escapeHtml(tag)}</span>`).join('')}</div>
-            ${(player.heroPool || []).length ? this.renderHeroPoolDepthMatrix(player.heroPool) : ''}
+            <div data-profile-hero-pool></div>
             <p>${isHeavenlyyy ? 'Jamoani boshqaruvchi strategik markaz.' : 'Eclipse tarkibidagi individual kuch profili.'} ${heroAnalytics.uniqueHeroesCount} ta hero bilan ${stats.matchesPlayed} ta match qayd etilgan.</p>
             <div class="player-profile-roles">
               <div style="--profile-role-color:${bestRoleColor};">
@@ -1102,6 +892,7 @@ window.PlayerManager = class PlayerManager {
       }
     });
 
+    this.renderRosterHeroPool(container.querySelector('[data-profile-hero-pool]'), player);
     window.EclipseCoach?.render(container.querySelector('[data-player-coach]'), window.EclipseApp, { playerId });
   }
 
@@ -1339,174 +1130,78 @@ window.PlayerManager = class PlayerManager {
     `;
   }
 
-  renderSynergyConstellation(containerId, matches) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    const players = this.db.getAllPlayers?.() || this.db.getPlayers?.() || [];
-    const starterPlayers = [...players]
-      .sort((a, b) => (b.matchesCount || 0) - (a.matchesCount || 0))
-      .slice(0, 5);
-
-    if (starterPlayers.length < 3) {
-      container.innerHTML = '';
-      return;
-    }
-
-    const cx = 250;
-    const cy = 200;
-    const R = 135;
-    const N = starterPlayers.length;
-
-    const nodes = starterPlayers.map((player, i) => {
-      const angle = (-90 + i * (360 / N)) * (Math.PI / 180);
-      const x = cx + R * Math.cos(angle);
-      const y = cy + R * Math.sin(angle);
-      return {
-        player,
-        index: i,
-        x,
-        y,
-        name: player.name || `P${i + 1}`,
-        initials: (player.name || 'P').substring(0, 2).toUpperCase()
-      };
-    });
-
-    const links = [];
-    for (let i = 0; i < N; i++) {
-      for (let j = i + 1; j < N; j++) {
-        const p1 = nodes[i].player;
-        const p2 = nodes[j].player;
-        
-        const duoMatches = (matches || []).filter(m => {
-          const stats = m.playerStats || m.players || [];
-          const hasP1 = stats.some(s => String(s.playerId || s.id) === String(p1.id));
-          const hasP2 = stats.some(s => String(s.playerId || s.id) === String(p2.id));
-          return hasP1 && hasP2;
-        });
-
-        const total = duoMatches.length;
-        const wins = duoMatches.filter(m => m.result === 'win' || m.result === 'G‘alaba' || m.isWin === true).length;
-        const losses = total - wins;
-        const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : null;
-        const winRateNum = total > 0 ? (wins / total) * 100 : 0;
-
-        links.push({
-          source: nodes[i],
-          target: nodes[j],
-          total,
-          wins,
-          losses,
-          winRate,
-          winRateNum
-        });
-      }
-    }
-
-    const linksSvg = links.map((link, idx) => {
-      let strokeColor = 'rgba(255, 255, 255, 0.12)';
-      let strokeWidth = 1.5;
-      let opacity = 0.5;
-
-      if (link.total >= 1) {
-        if (link.winRateNum >= 70) {
-          strokeColor = 'var(--primary)';
-          strokeWidth = 3.5;
-          opacity = 0.95;
-        } else if (link.winRateNum >= 50) {
-          strokeColor = '#4ee2db';
-          strokeWidth = 2.5;
-          opacity = 0.8;
-        } else {
-          strokeColor = 'rgba(244, 63, 94, 0.6)';
-          strokeWidth = 1.8;
-          opacity = 0.6;
-        }
-      }
-
-      return `
-        <line class="constellation-link"
-          data-link-index="${idx}"
-          data-p1="${this.escapeHtml(link.source.name)}"
-          data-p2="${this.escapeHtml(link.target.name)}"
-          data-matches="${link.total}"
-          data-wr="${link.winRate !== null ? link.winRate + '%' : '0 match'}"
-          x1="${link.source.x.toFixed(1)}" y1="${link.source.y.toFixed(1)}"
-          x2="${link.target.x.toFixed(1)}" y2="${link.target.y.toFixed(1)}"
-          stroke="${strokeColor}"
-          stroke-width="${strokeWidth}"
-          stroke-opacity="${opacity}"
-          stroke-linecap="round" />
-      `;
-    }).join('\n');
-
-    const nodesSvg = nodes.map(node => `
-      <g class="constellation-node" data-player-id="${node.player.id}" data-player-name="${this.escapeHtml(node.name)}" transform="translate(${node.x.toFixed(1)}, ${node.y.toFixed(1)})">
-        <circle r="22" fill="#0d0f14" stroke="var(--primary)" stroke-width="2.2" filter="drop-shadow(0 0 10px rgba(var(--primary-rgb), 0.4))" />
-        <text y="5" text-anchor="middle" fill="#fff" font-size="11" font-weight="800" font-family="var(--font-mono)">${this.escapeHtml(node.initials)}</text>
-        <text y="36" text-anchor="middle" fill="var(--text-secondary)" font-size="11" font-weight="700">${this.escapeHtml(node.name)}</text>
-      </g>
-    `).join('\n');
-
-    container.innerHTML = `
-      <div class="synergy-constellation-card">
-        <div class="synergy-constellation-header">
-          <h3>
-            <i class="fa-solid fa-circle-nodes" style="color:var(--primary);"></i>
-            <span>Tarkib Sinergiya Yulduzlar Turkumi (Constellation)</span>
-          </h3>
-          <span class="badge" style="background:rgba(var(--primary-rgb), 0.15); color:var(--primary); font-weight:800; font-size:0.75rem;">
-            5-TALIK ROSTER GRAFIKI
-          </span>
+  renderRosterHeroPool(mount, player) {
+    const evidence = window.EclipseRosterEvidence;
+    if (!mount || !evidence) return;
+    const esc = value => this.escapeHtml(value);
+    const resolve = row => window.EclipseApp?.heroDb?.resolve(row);
+    const labels = { comfort: 'Comfort', backup: 'Backup', learning: 'Learning', limited: 'Namuna kam' };
+    const options = rows => rows.map(([value, label]) => `<option value="${esc(value)}">${esc(label)}</option>`).join('');
+    const manual = Object.entries(labels).slice(0, 3).map(([status, label]) => {
+      const entries = (player.heroPool || []).filter(hero => hero.status === status);
+      return entries.length ? `<div class="evidence-manual"><strong>${label}</strong><ul>${entries.map(entry => {
+        const hero = resolve({ heroId: entry.heroId, heroUsed: entry.heroName });
+        return `<li>${evidence.portrait(hero || { name: entry.heroName }, esc)}<span>${esc(entry.heroName || hero?.name || 'Qahramon noma’lum')}</span></li>`;
+      }).join('')}</ul></div>` : '';
+    }).join('');
+    mount.innerHTML = `<section class="roster-evidence" aria-label="Hero pool">
+      ${manual ? `<h4>Kapitan tanlovi</h4>${manual}` : ''}
+      <div data-pool-preview class="evidence-pool-preview"></div>
+      <details class="evidence-pool"><summary><span>Matchlardan hero pool</span><span data-pool-count></span></summary>
+        <div class="evidence-controls">
+          <label>Tarkib<select name="scope">${options(evidence.scopes)}</select></label>
+          <label>Match turi<select name="matchType">${options(evidence.types)}</select></label>
+          <label>Boshlanish<input type="date" name="from"></label><label>Tugash<input type="date" name="to"></label>
         </div>
-        <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:1rem;">
-          Jamoaning 5 asosiy o‘yinchisi o‘rtasidagi sinergiya nurlari. Har bir nur qalinligi va rangi tandemning g‘alaba ko‘rsatkichini (Win Rate) ifodalaydi. Chiziqlar ustiga bosing yoki hover qiling.
-        </p>
-        <div class="constellation-svg-wrap">
-          <svg class="constellation-svg" viewBox="0 0 500 420" aria-label="Jamoa tarkibi sinergiya yulduzlar turkumi">
-            ${linksSvg}
-            ${nodesSvg}
-          </svg>
-          <div class="constellation-tooltip" id="constellationTooltip">
-            <strong><i class="fa-solid fa-handshake" style="color:var(--primary); margin-right:6px;"></i> <span id="constellationTooltipNames">Sinergiya nuri ustiga bosing</span></strong>
-            <span id="constellationTooltipStat">Tafsilotlar</span>
-          </div>
-        </div>
-      </div>
-    `;
+        <p data-pool-coverage role="status"></p><div data-pool-list></div>
+        <details class="evidence-method"><summary>Tavsiya mezonlari</summary><p>Comfort: kamida 8 ta ma’lum natija, 10% foydalanish va o‘yinchining shu filtrdagi WR’iga teng yoki yuqori natija. Backup: kamida 5 ta ma’lum natija, 5% foydalanish va umumiy WR’dan 10 punktdan ko‘p orqada qolmagan natija. Qolgan yetarli kuzatuvlar Learning tavsiyasi sifatida chiqadi. Kamida 3 ta ma’lum natija kerak. Tavsiyalar match tarixi asosida hisoblanadi.</p></details>
+      </details>
+    </section>`;
+    const controls = [...mount.querySelectorAll('select,input')];
+    const disclosure = mount.querySelector('.evidence-pool');
+    const draw = () => {
+      const filters = Object.fromEntries(controls.map(control => [control.name, control.value]));
+      const pool = evidence.heroPool(this.db.getMatches(), player.id, resolve, filters);
+      mount.querySelector('[data-pool-preview]').innerHTML = pool.heroes.slice(0, 2).map(row =>
+        `<div>${evidence.portrait(row.hero, esc)}<span><strong>${esc(row.hero.name)}</strong><small>${row.count} match · ${evidence.rate(row.winRate)} WR · ${evidence.rate(row.useRate)} ulush · ${labels[row.category]}</small></span></div>`).join('');
+      mount.querySelector('[data-pool-count]').textContent = `${pool.heroes.length} hero`;
+      mount.querySelector('[data-pool-coverage]').textContent = `${pool.known} / ${pool.count} matchda hero ma’lum · ${pool.unknown} noma’lum · WR ${evidence.rate(pool.winRate)}`;
+      if (disclosure.open) mount.querySelector('[data-pool-list]').innerHTML = pool.heroes.length ? `<ul class="evidence-hero-list">${pool.heroes.map(row => `
+        <li>${evidence.portrait(row.hero, esc)}<span><strong>${esc(row.hero.name)}</strong><small>${labels[row.category]} · ${row.count} match</small></span>
+          <span><strong>${evidence.rate(row.winRate)} WR</strong><small>${row.wins}W · ${row.losses}L${row.unknown ? ` · ${row.unknown} noma’lum` : ''}</small></span>
+          <span><strong>${evidence.rate(row.useRate)}</strong><small>Foydalanish</small></span></li>`).join('')}</ul>` : '<p>Mos matchlarda aniqlangan hero yo‘q.</p>';
+    };
+    disclosure.addEventListener('toggle', () => { if (disclosure.open) draw(); });
+    controls.forEach(control => control.addEventListener('change', draw));
+    draw();
+  }
 
-    const svgWrap = container.querySelector('.constellation-svg-wrap');
-    if (svgWrap) {
-      const tooltipNames = svgWrap.querySelector('#constellationTooltipNames');
-      const tooltipStat = svgWrap.querySelector('#constellationTooltipStat');
-
-      svgWrap.querySelectorAll('.constellation-link').forEach(linkEl => {
-        const update = () => {
-          svgWrap.querySelectorAll('.constellation-link').forEach(l => l.classList.remove('is-active'));
-          linkEl.classList.add('is-active');
-          const p1 = linkEl.dataset.p1;
-          const p2 = linkEl.dataset.p2;
-          const matchesCount = linkEl.dataset.matches;
-          const wr = linkEl.dataset.wr;
-          if (tooltipNames) tooltipNames.textContent = `${p1} + ${p2} tandemi`;
-          if (tooltipStat) tooltipStat.textContent = `${matchesCount} match · ${wr} Win Rate`;
-          window.EclipseAudio?.playClick?.();
-        };
-        linkEl.addEventListener('mouseenter', update);
-        linkEl.addEventListener('click', update);
-      });
-
-      svgWrap.querySelectorAll('.constellation-node').forEach(nodeEl => {
-        nodeEl.addEventListener('click', () => {
-          const playerName = nodeEl.dataset.playerName;
-          const connectedLinks = svgWrap.querySelectorAll(`.constellation-link[data-p1="${playerName}"], .constellation-link[data-p2="${playerName}"]`);
-          svgWrap.querySelectorAll('.constellation-link').forEach(l => l.classList.remove('is-active'));
-          connectedLinks.forEach(l => l.classList.add('is-active'));
-          if (tooltipNames) tooltipNames.textContent = `${playerName} o‘yinchisining barcha aloqalari (${connectedLinks.length} ta nur)`;
-          if (tooltipStat) tooltipStat.textContent = 'Faol';
-          window.EclipseAudio?.playClick?.();
+  renderRosterPairs(containerId, matches) {
+    const mount = document.getElementById(containerId);
+    const evidence = window.EclipseRosterEvidence;
+    if (!mount || !evidence) return;
+    const players = this.db.getAllPlayers?.() || this.db.getPlayers();
+    const esc = value => this.escapeHtml(value);
+    mount.innerHTML = `<section class="evidence-panel"><header class="evidence-heading"><div><h3>Birga o‘ynagan juftliklar</h3><p>Rasmiy tarix bo‘yicha match soni va natijalar.</p></div><label>Tarkib<select data-pair-scope>${evidence.scopes.map(([v, label]) => `<option value="${v}">${label}</option>`).join('')}</select></label></header><div data-pair-results></div></section>`;
+    const select = mount.querySelector('[data-pair-scope]');
+    const results = mount.querySelector('[data-pair-results]');
+    const draw = () => {
+      const pairs = evidence.pairs(matches, players, { scope: select.value });
+      results.innerHTML = pairs.length ? `<div class="evidence-pairs">${pairs.map((pair, index) => `<details class="evidence-pair">
+        <summary><strong>${pair.players.map(p => esc(p.name)).join(' + ')}</strong><span>${pair.matches.length} match</span><span>${pair.wins}W · ${pair.losses}L</span><b>${evidence.rate(pair.winRate)} WR</b></summary>
+        <div class="evidence-match-list" data-pair-index="${index}"></div></details>`).join('')}</div>` : '<p>Bu tarkibda birga o‘ynalgan match yo‘q.</p>';
+      results.querySelectorAll('details').forEach(detail => detail.addEventListener('toggle', () => {
+        const list = detail.querySelector('[data-pair-index]');
+        if (!detail.open || list.childElementCount) return;
+        const pair = pairs[Number(list.dataset.pairIndex)];
+        list.innerHTML = `<p>${pair.unknown ? `${pair.unknown} match natijasi noma’lum. ` : ''}WR ma’lum natijalar bo‘yicha.</p>${[...pair.matches].reverse().map(match => `<button type="button" class="evidence-match" data-pair-match="${esc(match.id)}">${esc(match.date || 'Sana noma’lum')} · ${match.result === 'win' ? 'G‘alaba' : match.result === 'loss' ? 'Mag‘lubiyat' : 'Natija noma’lum'}</button>`).join('')}`;
+        list.addEventListener('click', event => {
+          const button = event.target.closest('[data-pair-match]');
+          if (button) window.EclipseApp?.matchManager?.renderMatchDetailModal(button.dataset.pairMatch, players);
         });
-      });
-    }
+      }));
+    };
+    select.addEventListener('change', draw);
+    draw();
   }
 };
