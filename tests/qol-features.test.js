@@ -954,7 +954,8 @@ domTest('Admin upload shows IGL notice and submission-hero collapses telemetry o
   assert.match(manager.container.querySelector('.submission-hero__copy > p:last-child').textContent, /IGL \/ Captain/, 'Admin hero mentions IGL / Captain');
   assert.ok(manager.container.querySelector('.submission-igl-notice'), 'IGL notice banner is rendered for admin');
   const submitter = manager.container.querySelector('#practiceSubmitter');
-  assert.match(submitter.options[0].textContent, /Jamoa lideri \(IGL \/ Captain\) nomidan/, 'Submitter option specifies team leader IGL');
+  assert.equal(submitter.options[0].textContent, 'Kapitan');
+  assert.equal(submitter.disabled, true);
 
   // 2. Check submission-hero media query rules in style.css
   const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');

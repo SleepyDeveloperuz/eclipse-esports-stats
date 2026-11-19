@@ -57,6 +57,26 @@ test('short remaining budget does not start another provider request', async () 
   assert.equal(mock.requests.length, 1); assert.equal(result.meta.rechecked, false);
 });
 
+test('a timed out optional recheck preserves the valid first scan', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const initial = provider([data([row(1, { medal: null })])]);
+  let recheckStarted;
+  const started = new Promise(resolve => { recheckStarted = resolve; });
+  const work = extractWithRecheck({ apiKey: 'fixture', requestBody, models: ['gemini-fixture'], normalize, deadlineMs: 6000,
+    fetchImpl: async (url, init) => {
+      if (!initial.requests.length) return initial.fetchImpl(url, init);
+      recheckStarted();
+      return new Promise(() => {});
+    }
+  });
+  await started;
+  t.mock.timers.tick(6000);
+  const result = await work;
+  assert.equal(result.success, true);
+  assert.equal(result.data.players[0].kills, 5);
+  assert.deepEqual(result.meta.attempts.map(({ status }) => status), ['ok', 'timeout']);
+});
+
 test('recheck cannot substitute a different player or overwrite valid stats', () => {
   const original = data([row(1, { medal: null })]);
   assert.equal(reconcileRecheck(original, data([row(1, { detectedName: 'Somebody else' })])), original);

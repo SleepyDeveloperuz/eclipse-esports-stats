@@ -860,9 +860,28 @@ window.EclipseApp = {
 
   RELEASES: [
     {
+      "version": "v2.43.1",
+      "date": "2026-11-19",
+      "badge": "Hozirgi versiya",
+      "title": "Kapitan, OCR va Telegram",
+      "sections": [
+        {
+          "title": "Match kiritish",
+          "icon": "fa-clipboard-check",
+          "badge": "Tuzatishlar",
+          "items": [
+            "Admin kiritgan matchlarda «Kim kiritmoqda?» maydoni Kapitan bo‘lib qoladi.",
+            "OCR Shadow as always’ning klan tegli IGN yozuvini taniydi. Qisman o‘qilgan nom va statistika qo‘lda tekshirish uchun ko‘rsatiladi.",
+            "Telegram’da yakka rasm, rasm fayli yoki albomdan qoralama yaratiladi. Data skrinshoti mos BattleID va rosterga biriktiriladi.",
+            "Sekin AI urinishidan keyin zaxira modelga vaqt ajratiladi. Xizmat bandligi va vaqt tugashi alohida ko‘rsatiladi."
+          ]
+        }
+      ]
+    },
+    {
       "version": "v2.43.0",
       "date": "2026-11-18",
-      "badge": "Hozirgi versiya",
+      "badge": "Oldingi versiya",
       "title": "Yangi Progress, hero pool va tahlil",
       "sections": [
         {

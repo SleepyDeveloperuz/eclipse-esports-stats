@@ -12,7 +12,7 @@ const boxes = () => Array.from({ length: 5 }, (_, rowIndex) => ({ rowIndex, boun
 const player = (sourceRow, matchedPlayerId = 'p1', extra = {}) => ({ sourceRow, matchedPlayerId, detectedName: matchedPlayerId === 'p1' ? 'Player' : 'Second', heroUsed: 'Wrong AI hero',
   portraitBox: { imageIndex: 0, bounds: [0, 0, 100, 100] }, rolePlayed: 'Roamer', kills: 1, deaths: 2, assists: 3, medal: 'gold', ...extra });
 
-function setup() {
+function setup({ admin = false } = {}) {
   const w = new JSDOM('<section class="page-section active"><div id="submissionContainer"></div></section>', { url: 'https://fixture.invalid', runScripts: 'outside-only', pretendToBeVisual: true }).window;
   w.confirm = () => true; w.showToast = () => {};
   w.Image = class { constructor() { this.width = 1280; this.height = 576; } async decode() {} };
@@ -21,7 +21,7 @@ function setup() {
   const roster = [{ id: 'p1', name: 'Player', primaryRole: 'Gold Laner' }, { id: 'p2', name: 'Second', primaryRole: 'Roamer' }];
   const heroes = [{ id: 1, name: 'Miya', lanes: ['Gold Lane'] }, { id: 2, name: 'Moskov', lanes: ['Gold Lane'] }];
   const db = { getActivePlayers: () => roster, getPlayers: () => roster, getAllPlayers: () => roster, getMatches: () => [] };
-  const auth = { isAdmin: () => false, getAccessToken: () => 'fixture-token' };
+  const auth = { isAdmin: () => admin, getAccessToken: () => 'fixture-token' };
   const heroDb = { getAll: () => heroes, resolve: name => heroes.find(hero => hero.name === name) };
   for (const name of ['image-upload', 'submissions', 'match-desk']) w.eval(readFileSync(new URL(`../js/${name}.js`, import.meta.url), 'utf8'));
   const desk = new w.SubmissionManager(auth, db, heroDb, {});
@@ -736,5 +736,38 @@ domTest('an uncertain first hero candidate never silently becomes a confirmed he
     assert.throws(() => desk.collectDraft(), /Qahramon/);
     form.querySelector('[data-hero-candidates] button').click();
     assert.equal(desk.collectDraft().draft.playerStats[0].heroUsed, 'Miya');
+  } finally { w.close(); }
+});
+
+domTest('partial roster IGN preserves KDA in the local draft for explicit roster selection', async () => {
+  const { desk, form } = setup();
+  await desk.applyOcrData({ players: [player(5, null, {
+    detectedName: 'Shadow', identityReviewRequired: true, kills: 15, deaths: 3, assists: 5, goldEarned: 14490
+  })] });
+  const row = form.querySelector('.submission-player-row');
+  assert.equal(row.querySelector('[data-field="playerId"]').value, '');
+  assert.equal(row.querySelector('[data-field="kills"]').value, '15');
+  assert.match(row.textContent, /Rasmda o‘qilgan IGN · Shadow/);
+  const [saved] = desk.rawDraft().playerStats;
+  assert.equal(saved.sourceRow, 5);
+  assert.equal(saved.goldEarned, '14490');
+  assert.equal(saved.detectedName, 'Shadow');
+});
+
+domTest('captain authors a new admin match after restoring an old draft or scanning a teammate', async () => {
+  const { w, desk, form } = setup({ admin: true });
+  try {
+    const select = form.querySelector('#practiceSubmitter');
+    assert.equal(select.value, 'admin');
+    assert.equal(select.selectedOptions[0].textContent, 'Kapitan');
+    desk.restoreDraft({ fields: { practiceSubmitter: 'p2' } });
+    assert.equal(select.value, 'admin');
+    await desk.applyOcrData({ result: 'win', players: [player(3, 'p2', { heroUsed: 'Miya', heroSource: 'portrait' })] });
+    assert.equal(select.value, 'admin');
+    assert.equal(desk.collectDraft().draft.claimedPlayerId, 'admin');
+
+    desk.restoreDraft({ editingSubmission: { id: 'teammate-submission' }, fields: { practiceSubmitter: 'p2' } });
+    assert.equal(select.disabled, false);
+    assert.equal(select.value, 'p2');
   } finally { w.close(); }
 });

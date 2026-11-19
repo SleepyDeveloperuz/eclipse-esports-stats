@@ -120,7 +120,13 @@ test('Telegram Bot: formats daily scrim summary with duration breakdown and coac
   assert.ok(summary.includes('Ace'));
 });
 
-test('Telegram Bot: handles webhook slash commands and callbacks', async () => {
+test('Telegram Bot: handles webhook slash commands and callbacks', async t => {
+  t.mock.method(globalThis, 'fetch', async url => url.includes('/getFile?')
+    ? Response.json({ ok: true, result: { file_path: 'photos/test.jpg' } })
+    : Response.json({ ok: true }));
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  process.env.TELEGRAM_BOT_TOKEN = 'fixture-bot';
+  t.after(() => { process.env.TELEGRAM_BOT_TOKEN = token; });
   let approvedId = null;
   const mockDeps = {
     approveSubmission: async (id) => { approvedId = id; return { ok: true }; },

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { configuredOcrModels, DEFAULT_OCR_MODELS, parseOcrProviderResponse, requestOcrProvider } from '../lib/ocr-provider.js';
+import { configuredOcrModels, DEFAULT_OCR_MODELS, ocrProviderFailure, parseOcrProviderResponse, requestOcrProvider } from '../lib/ocr-provider.js';
 
 const parsed = { players: [{ detectedName: 'Leader', sourceRow: 1, kills: 4 }] };
 const payload = (overrides = {}) => ({
@@ -123,4 +123,14 @@ test('modelVersion free text is not reflected in provenance', async () => {
   const result = await requestOcrProvider({ apiKey: 'secret', requestBody: {}, fetchImpl: async () => ok(payload({ modelVersion: 'provider error: secret' })) });
   assert.equal(result.meta.modelVersion, null);
   assert.equal(JSON.stringify(result).includes('secret'), false);
+});
+
+test('a fallback after timeout can report the actual quota failure to both callers', async () => {
+  let requests = 0;
+  const result = await requestOcrProvider({ apiKey: 'fixture', requestBody: {}, models, deadlineMs: 300, modelTimeoutMs: 20,
+    fetchImpl: async () => ++requests === 1 ? new Promise(() => {}) : { ok: false, status: 429 } });
+  assert.equal(result.success, false);
+  assert.deepEqual(result.meta.attempts.map(attempt => attempt.status), ['timeout', 429]);
+  assert.equal(ocrProviderFailure(result.meta).code, 'OCR_PROVIDER_BUSY');
+  assert.equal(ocrProviderFailure({ attempts: [], deadlineExceeded: true }).code, 'OCR_PROVIDER_TIMEOUT');
 });

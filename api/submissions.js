@@ -18,10 +18,10 @@ import {
 } from './auth.js';
 import { normalisePayload } from './sync.js';
 import { normaliseAwardEvidence } from '../lib/match-awards.js';
-import { configuredOcrModels } from '../lib/ocr-provider.js';
+import { configuredOcrModels, ocrProviderFailure, OCR_PROVIDER_DEADLINE_MS } from '../lib/ocr-provider.js';
 import { buildOcrRequest, normaliseOcrPayload } from './ocr.js';
 import { extractWithRecheck } from '../lib/ocr-recheck.js';
-import { smartMatchRoster, rosterAliases } from '../lib/roster-matcher.js';
+import { rosterAliases } from '../lib/roster-matcher.js';
 import { matchScreenshotHeroes } from '../lib/server-hero-matcher.js';
 import {
   notifySubmissionCreated,
@@ -204,7 +204,7 @@ export function normalisePracticeDraft(raw, officialData = {}, options = {}) {
 
     const heroCandidate = cleanText(row?.heroUsed, 80);
     const heroReference = heroByKey.get(heroCandidate.toLocaleLowerCase('en-US')) || null;
-    if (!heroReference) fail(`${rosterPlayer.name}: qahramon bazada topilmadi`);
+    if (!heroReference && (!options.allowUnresolvedHero || heroCandidate)) fail(`${rosterPlayer.name}: qahramon bazada topilmadi`);
     const rolePlayed = ROLES.has(row?.rolePlayed) ? row.rolePlayed : '';
     if (row?.rolePlayed && !rolePlayed) fail(`${rosterPlayer.name}: rol noto‘g‘ri`);
     const kills = nullableNumber(row?.kills, { min: 0, max: 200, integer: true });
@@ -218,17 +218,15 @@ export function normalisePracticeDraft(raw, officialData = {}, options = {}) {
     return {
       playerId,
       playerName: cleanText(rosterPlayer.name, 80),
-      heroId: heroReference.id,
-      heroNameSnapshot: heroReference.name,
-      heroUsed: heroReference.name,
-      heroResolution: heroReference.id ? 'canonical' : 'legacy_name',
+      ...normaliseHeroReference(heroReference ? { heroId: heroReference.id, heroUsed: heroReference.name } : {}),
       rolePlayed,
       roleSource: rolePlayed ? (['manual', 'ocr', 'inferred', 'legacy', 'roster'].includes(row?.roleSource) ? row.roleSource : 'legacy') : 'unknown',
       kills,
       deaths,
       assists,
       inGameScore,
-      ...(source.entryMode === 'full' ? extendedStats(row, true) : {}),
+      ...(source.entryMode === 'full' ? extendedStats(row, true)
+        : options.allowUnresolvedHero && row.goldEarned != null ? { goldEarned: extendedStats(row, true).goldEarned } : {}),
       medal: MEDALS.has(medalValue) ? medalValue : null
     };
   });
@@ -360,7 +358,8 @@ function normaliseStoredDraft(raw) {
         deaths: nullableNumber(row?.deaths, { min: 0, max: 200, integer: true }),
         assists: nullableNumber(row?.assists, { min: 0, max: 500, integer: true }),
         inGameScore: nullableNumber(row?.inGameScore, { min: 0, max: 20 }),
-        ...(source.entryMode === 'full' ? extendedStats(row) : {}),
+        ...(source.entryMode === 'full' ? extendedStats(row)
+          : row.goldEarned != null ? { goldEarned: extendedStats(row).goldEarned } : {}),
         medal: MEDALS.has(medal) ? medal : null
       };
     });
@@ -547,7 +546,7 @@ function responseList(submissions, statusFilter = null) {
   return { counts, submissions: ordered.map(toPublicSubmission) };
 }
 
-export async function createSubmission(req, identity) {
+export async function createSubmission(req, identity, { allowUnresolvedHero = false } = {}) {
   const rawBody = req.body && typeof req.body === 'object' ? req.body : {};
   const encoded = JSON.stringify(rawBody);
   if (Buffer.byteLength(encoded, 'utf8') > MAX_BODY_BYTES) fail('Submission hajmi juda katta', 'BODY_TOO_LARGE', 413);
@@ -562,7 +561,7 @@ export async function createSubmission(req, identity) {
   if (ownPending >= MAX_PENDING_PER_IDENTITY) fail('Avval yuborilgan pending matchlar ko‘rib chiqilishini kuting', 'PENDING_LIMIT', 409);
   if (totalPending >= MAX_PENDING_TOTAL) fail('Submission navbati to‘lgan. Admin eski yozuvlarni ko‘rib chiqishi kerak', 'INBOX_FULL', 409);
 
-  const draft = normalisePracticeDraft({ ...(rawBody.draft || {}), claimedPlayerId: rawBody.claimedPlayerId }, bundle.officialData, { adminAuthor: identity.role === 'admin' });
+  const draft = normalisePracticeDraft({ ...(rawBody.draft || {}), claimedPlayerId: rawBody.claimedPlayerId }, bundle.officialData, { adminAuthor: identity.role === 'admin', allowUnresolvedHero });
   const fingerprint = practiceFingerprint(draft);
   const filename = submissionFileName(fingerprint);
   const identityFingerprint = matchIdentityFingerprint(draft);
@@ -775,7 +774,7 @@ export async function correctSubmissionHero(id, targetName, newHeroName) {
   });
 }
 
-export async function upgradePendingSubmission(submissionIdOrFingerprint, fullDraft) {
+export async function upgradePendingSubmission(submissionIdOrFingerprint, fullDraft, { allowUnresolvedHero = false } = {}) {
   return queueMutation(async () => {
     const bundle = await readBundle({ withCatalog: true });
     const submission = bundle.submissions.find(s =>
@@ -818,7 +817,7 @@ export async function upgradePendingSubmission(submissionIdOrFingerprint, fullDr
       guestStats: validGuests,
       substitutes: prevDraft.substitutes || [],
       playerStats: updatedPlayerStats
-    }, bundle.officialData, { adminAuthor: true, allowArchived: true });
+    }, bundle.officialData, { adminAuthor: true, allowArchived: true, allowUnresolvedHero });
 
     const now = new Date().toISOString();
     const updated = {
@@ -838,43 +837,36 @@ export async function upgradePendingSubmission(submissionIdOrFingerprint, fullDr
   });
 }
 
-export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, caption, sender, existingSubmissionId = null }) {
+export async function createSubmissionFromTelegramPhoto({
+  fileUrl, fileUrls, caption, sender, scanDeadline = Date.now() + OCR_PROVIDER_DEADLINE_MS
+}) {
   const scanStarted = Date.now();
-  const submitterName = sender
-    ? `${sender.first_name || ''} ${sender.last_name || ''}`.trim() || sender.username || 'Telegram User'
-    : 'Telegram Bot';
-
+  const photoFailure = (error, code) => fail(error, code, 422);
   const urls = Array.isArray(fileUrls) && fileUrls.length > 0 ? fileUrls : [fileUrl].filter(Boolean);
-  if (!urls.length || urls.length > 2) throw new Error('Bitta match uchun 1–2 ta skrinshot yuboring.');
+  if (!urls.length || urls.length > 2) photoFailure('Bitta match uchun 1–2 ta skrinshot yuboring.', 'TELEGRAM_IMAGE_COUNT');
 
-  // 1. Download image(s) from Telegram
-  const imageParts = [];
-  const photoBuffers = [];
-  for (const url of urls) {
-    const photoRes = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!photoRes.ok) throw new Error('Telegramdan skrinshotni yuklab bo‘lmadi.');
-    const photoBuffer = Buffer.from(await photoRes.arrayBuffer());
-    if (!photoBuffer.length || photoBuffer.length > 3 * 1024 * 1024) throw new Error('Skrinshot bo‘sh yoki 3 MB dan katta.');
-    photoBuffers.push(photoBuffer);
-
-    // Detect valid image MIME type from buffer magic bytes (Telegram often returns application/octet-stream)
-    let mimeType = 'image/jpeg';
-    if (photoBuffer[0] === 0x89 && photoBuffer[1] === 0x50 && photoBuffer[2] === 0x4E && photoBuffer[3] === 0x47) {
-      mimeType = 'image/png';
-    } else if (photoBuffer[0] === 0xFF && photoBuffer[1] === 0xD8) {
-      mimeType = 'image/jpeg';
-    } else if (photoBuffer.length > 12 && photoBuffer.subarray(8, 12).toString('ascii') === 'WEBP') {
-      mimeType = 'image/webp';
-    } else {
-      const headerType = String(photoRes.headers.get('content-type') || '').toLowerCase();
-      if (['image/jpeg', 'image/png', 'image/webp'].includes(headerType)) {
-        mimeType = headerType;
-      }
+  const photoBuffers = await Promise.all(urls.map(async url => {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!response.ok) throw new Error();
+      if (Number(response.headers.get('content-length')) > 3 * 1024 * 1024) return null;
+      const bytes = Buffer.from(await response.arrayBuffer());
+      return bytes.length && bytes.length <= 3 * 1024 * 1024 ? bytes : null;
+    } catch (error) {
+      photoFailure(error?.name === 'TimeoutError'
+        ? 'Telegramdan rasmni yuklash vaqti tugadi. Rasmni qayta yuboring.'
+        : 'Telegramdan skrinshotni yuklab bo‘lmadi. Rasmni qayta yuboring.', 'TELEGRAM_IMAGE_DOWNLOAD');
     }
-
-    imageParts.push({ inline_data: { mime_type: mimeType, data: photoBuffer.toString('base64') } });
-  }
-  if (!imageParts.length) throw new Error('Telegramdan skrinshotni yuklab bo‘lmadi.');
+  }));
+  const imageParts = photoBuffers.map(bytes => {
+    if (!bytes) photoFailure('Skrinshot bo‘sh yoki 3 MB dan katta.', 'TELEGRAM_IMAGE_SIZE');
+    const mimeType = bytes[0] === 0xff && bytes[1] === 0xd8 ? 'image/jpeg'
+      : bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ? 'image/png'
+        : bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP' ? 'image/webp' : null;
+    if (!mimeType) photoFailure('JPEG, PNG yoki WebP skrinshot yuboring.', 'TELEGRAM_IMAGE_FORMAT');
+    return { inline_data: { mime_type: mimeType, data: bytes.toString('base64') } };
+  });
+  const downloadedAt = Date.now();
 
   // 2. Read bundle for roster and hero catalog
   const bundle = await readBundle({ withCatalog: true });
@@ -886,7 +878,7 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   const rawApiKey = process.env.GEMINI_API_KEY || '';
   const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, '').trim();
   if (!apiKey) {
-    throw new Error('AI skaner sozlanmagan. Vercel Environment Variables orqali GEMINI_API_KEY ni kiriting.');
+    fail('AI skaneri sozlanmagan. Administratorga xabar bering.', 'OCR_PROVIDER_AUTH_ERROR', 503);
   }
 
   const safeRoster = roster.map(p => ({
@@ -907,94 +899,44 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   });
 
   const ocrModels = configuredOcrModels(process.env.GEMINI_OCR_MODELS);
+  const providerStarted = Date.now();
   const provider = await extractWithRecheck({
-    apiKey, requestBody, models: ocrModels, deadlineMs: Math.max(0, 45000 - (Date.now() - scanStarted)),
+    apiKey, requestBody, models: ocrModels, deadlineMs: Math.max(0, scanDeadline - providerStarted),
     validate: parsed => Array.isArray(parsed?.players),
     normalize: parsed => normaliseOcrPayload(parsed, safeRoster, safeHeroes, { mode: ocrMode, imageCount: imageParts.length })
   });
 
   if (!provider.success) {
-    const hasTimeout = provider.meta?.attempts?.some(attempt => attempt.status === 'timeout');
-    const isRateLimited = provider.meta?.attempts?.some(attempt => attempt.status === 429);
-    const isAuthError = provider.meta?.attempts?.some(attempt => attempt.status === 401 || attempt.status === 403);
-    const detail = isAuthError
-      ? 'AI skaner kaliti (GEMINI_API_KEY) yaroqsiz yoki muddati o‘tgan. Iltimos, Vercel Environment Variables orqali yangi kalit kiriting.'
-      : hasTimeout
-        ? 'AI tahlili kutilganidan uzoq davom etdi (timeout). Qayta urinib ko‘ring.'
-        : isRateLimited
-          ? 'AI xizmati hozir band (rate limit). 1 daqiqadan keyin qayta urinib ko‘ring.'
-          : 'AI skrinshotni to‘liq o‘qiy olmadi. Iltimos, tiniqroq Scoreboard skrinshotini yuboring.';
-    throw new Error(detail);
+    const failure = ocrProviderFailure(provider.meta);
+    console.warn('Telegram OCR failure', { code: failure.code,
+      downloadMs: downloadedAt - scanStarted, preparationMs: providerStarted - downloadedAt,
+      attempts: provider.meta.attempts.map(({ status, durationMs }) => ({ status, durationMs })) });
+    fail(failure.error, failure.code, failure.status);
   }
 
   const ocrData = provider.data;
-  if (ocrData.scanError) throw new Error('Rasmlar bir matchga tegishli emas yoki Battle ID o‘qilmadi. Mos Scoreboard va Data rasmlarini yuboring.');
-  const visualHeroMap = new Map();
-  if (Number.isInteger(ocrData.sourceImageIndex)) {
+  if (ocrData.scanError) photoFailure('Rasmlar bir matchga tegishli emas yoki Battle ID o‘qilmadi. Mos Scoreboard va Data rasmlarini yuboring.', 'TELEGRAM_SCREENSHOT_EVIDENCE');
+  const hasScoreboard = ocrData.screenshots.some(image => image.kind === 'scoreboard');
+  if (hasScoreboard && Number.isInteger(ocrData.sourceImageIndex)) {
     try {
-      for (const match of (await matchScreenshotHeroes(photoBuffers[ocrData.sourceImageIndex], { heroes: safeHeroes })) || []) visualHeroMap.set(match.sourceRow, match);
-    } catch { /* Uncertain portraits remain for review. */ }
+      const matches = await matchScreenshotHeroes(photoBuffers[ocrData.sourceImageIndex], { heroes: safeHeroes });
+      applyVerifiedHeroMatches(ocrData, matches, safeHeroes);
+    } catch { applyVerifiedHeroMatches(ocrData, [], safeHeroes); }
   }
 
-  applyVerifiedHeroMatches(ocrData, [...visualHeroMap.values()], safeHeroes);
-
-  // 4. Match players with roster (Trio / Squad / Team5 / Solo)
-  const matchedStats = [];
-  const usedPlayerIds = new Set();
-
-  for (const p of ocrData.players) {
-    let matched = null;
-    if (p.matchedPlayerId) {
-      matched = roster.find(r => r.id === p.matchedPlayerId);
-    }
-    if (!matched && p.detectedName) {
-      matched = smartMatchRoster(p.detectedName, roster);
-    }
-
-    const chosenHeroName = p.heroUsed;
-    const heroCandidates = p.heroCandidates || [];
-    let heroRef = null;
-    if (chosenHeroName) {
-      const cleanHero = String(chosenHeroName).trim().toLowerCase();
-      heroRef = heroes.find(h => String(h.name).trim().toLowerCase() === cleanHero) || null;
-      if (!heroRef) {
-        const normH = cleanHero.replace(/[^a-z0-9]/g, '');
-        heroRef = heroes.find(h => String(h.name).toLowerCase().replace(/[^a-z0-9]/g, '') === normH) || null;
-      }
-    }
-    const finalHeroName = heroRef ? heroRef.name : (chosenHeroName || '');
-    const finalHeroId = heroRef ? heroRef.id : null;
-
-    if (matched && !usedPlayerIds.has(matched.id)) {
-      usedPlayerIds.add(matched.id);
-      matchedStats.push({
-        playerId: matched.id,
-        playerName: matched.name,
-        heroId: finalHeroId,
-        heroNameSnapshot: finalHeroName,
-        heroUsed: finalHeroName,
-        heroCandidates,
-        heroResolution: finalHeroId ? 'canonical' : 'legacy_name',
-        rolePlayed: p.rolePlayed || '',
-        roleSource: p.rolePlayed ? 'ocr' : 'unknown',
-        kills: p.kills,
-        deaths: p.deaths,
-        assists: p.assists,
-        inGameScore: p.inGameScore,
-        medal: p.medal || null,
-        savage: p.savage,
-        maniac: p.maniac,
-        damageDealt: p.damageDealt,
-        damageReceived: p.damageReceived,
-        turretDamage: p.turretDamage,
-        teamfightParticipation: p.teamfightParticipation,
-        goldEarned: p.goldEarned
-      });
-    }
-  }
+  const rosterById = new Map(roster.map(player => [player.id, player]));
+  const matchedStats = ocrData.players.filter(row => rosterById.has(row.matchedPlayerId)).map(row => ({
+    ...row,
+    playerId: row.matchedPlayerId,
+    playerName: rosterById.get(row.matchedPlayerId).name,
+    heroId: hasScoreboard ? row.heroId : null,
+    heroUsed: hasScoreboard ? row.heroUsed : null,
+    rolePlayed: row.rolePlayed || '',
+    roleSource: row.rolePlayed ? 'ocr' : 'unknown'
+  }));
 
   if (!matchedStats.length) {
-    throw new Error('Skrinshotda Eclipse jamoasining birorta ham faol a‘zosi topilmadi. Faqat jamoa a‘zolari qatnashgan matchlarni yuboring.');
+    photoFailure('Skrinshotda Eclipse jamoasining birorta ham faol a‘zosi topilmadi. Faqat jamoa a‘zolari qatnashgan matchlarni yuboring.', 'TELEGRAM_NO_ROSTER');
   }
 
   // 5. Resolve match properties
@@ -1007,7 +949,7 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   else if (capLower.includes('#oddiy') || capLower.includes('#casual')) matchType = 'casual';
 
   let result = (ocrData.result && MATCH_RESULTS.has(ocrData.result)) ? ocrData.result : null;
-  if (!result) throw new Error('Match natijasi o‘qilmadi. Victory yoki Defeat ko‘rinadigan rasm yuboring.');
+  if (!result) photoFailure('Match natijasi o‘qilmadi. Victory yoki Defeat ko‘rinadigan rasm yuboring.', 'TELEGRAM_MATCH_RESULT');
 
   let matchDate;
   try {
@@ -1017,12 +959,11 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   }
   const durationSeconds = ocrData.durationSeconds;
   const durationFormatted = ocrData.durationFormatted;
-  if (!durationSeconds) throw new Error('Match davomiyligi o‘qilmadi. To‘liq skrinshot yuboring.');
+  if (!durationSeconds) photoFailure('Match davomiyligi o‘qilmadi. To‘liq skrinshot yuboring.', 'TELEGRAM_MATCH_DURATION');
   const matchScope = matchedStats.length === 5 ? 'team5' : matchedStats.length === 1 ? 'individual' : 'squad';
   const hasDamageStats = matchedStats.some(stat => Number.isInteger(stat.damageDealt));
-  const hasScoreboardStats = matchedStats.some(stat => Number.isInteger(stat.kills) && (stat.kills > 0 || stat.deaths > 0 || stat.assists > 0))
-    || matchedStats.some(stat => stat.medal && stat.medal !== 'none');
-  const entryMode = (hasDamageStats && (hasScoreboardStats || imageParts.length > 1)) ? 'full' : 'practice_lite';
+  const hasDamage = ocrData.screenshots.some(image => image.kind === 'damage');
+  const entryMode = hasScoreboard && hasDamage ? 'full' : 'practice_lite';
 
   // 6. Create or upgrade official submission
   const simulatedDraft = {
@@ -1046,36 +987,25 @@ export async function createSubmissionFromTelegramPhoto({ fileUrl, fileUrls, cap
   const senderId = sender?.id ? String(sender.id) : 'telegram_bot';
   const identity = { role: 'admin', user: `tg_${senderId}` };
 
-  if (existingSubmissionId || hasDamageStats) {
-    const bundle = await readBundle({ withCatalog: true });
-    const explicit = existingSubmissionId ? bundle.submissions.find(item => item.id === existingSubmissionId) : null;
-    if (existingSubmissionId && !explicit) throw new Error('Yangilanadigan submission topilmadi.');
-    if (explicit && !sameBattleRoster(simulatedDraft, explicit.review?.correctedDraft || explicit.draft)) {
-      throw new Error('Qo‘shimcha rasm avvalgi matchning Battle ID va rosteriga mos emas.');
-    }
-    const pendingSub = explicit || bundle.submissions.find(item => item.status === 'pending'
+  if (hasDamage && hasDamageStats) {
+    const latest = await readBundle();
+    const pendingSub = latest.submissions.find(item => item.status === 'pending'
       && sameBattleRoster(simulatedDraft, item.review?.correctedDraft || item.draft));
 
     if (pendingSub && (pendingSub.review?.correctedDraft || pendingSub.draft)?.entryMode !== 'full') {
-      const upgraded = await upgradePendingSubmission(pendingSub.id, simulatedDraft);
+      const upgraded = await upgradePendingSubmission(pendingSub.id, simulatedDraft, { allowUnresolvedHero: true });
       return { submission: upgraded, isUpgrade: true };
     }
+    if (pendingSub && !hasScoreboard) return { submission: pendingSub, isUpgrade: false };
   }
 
-  if (matchedStats.some(player => !player.heroId)) throw new Error('Hero portreti ishonchli aniqlanmadi. Saytda nomzodlardan to‘g‘ri heroni tanlab yuboring.');
+  if (!hasScoreboard) photoFailure('Bu Data skrinshoti uchun mos qoralama topilmadi. Avval Scoreboard rasmini yoki ikkala rasmni albom qilib yuboring.', 'TELEGRAM_SCOREBOARD_REQUIRED');
 
-  const simulatedReq = {
-    body: {
-      claimedPlayerId: matchedStats[0]?.playerId || 'admin',
-      submitter: {
-        name: submitterName,
-        telegramId: sender?.id
-      },
-      draft: simulatedDraft
-    }
-  };
-
-  const submission = await queueMutation(() => createSubmission(simulatedReq, identity));
+  const reviewIssues = [];
+  if (matchedStats.some(player => !player.heroId)) reviewIssues.push('Qahramon aniqlanmadi. Tasdiqlashdan oldin qahramonni tanlang.');
+  if (ocrData.players.some(player => player.identityReviewRequired)) reviewIssues.push('Bir IGN to‘liq o‘qilmadi. Roster qatorlarini skrinshotdan tekshiring.');
+  const simulatedReq = { body: { source: 'ocr', claimedPlayerId: matchedStats[0].playerId, draft: simulatedDraft, reviewIssues } };
+  const submission = await queueMutation(() => createSubmission(simulatedReq, identity, { allowUnresolvedHero: true }));
   return { submission, isUpgrade: false };
 }
 
@@ -1220,7 +1150,7 @@ export default async function handler(req, res) {
       if (req.body?.action === 'save') {
         if (!await requireAdmin(req, res)) return;
         const result = await queueMutation(async () => {
-          const created = await createSubmission(req, identity);
+          const created = await createSubmission({ body: { ...req.body, claimedPlayerId: 'admin' } }, identity);
           if (created.quality.possibleMatchIds.length) return { submission: created, reviewRequired: true };
           return approveSubmission(created.id);
         });

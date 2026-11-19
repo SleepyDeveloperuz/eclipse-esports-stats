@@ -1,12 +1,12 @@
 import { buildMedalDetail } from '../lib/ocr-details.js';
 import { getValidAccessIdentity, isAuthConfigured } from './auth.js';
 import { createSessionSecurity } from '../lib/session-security.js';
-import { configuredOcrModels, requestOcrProvider } from '../lib/ocr-provider.js';
+import { configuredOcrModels, ocrProviderFailure, requestOcrProvider } from '../lib/ocr-provider.js';
 import { extractWithRecheck } from '../lib/ocr-recheck.js';
 import { batchIndexRequest, normalizeBatchIndex } from '../lib/batch-index.js';
 import { normaliseAwardEvidence } from '../lib/match-awards.js';
 import { checkScreenshotEvidence, applyVerifiedHeroMatches } from '../lib/ocr-evidence.js';
-import { smartMatchRoster, rosterAliases } from '../lib/roster-matcher.js';
+import { smartMatchRoster, isIncompleteRosterIgn, rosterAliases } from '../lib/roster-matcher.js';
 import { cleanBattleId } from '../js/batch-model.js';
 import { matchScreenshotHeroes } from '../lib/server-hero-matcher.js';
 import { cleanText, cleanId } from '../lib/utils.js';
@@ -145,9 +145,13 @@ export function normaliseOcrPayload(parsedData, rosterPlayers = [], heroList = [
     const detectedName = cleanText(player?.detectedName, 80)
       || (mode === 'hero_review' && rosterMap.has(claimedId) ? rosterMap.get(claimedId) : '');
     const matched = smartMatchRoster(detectedName, rosterPlayers);
-    if (!matched || !rosterMap.has(matched.id) || evidence.error) return;
-    const matchedPlayerId = matched.id;
-    const participantKey = matchedPlayerId;
+    const validSourceRow = Number.isInteger(player?.sourceRow) && player.sourceRow >= 1 && player.sourceRow <= 5;
+    const sourceRow = validSourceRow && sourceRows.get(player.sourceRow) === 1 ? player.sourceRow : null;
+    const matchedPlayerId = rosterMap.has(matched?.id) ? matched.id : null;
+    const identityReviewRequired = !matchedPlayerId && Boolean(sourceRow) && mode !== 'hero_review'
+      && isIncompleteRosterIgn(detectedName, rosterPlayers);
+    if ((!matchedPlayerId && !identityReviewRequired) || evidence.error) return;
+    const participantKey = matchedPlayerId || `unresolved:${sourceRow}`;
     if (seenParticipants.has(participantKey)) {
       issues.push('duplicate_participant');
       return;
@@ -158,8 +162,7 @@ export function normaliseOcrPayload(parsedData, rosterPlayers = [], heroList = [
     }
     seenParticipants.add(participantKey);
 
-    const validSourceRow = Number.isInteger(player?.sourceRow) && player.sourceRow >= 1 && player.sourceRow <= 5;
-    const sourceRow = validSourceRow && sourceRows.get(player.sourceRow) === 1 ? player.sourceRow : null;
+    if (identityReviewRequired) issues.push('unresolved_roster_ign');
     if (numbersOnly && !validSourceRow) issues.push('missing_or_invalid_source_row');
     if (validSourceRow && sourceRows.get(player.sourceRow) > 1) issues.push('duplicate_source_row');
     const heroCandidate = numbersOnly ? '' : cleanText(player?.heroUsed, 80);
@@ -179,6 +182,7 @@ export function normaliseOcrPayload(parsedData, rosterPlayers = [], heroList = [
     normalizedPlayers.push({
       sourceRow,
       matchedPlayerId,
+      ...(identityReviewRequired ? { identityReviewRequired } : {}),
       detectedName,
       heroUsed: canonicalHero || heroCandidate || null,
       heroRecognized: Boolean(canonicalHero) && player?.heroRecognized === true,
@@ -344,7 +348,8 @@ export function buildOcrRequest({ mode = 'scoreboard', purpose, roster = [], her
     'Return the friendly left-hand team only, in its original top-to-bottom order. Never mix in the opposing right-hand team.',
     'sourceRow is the original SCOREBOARD vertical row number: top=1, then 2,3,4, bottom=5. Use the damage row only when there is no scoreboard. Each sourceRow is unique. Never renumber when guests are omitted.',
     'Images may be in either order. Rows can MOVE between screenshots: join by complete IGN, never by position. sourceRow always refers to the scoreboard when available.',
-    'Return ONLY roster members whose complete IGN or approved alias is visible in an actual friendly player row. Omit every guest and opponent entirely. Ignore notifications, chat, suggestions and overlays even when they name a roster member. If none match, players=[]. No guest names or guest statistics anywhere in the output, including notes.',
+    'Read the literal IGN from each of the five friendly rows before filtering. Colored clan tags can be adjacent to the IGN or shown with a separator. Compare the full IGN with the roster after separating the tag; keep the visible spelling in detectedName. Inspect the bottom row and the highlighted row independently.',
+    'Return roster members with a complete visible IGN or approved alias. Also return a row with matchedPlayerId=null if only the beginning of a current roster IGN is legible; copy only the literal visible text and preserve its original row and statistics for manual review. Omit identifiable guests and all opponents. Ignore notifications and overlays. If there are no eligible rows, players=[].',
     'Unknown, obscured or absent values must be null, not zero, false or a guessed value.',
     'result is win for visible Victory and loss for visible Defeat. Never infer it from kills. duration is the visible MM:SS match duration, not the clock or date.',
     'matchType and teamTurrets must be null unless explicitly visible. Never infer destroyed turrets from turret damage.',
@@ -497,21 +502,8 @@ export default async function handler(req, res) {
       const provider = await requestOcrProvider({ apiKey: GEMINI_API_KEY, models: OCR_MODELS, requestBody: batchIndexRequest(imageParts), batchCount: images.length,
         validate: data => { try { normalizeBatchIndex(data, images.length); return true; } catch { return false; } } });
       if (!provider.success) {
-        const hasTimeout = provider.meta?.attempts?.some(attempt => attempt.status === 'timeout');
-        const isRateLimited = provider.meta?.attempts?.some(attempt => attempt.status === 429);
-        const isAuthError = provider.meta?.attempts?.some(attempt => attempt.status === 401 || attempt.status === 403);
-        return res.status(hasTimeout ? 504 : (isRateLimited ? 503 : (isAuthError ? 400 : 502))).json({
-          code: hasTimeout ? 'OCR_PROVIDER_TIMEOUT' : (isRateLimited ? 'OCR_PROVIDER_BUSY' : (isAuthError ? 'OCR_PROVIDER_AUTH_ERROR' : 'OCR_PROVIDER_UNAVAILABLE')),
-          retryable: !isAuthError,
-          ocrMeta: provider.meta,
-          error: isAuthError
-            ? "AI skaner kaliti (GEMINI_API_KEY) yaroqsiz yoki muddati o‘tgan. Iltimos, Vercel Environment Variables orqali yangi kalit kiriting."
-            : (hasTimeout
-              ? "AI tahlili kutilganidan uzoq davom etdi. Qayta urinib ko‘ring."
-              : (isRateLimited
-                ? "AI xizmati hozir band. Bir daqiqadan keyin qayta urinib ko‘ring."
-                : "Rasmlarni juftlash bajarilmadi. Qayta urinib ko‘ring."))
-        });
+        const { status, ...failure } = ocrProviderFailure(provider.meta);
+        return res.status(status).json({ ...failure, ocrMeta: provider.meta });
       }
       return res.status(200).json({ success: true, data: normalizeBatchIndex(provider.data, images.length), ocrMeta: provider.meta });
     }
@@ -558,21 +550,8 @@ export default async function handler(req, res) {
       ? await extractWithRecheck({ ...providerOptions, normalize: parsed => normaliseOcrPayload(parsed, safeRoster, safeHeroes, { mode, imageCount: imageParts.length }) })
       : await requestOcrProvider(providerOptions);
     if (!provider.success) {
-      const hasTimeout = provider.meta.attempts.some(attempt => attempt.status === 'timeout');
-      const isRateLimited = provider.meta.attempts.some(attempt => attempt.status === 429);
-      const isAuthError = provider.meta.attempts.some(attempt => attempt.status === 401 || attempt.status === 403);
-      return res.status(hasTimeout ? 504 : (isRateLimited ? 503 : (isAuthError ? 400 : 502))).json({
-        code: hasTimeout ? 'OCR_PROVIDER_TIMEOUT' : (isRateLimited ? 'OCR_PROVIDER_BUSY' : (isAuthError ? 'OCR_PROVIDER_AUTH_ERROR' : 'OCR_PROVIDER_UNAVAILABLE')),
-        retryable: !isAuthError,
-        ocrMeta: provider.meta,
-        error: hasTimeout
-          ? "AI tahlili kutilganidan uzoq davom etdi. Shu rasmlar bilan yana bir marta urinib ko‘ring."
-          : isRateLimited
-            ? "AI xizmati hozir band. Bir daqiqadan keyin qayta urinib ko‘ring."
-            : isAuthError
-              ? "AI skaner kaliti (GEMINI_API_KEY) yaroqsiz yoki muddati o‘tgan. Iltimos, Vercel Environment Variables orqali yangi kalit kiriting."
-              : "AI skaner yaroqli natija qaytarmadi. Birozdan keyin qayta urinib ko‘ring."
-      });
+      const { status, ...failure } = ocrProviderFailure(provider.meta);
+      return res.status(status).json({ ...failure, ocrMeta: provider.meta });
     }
 
     const normalizedData = provider.normalized ? provider.data : normaliseOcrPayload(provider.data, safeRoster, safeHeroes, { mode, imageCount: imageParts.length });

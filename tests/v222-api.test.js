@@ -53,6 +53,8 @@ test('full submission API supports viewer review, guarded captain correction and
     assert.equal(repeated.statusCode, 200); assert.equal(repeated.body.match.id, approved.body.match.id);
     const direct = await call('POST', { action: 'save', claimedPlayerId: 'p1', draft: { ...draft, date: '2026-09-06' } }, admin);
     assert.equal(direct.statusCode, 201); assert.equal(direct.body.submission.status, 'approved');
+    assert.equal(direct.body.submission.submitter.claimedPlayerId, 'admin');
+    assert.equal(direct.body.submission.draft.claimedPlayerName, 'Captain');
     const final = JSON.parse((await repository.files())['eclipse_data.json'].content);
     assert.equal(final.matches.length, 2); assert.equal(final.matches[0].playerStats[0].damageDealt, 71234);
     const duplicate = await call('POST', { claimedPlayerId: 'p1', source: 'ocr', scanQuality: { ...scanQuality, id: 'fixture_duplicate_scan_001' }, draft: { ...draft, entryMode: 'practice_lite' } }, viewer);

@@ -4,6 +4,15 @@ Barcha yangilanishlar, yangi funksiyalar, arxitektura o'zgarishlari va tuzatishl
 
 ---
 
+## [v2.43.1] — 2026-11-19
+
+- Admin kiritgan matchlarda «Kim kiritmoqda?» maydoni Kapitan bo‘lib qoladi.
+- OCR Shadow as always’ning klan tegli IGN yozuvini taniydi. Qisman o‘qilgan nom va statistika qo‘lda tekshirish uchun ko‘rsatiladi.
+- Telegram’da yakka rasm, rasm fayli yoki albomdan qoralama yaratiladi. Data skrinshoti mos BattleID va rosterga biriktiriladi.
+- Sekin AI urinishidan keyin zaxira modelga vaqt ajratiladi. Xizmat bandligi va vaqt tugashi alohida ko‘rsatiladi.
+
+---
+
 ## [v2.43.0] — 2026-11-18
 
 - Draft tugmasidagi ikki hodisa bir bosishda oynani ochib-yopardi. Endi bitta hodisa ishlaydi va tugma nomi ko‘rinadi.

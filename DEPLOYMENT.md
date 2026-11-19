@@ -1,6 +1,6 @@
 # Eclipse Esports — Deployment & Infrastructure Guide
 
-Current release: **v2.43.0 — Team Analytics, Progress and Hero Pools**
+Current release: **v2.43.1 — Kapitan, OCR va Telegram**
 
 ---
 

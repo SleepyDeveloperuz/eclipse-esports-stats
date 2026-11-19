@@ -402,7 +402,8 @@
         : el.dataset.field === 'highlightOverflow' ? (el.value === '' ? null : Number(el.value)) : el.value]));
       return { version: 1, savedAt: new Date().toISOString(), fields: Object.fromEntries([...form.querySelectorAll('[id].form-input, [id].form-select')].filter(el => !el.multiple).map(el => [el.id, el.value])),
         team: Object.fromEntries([...form.querySelectorAll('[data-team-field]')].map(el => [el.dataset.teamField, el.value])), result: form.querySelector('[name="practice-result"]:checked')?.value || '',
-        playerStats: [...form.querySelectorAll('.submission-player-row')].map(row => ({ ...read(row), heroSource: row.dataset.heroSource, medalSource: row.dataset.medalSource, roleSource: row.dataset.roleSource })),
+        playerStats: [...form.querySelectorAll('.submission-player-row')].map(row => ({ ...read(row), detectedName: row.dataset.detectedName,
+          sourceRow: row.dataset.sourceRow ? Number(row.dataset.sourceRow) : undefined, heroSource: row.dataset.heroSource, medalSource: row.dataset.medalSource, roleSource: row.dataset.roleSource })),
         guestStats: [...form.querySelectorAll('.match-guest')].map(row => ({ ...read(row), guestId: row.dataset.guestId })),
         substitutes: [...form.querySelector('#practiceSubstitutes').selectedOptions].map(el => el.value),
         source: this.ocrSource, reviewIssues: this.ocrReviewIssues,
@@ -540,8 +541,11 @@
       const options = players.map(player => `<option value="${this.escape(player.id)}">${this.escape(player.name)}${player.realName ? ` (${this.escape(player.realName)})` : ''}</option>`).join('');
       const submitter = form.querySelector('#practiceSubmitter');
       const claimedPlayerId = submitter.value;
-      submitter.innerHTML = (this.auth.isAdmin() ? '<option value="admin">Jamoa lideri (IGL / Captain) nomidan</option>' : '<option value="">Rosterdan tanlang…</option>') + options;
-      submitter.value = claimedPlayerId;
+      const captainEntry = this.isCaptainEntry();
+      submitter.disabled = captainEntry;
+      submitter.innerHTML = captainEntry ? '<option value="admin">Kapitan</option>'
+        : (this.auth.isAdmin() ? '<option value="admin">Kapitan</option>' : '<option value="">Rosterdan tanlang…</option>') + options;
+      submitter.value = captainEntry ? 'admin' : claimedPlayerId;
       const substitutes = form.querySelector('#practiceSubstitutes');
       const selected = new Set([...substitutes.selectedOptions].map(option => option.value));
       substitutes.innerHTML = options;
@@ -558,7 +562,11 @@
       this.images = [null, null]; this.imageNames = ['', '']; this.updateImageSlots();
       form.querySelector('#practicePlayerRows').innerHTML = ''; this.rowCounter = 0;
       (saved.playerStats || []).slice(0, 5).forEach(row => this.addParticipantRow(row));
-      for (const [id, value] of Object.entries(saved.fields || {})) { const input = [...form.querySelectorAll('[id]')].find(el => el.id === id); if (input) input.value = value || ''; }
+      for (const [id, value] of Object.entries(saved.fields || {})) {
+        if (id === 'practiceSubmitter' && this.isCaptainEntry()) continue;
+        const input = [...form.querySelectorAll('[id]')].find(el => el.id === id);
+        if (input) input.value = value || '';
+      }
       form.querySelectorAll('[data-team-field]').forEach(el => { el.value = saved.team?.[el.dataset.teamField] ?? ''; });
       form.querySelectorAll('[name="practice-result"]').forEach(el => { el.checked = el.value === saved.result; });
       form.querySelector('#practiceGuestRows').innerHTML = ''; (saved.guestStats || []).slice(0, 4).forEach(row => this.addGuest(row));

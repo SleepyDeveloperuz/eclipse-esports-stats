@@ -208,9 +208,14 @@ window.SubmissionManager = class SubmissionManager {
     window.EclipseApp?.refreshMotion?.(this.container);
   }
 
+  isCaptainEntry() {
+    return Boolean(this.auth.isAdmin?.() && !this.editingSubmission);
+  }
+
   formMarkup() {
     const today = window.EclipseDateUtils?.today?.() || new Date().toLocaleDateString('en-CA');
-    const playerOptions = (this.availablePlayers?.() || this.db.getActivePlayers?.() || this.db.getPlayers())
+    const captainEntry = this.isCaptainEntry();
+    const playerOptions = captainEntry ? '' : (this.availablePlayers?.() || this.db.getActivePlayers?.() || this.db.getPlayers())
       .map(player => `<option value="${this.escape(player.id)}">${this.escape(player.name)}${player.realName ? ` (${this.escape(player.realName)})` : ''}</option>`).join('');
     return `
       <form id="practiceSubmissionForm" class="submission-form" novalidate>
@@ -227,7 +232,7 @@ window.SubmissionManager = class SubmissionManager {
         <div id="practiceScanStatus" class="submission-status-line" role="status" aria-live="polite"></div>
 
         <div class="submission-form-grid">
-          <label><span>Kim kiritmoqda?</span><select class="form-select" id="practiceSubmitter" required>${this.auth.isAdmin() ? '<option value="admin">Jamoa lideri (IGL / Captain) nomidan</option>' : '<option value="">Rosterdan tanlang…</option>'}${playerOptions}</select></label>
+          <label><span>Kim kiritmoqda?</span><select class="form-select" id="practiceSubmitter" required${captainEntry ? ' disabled' : ''}>${captainEntry ? '<option value="admin">Kapitan</option>' : '<option value="">Rosterdan tanlang…</option>'}${playerOptions}</select></label>
           <label><span>Sana</span><input class="form-input" id="practiceDate" type="date" value="${today}" required></label>
           <label><span>Match turi</span><select class="form-select" id="practiceMatchType" required><option value="ranked">Ranked</option><option value="scrim">Scrim</option><option value="tournament">Turnir</option><option value="casual">Oddiy</option></select></label>
           <label><span>Davomiylik <em>ixtiyoriy</em></span><input class="form-input" id="practiceDuration" inputmode="numeric" placeholder="15:30" pattern="\\d{1,3}:[0-5]\\d"></label>
@@ -417,9 +422,10 @@ window.SubmissionManager = class SubmissionManager {
     const row = document.createElement('div');
     row.className = 'submission-player-row';
     row.dataset.rowId = String(index);
+    if (values.detectedName && !values.playerId) row.dataset.detectedName = values.detectedName;
     row.innerHTML = `
       <div class="submission-player-row__index">${String(index).padStart(2, '0')}</div>
-      <label><span>O‘yinchi</span><select class="form-select" data-field="playerId" required><option value="">Tanlang…</option>${players.map(player => `<option value="${this.escape(player.id)}" ${player.id === values.playerId ? 'selected' : ''}>${this.escape(player.name)}${player.realName ? ` (${this.escape(player.realName)})` : ''}</option>`).join('')}</select></label>
+      <label><span>O‘yinchi</span>${row.dataset.detectedName ? `<small>Rasmda o‘qilgan IGN · ${this.escape(row.dataset.detectedName)}</small>` : ''}<select class="form-select" data-field="playerId" required><option value="">Tanlang…</option>${players.map(player => `<option value="${this.escape(player.id)}" ${player.id === values.playerId ? 'selected' : ''}>${this.escape(player.name)}${player.realName ? ` (${this.escape(player.realName)})` : ''}</option>`).join('')}</select></label>
       <label><span>Qahramon</span><input class="form-input" data-field="heroUsed" list="practiceHeroes${index}" value="${this.escape(values.heroUsed || '')}" required><datalist id="practiceHeroes${index}">${heroes.map(hero => `<option value="${this.escape(hero.name)}">${this.escape(hero.role || '')}</option>`).join('')}</datalist></label>
       <label><span>Matchdagi rol · ixtiyoriy</span><select class="form-select" data-field="rolePlayed"><option value="">Noma’lum</option>${roles.map(role => `<option value="${role}" ${role === values.rolePlayed ? 'selected' : ''}>${role}</option>`).join('')}</select></label>
       <label class="submission-kda"><span>K / D / A</span><span><input class="form-input" data-field="kills" type="number" min="0" max="200" value="${this.escape(values.kills ?? '')}" required><input class="form-input" data-field="deaths" type="number" min="0" max="200" value="${this.escape(values.deaths ?? '')}" required><input class="form-input" data-field="assists" type="number" min="0" max="500" value="${this.escape(values.assists ?? '')}" required></span></label>
@@ -699,7 +705,11 @@ window.SubmissionManager = class SubmissionManager {
       awaitingProvider = false;
       if (!current()) return;
       this.ocrMeta = payload.ocrMeta || null;
-      if (!response.ok || !payload.data) throw new Error(payload.error || 'AI skan bajarilmadi');
+      if (!response.ok || !payload.data) {
+        const error = new Error(payload.error || 'AI skan bajarilmadi');
+        error.retryable = payload.retryable !== false;
+        throw error;
+      }
       this.ocrSource = 'ocr';
       this.ocrReviewIssues = Array.isArray(payload.data.reviewIssues) ? payload.data.reviewIssues : [];
       this.setScanStage('heroes');
@@ -733,8 +743,9 @@ window.SubmissionManager = class SubmissionManager {
       if (quality) quality.outcome = 'error';
       this.setScanStage(this._scanStage || 'read', 'error');
       if (status) {
-        status.innerHTML = `<span class="is-error"><i class="fa-solid fa-triangle-exclamation"></i> ${this.escape(error.message)}</span><p>Rasmlar va kiritgan ma’lumotlaringiz shu sahifada saqlandi. Aloqani tekshiring va qayta urining; sahifani yangilash shart emas.</p><button type="button" class="btn btn-secondary" data-scan-retry>Qayta urinish</button>`;
-        status.querySelector('[data-scan-retry]').onclick = () => this.scanImages();
+        status.innerHTML = `<span class="is-error"><i class="fa-solid fa-triangle-exclamation"></i> ${this.escape(error.message)}</span><p>Rasmlar va kiritgan ma’lumotlaringiz shu sahifada saqlandi.</p>${error.retryable === false ? '' : '<button type="button" class="btn btn-secondary" data-scan-retry>Qayta urinish</button>'}`;
+        const retry = status.querySelector('[data-scan-retry]');
+        if (retry) retry.onclick = () => this.scanImages();
       }
       this.renderOcrMeta(status, this.ocrMeta);
       window.showToast?.(error.message, 'error');
@@ -758,12 +769,10 @@ window.SubmissionManager = class SubmissionManager {
     if (!form || !rows) return;
     const roster = this.db.getActivePlayers?.() || this.db.getPlayers();
     const roles = ['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'];
-    // API results already have verified IGN identities; never rematch guest names here.
+    // Only the server decides which rows have a reliable roster identity.
     const detected = (Array.isArray(data.players) ? data.players.slice(0, 5) : [])
-      .filter(player => roster.some(item => item.id === player.matchedPlayerId));
-    const trackedCount = new Set(detected.map(player => player.matchedPlayerId)).size;
-    if (trackedCount > 5) throw new Error('Bitta jamoada ko‘pi bilan 5 ta Eclipse a’zosi bo‘lishi mumkin.');
-    if (!trackedCount) throw new Error('Eclipse a’zosi ishonchli aniqlanmadi. O‘yinchini tanlab, ma’lumotni qo‘lda kiriting.');
+      .filter(player => player.identityReviewRequired === true || roster.some(item => item.id === player.matchedPlayerId));
+    if (!detected.length) throw new Error('Eclipse a’zosi ishonchli aniqlanmadi. O‘yinchini tanlab, ma’lumotni qo‘lda kiriting.');
     this.formDirty = true;
     this._manualFormEdits = false;
     this.ocrExcludedRows = (data.players?.length || 0) - detected.length;
@@ -772,7 +781,7 @@ window.SubmissionManager = class SubmissionManager {
     const used = new Set();
     (detected.length ? detected : [{}]).forEach(player => {
       let playerId = roster.some(item => item.id === player.matchedPlayerId) ? player.matchedPlayerId : '';
-      if (used.has(playerId)) return;
+      if (playerId && used.has(playerId)) return;
       if (playerId) used.add(playerId);
       const detectedRole = roles.includes(player.rolePlayed) ? player.rolePlayed : '';
       const resolvedHero = this.heroDb?.resolve?.(player.heroUsed);
@@ -808,7 +817,7 @@ window.SubmissionManager = class SubmissionManager {
       ? data.players.filter(p => Number.isInteger(p.kills)).map(p => p.kills)
       : [];
     const allKillsSum = allParsedKills.length === 5 ? allParsedKills.reduce((s, k) => s + k, 0) : null;
-    const eclipseKillsSum = detected.reduce((s, p) => s + (Number.isInteger(p.kills) ? p.kills : 0), 0);
+    const eclipseKillsSum = detected.reduce((sum, player) => sum + (used.has(player.matchedPlayerId) && Number.isInteger(player.kills) ? player.kills : 0), 0);
     this._mathReport = {
       teamKills: this._detectedTeamKills,
       enemyKills: this._detectedEnemyKills,
@@ -816,8 +825,9 @@ window.SubmissionManager = class SubmissionManager {
       eclipseKillsSum,
       valid: this._detectedTeamKills !== null && allKillsSum === this._detectedTeamKills
     };
-    const firstMapped = rows.querySelector('[data-field="playerId"]')?.value;
-    if (firstMapped) form.querySelector('#practiceSubmitter').value = firstMapped;
+    const firstMapped = detected.find(player => used.has(player.matchedPlayerId))?.matchedPlayerId;
+    if (this.isCaptainEntry()) form.querySelector('#practiceSubmitter').value = 'admin';
+    else if (firstMapped) form.querySelector('#practiceSubmitter').value = firstMapped;
   }
 
   formValue(row, field) {
@@ -846,7 +856,7 @@ window.SubmissionManager = class SubmissionManager {
         medal: this.formValue(row, 'medal') || null
       };
     });
-    const claimedPlayerId = form.querySelector('#practiceSubmitter')?.value || '';
+    const claimedPlayerId = this.isCaptainEntry() ? 'admin' : form.querySelector('#practiceSubmitter')?.value || '';
     const result = form.querySelector('input[name="practice-result"]:checked')?.value || '';
     if (!claimedPlayerId) throw new Error('Kim yuborayotganini tanlang.');
     if (!result) throw new Error('Match natijasini W yoki L qilib tanlang.');
