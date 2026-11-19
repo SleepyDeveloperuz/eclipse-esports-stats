@@ -47,7 +47,8 @@ window.EclipseApp = {
     if (!hasViewerAccess) return;
     document.documentElement.classList.remove('access-locked');
     document.getElementById('accessBootstrap')?.setAttribute('hidden', '');
-    this.navigate('dashboard');
+    const submissionId = new URL(window.location.href).searchParams.get('submission');
+    this.navigate(submissionId === null ? 'dashboard' : 'submissions', { submissionId });
     this.bindForegroundRefresh();
 
     // Background cloud sync down if configured
@@ -163,6 +164,27 @@ window.EclipseApp = {
     const topCloseBtn = document.getElementById('sidebarCloseBtn');
     const footerCloseBtn = document.getElementById('sidebarFooterCloseBtn');
     const appContainer = document.querySelector('.app-container');
+    window.matchMedia?.('(max-width: 768px)').addEventListener?.('change', () => {
+      if (document.getElementById('page-match-history')?.classList.contains('active')) this.renderFilteredHistory();
+    });
+    const upload = document.getElementById('mobileMatchUpload');
+    document.getElementById('mobileDockAction')?.addEventListener('click', () => {
+      if (!upload || !this.authManager.isAdmin()) return;
+      const opening = this.openMobileMatchEntry();
+      if (!opening) return;
+      upload.value = '';
+      try { upload.click(); } catch (_) { /* Use the visible picker on the scan page. */ }
+    });
+    upload?.addEventListener('change', async () => {
+      const files = Array.from(upload.files || []);
+      upload.value = '';
+      if (!files.length || !this.authManager.isAdmin()) return;
+      await this.mobileMatchEntry;
+      if (!this.authManager.isAdmin() || !document.getElementById('page-submissions')?.classList.contains('active')
+          || this.submissionManager.editingSubmission || this.submissionManager.linkedSubmissionId != null) return;
+      const form = document.querySelector('#submissionContainer #practiceSubmissionForm');
+      if (form) this.submissionManager.readImages(files, 0);
+    });
 
     const isMobile = () => (typeof window !== 'undefined' && window.innerWidth <= 768);
 
@@ -860,9 +882,29 @@ window.EclipseApp = {
 
   RELEASES: [
     {
-      "version": "v2.43.1",
+      "version": "v2.44.0",
       "date": "2026-11-19",
       "badge": "Hozirgi versiya",
+      "title": "Match kiritish va tekshirish",
+      "sections": [
+        {
+          "title": "Matchlar",
+          "icon": "fa-clipboard-check",
+          "badge": "Yangilanishlar",
+          "items": [
+            "Desktop formasida qatnashchi maydonlari panel kengligiga moslashadi. K/D/A, baho va medal to‘liq ko‘rinadi.",
+            "Telegram’dagi «Saytda tahrirlash» tugmasi kirishdan keyin aynan yuborilgan qoralamani ochadi.",
+            "AI qoralamasida noaniq qatorlar birinchi chiqadi. Roster yoki Guest tanlanganda statistika va qayta skanda qo‘lda tasdiqlangan tanlov saqlanadi.",
+            "Mobil Matchlar tarixida scoreboard qator ichida ochiladi. BattleID’ni nusxalash va qidirish mumkin.",
+            "Kapitanning mobil menyusidagi «Match qo‘shish» tugmasi skrinshot tanlashni ochadi."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "v2.43.1",
+      "date": "2026-11-19",
+      "badge": "Oldingi versiya",
       "title": "Kapitan, OCR va Telegram",
       "sections": [
         {
@@ -1248,7 +1290,31 @@ window.EclipseApp = {
     `).join('');
   },
 
-  navigate(pageId) {
+  updateMobileDockAction() {
+    const button = document.getElementById('mobileDockAction');
+    if (!button) return;
+    const captain = this.authManager?.isAdmin() === true;
+    button.setAttribute('aria-label', captain ? 'Match qo‘shish' : 'Tezkor qidiruv');
+    button.querySelector('[data-dock-label]').textContent = captain ? 'Match qo‘shish' : 'Qidiruv';
+    button.querySelector('i').classList.toggle('fa-plus', captain);
+    button.querySelector('i').classList.toggle('fa-magnifying-glass', !captain);
+    button.toggleAttribute('data-dock-search', !captain);
+  },
+
+  openMobileMatchEntry() {
+    const manager = this.submissionManager;
+    const currentForm = document.querySelector('#page-submissions.active #submissionContainer #practiceSubmissionForm');
+    if (manager.editingSubmission && manager.formDirty) manager.saveDraft();
+    const opening = currentForm && !manager.editingSubmission ? Promise.resolve() : this.navigate('submissions');
+    if (!opening) return null;
+    this.mobileMatchEntry = opening.then(() => {
+      const picker = document.querySelector('#page-submissions.active #submissionContainer [data-select-index="0"]');
+      picker?.focus();
+    });
+    return this.mobileMatchEntry;
+  },
+
+  navigate(pageId, { submissionId = null } = {}) {
     // The old hand-maintained hero page is retired; Hero Dossier now lives
     // inside the canonical, automatically synced Meta Lab.
     if (pageId === 'heroes') pageId = 'meta-lab';
@@ -1266,6 +1332,12 @@ window.EclipseApp = {
         this.navigate(pageId);
       });
       return;
+    }
+
+    const url = new URL(window.location.href);
+    if (submissionId === null && url.searchParams.has('submission')) {
+      url.searchParams.delete('submission');
+      window.history.replaceState(window.history.state, '', url);
     }
 
     if (pageId !== 'batch' && this.batchManager?.busy) this.batchManager.stop();
@@ -1317,6 +1389,7 @@ window.EclipseApp = {
     const players = this.dataStore.getActivePlayers?.() || this.dataStore.getPlayers();
     const allPlayers = this.dataStore.getAllPlayers?.() || this.dataStore.getPlayers();
 
+    let renderTask;
     switch (pageId) {
       case 'progress':
         this.progressHub ||= new window.ProgressHub(this);
@@ -1338,7 +1411,7 @@ window.EclipseApp = {
         this.renderFilteredHistory();
         break;
       case 'submissions':
-        this.submissionManager.render('submissionContainer');
+        renderTask = this.submissionManager.render('submissionContainer', null, submissionId);
         break;
       case 'players':
         this.playerManager.renderAddPlayerForm('addPlayerContainer');
@@ -1361,6 +1434,7 @@ window.EclipseApp = {
         break;
     }
     requestAnimationFrame(() => this.refreshMotion(target || document));
+    return renderTask;
   },
 
   editMatch(matchId) {
@@ -1467,7 +1541,8 @@ window.EclipseApp = {
         const note = (match.note || '').toLowerCase();
         const date = (match.date || '').toLowerCase();
         const type = matchType;
-        if (opponent.includes(q) || note.includes(q) || date.includes(q) || type.includes(q)) {
+        if (opponent.includes(q) || note.includes(q) || date.includes(q) || type.includes(q)
+            || String(match.sourceBattleId || '').includes(q) || String(match.id || '').toLowerCase().includes(q)) {
           return true;
         }
 

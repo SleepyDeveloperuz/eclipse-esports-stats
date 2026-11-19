@@ -457,6 +457,7 @@ class DataStore {
       entryMode,
       sourceSubmissionId: this.cleanId(source.sourceSubmissionId) || null,
       sourceBattleId: typeof source.sourceBattleId === 'string' && /^\d{10,24}$/.test(source.sourceBattleId) ? source.sourceBattleId : null,
+      ...Object.fromEntries(['teamKills', 'enemyKills'].filter(key => Number.isInteger(source[key]) && source[key] >= 0 && source[key] <= 1000).map(key => [key, source[key]])),
       verificationStatus,
       ocrVerified,
       needsReview,

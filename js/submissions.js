@@ -19,6 +19,8 @@ window.SubmissionManager = class SubmissionManager {
     this.cloudSync = cloudSync;
     this.endpoint = '/api/submissions';
     this.container = null;
+    this.linkedSubmissionId = null;
+    this.linkedRoster = null;
     this.data = { counts: { pending: 0, approved: 0, rejected: 0, total: 0 }, submissions: [] };
     this.images = [null, null];
     this.imageNames = ['', ''];
@@ -72,14 +74,15 @@ window.SubmissionManager = class SubmissionManager {
     })).catch(() => {}).finally(() => clearTimeout(timeout));
   }
 
-  async request(method = 'GET', body = null) {
+  async request(method = 'GET', body = null, submissionId = null) {
     const headers = {};
     if (body) headers['Content-Type'] = 'application/json';
     const token = method === 'PATCH' || method === 'DELETE'
       ? this.auth.getToken()
       : this.auth.getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
-    const response = await fetch(this.endpoint, {
+    const endpoint = submissionId === null ? this.endpoint : `${this.endpoint}?id=${encodeURIComponent(submissionId)}`;
+    const response = await fetch(endpoint, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
@@ -91,33 +94,45 @@ window.SubmissionManager = class SubmissionManager {
       error.status = response.status;
       error.code = payload.code;
       if (response.status === 401) {
-        this.auth.showViewerLoginModal?.(() => this.render('submissionContainer'), { mandatory: true });
+        const generation = this.renderGeneration;
+        this.auth.showViewerLoginModal?.(() => {
+          if (generation !== this.renderGeneration || !this.container?.closest('.page-section')?.classList.contains('active')) return;
+          return this.render('submissionContainer', null, submissionId ?? this.linkedSubmissionId ?? null);
+        }, { mandatory: true });
       }
       throw error;
     }
     return payload;
   }
 
-  async render(containerId) {
+  async render(containerId, _matchId = null, submissionId = null) {
     this.invalidateOcrWork();
     this.container = document.getElementById(containerId);
     if (!this.container) return;
+    this.linkedSubmissionId = submissionId;
+    this.linkedRoster = null;
     const generation = this.renderGeneration = (this.renderGeneration || 0) + 1;
     this.container.innerHTML = this.loadingMarkup();
     try {
-      const data = await this.request();
-      if (generation !== this.renderGeneration) return;
+      const data = await this.request('GET', null, submissionId);
+      if (generation !== this.renderGeneration || (submissionId !== null && this.container.closest('.page-section[hidden]'))) return;
+      if (submissionId !== null) {
+        this.linkedRoster = Array.isArray(data.roster) ? data.roster : null;
+        this.renderLinkedSubmission(data.submission);
+        return;
+      }
       this.data = data;
       this.renderState();
     } catch (error) {
-      if (generation !== this.renderGeneration) return;
-      this.renderError(error.message);
+      if (generation !== this.renderGeneration || (submissionId !== null && this.container.closest('.page-section[hidden]'))) return;
+      if (submissionId !== null && error.status === 404) this.renderLinkedSubmission(null);
+      else this.renderError(error.message);
     }
   }
 
   refreshForAuthChange() {
     if (document.getElementById('page-submissions')?.classList.contains('active')) {
-      this.render('submissionContainer');
+      this.render('submissionContainer', null, this.linkedSubmissionId);
     }
   }
 
@@ -133,7 +148,36 @@ window.SubmissionManager = class SubmissionManager {
         <div><p class="section-eyebrow">SIGNAL UZILDI</p><h3>Practice Desk ochilmadi</h3><p>${this.escape(message)}</p></div>
         <button type="button" class="btn btn-secondary" data-action="retry"><i class="fa-solid fa-rotate"></i> Qayta urinish</button>
       </div>`;
-    this.container.querySelector('[data-action="retry"]')?.addEventListener('click', () => this.render(this.container.id));
+    this.container.querySelector('[data-action="retry"]')?.addEventListener('click', () => this.render(this.container.id, null, this.linkedSubmissionId));
+  }
+
+  renderLinkedSubmission(item) {
+    const editable = item?.status === 'pending' && this.auth.isAdmin();
+    const heading = item ? {
+      pending: editable ? 'Match qoralamasini tahrirlash' : 'Match qoralamasi',
+      approved: 'Match tasdiqlangan',
+      rejected: 'Match rad etilgan'
+    }[item.status] : 'Qoralama ochilmadi';
+    this.container.innerHTML = `
+      <section class="submission-panel submission-link-panel" aria-labelledby="linkedSubmissionTitle">
+        <header class="submission-panel__header">
+          <h2 id="linkedSubmissionTitle" tabindex="-1">${this.escape(heading)}</h2>
+          <button type="button" class="btn btn-secondary" data-submission-back>Match yuborishga qaytish</button>
+        </header>
+        ${item ? '' : '<p>Qoralama topilmadi yoki unga kirish yopiq.</p>'}
+        ${!item && !this.auth.isAdmin() ? '<button type="button" class="btn btn-primary" data-submission-login>Kapitan sifatida kirish</button>' : ''}
+        ${editable ? this.formMarkup() : item ? this.cardMarkup(item) : ''}
+      </section>`;
+    this.container.querySelector('[data-submission-back]').onclick = () => window.EclipseApp?.navigate('submissions');
+    this.container.querySelector('[data-submission-login]')?.addEventListener('click', () => this.auth.showLoginModal());
+    if (editable) {
+      this.bindForm();
+      this.openSubmissionEditor(item, { focus: false });
+    } else if (item) {
+      this.data = { counts: {}, submissions: [item] };
+      this.bindAdminActions();
+    }
+    this.container.querySelector('#linkedSubmissionTitle')?.focus();
   }
 
   formatDate(value) {
@@ -265,7 +309,7 @@ window.SubmissionManager = class SubmissionManager {
           <i class="fa-solid ${index === 0 ? 'fa-image' : 'fa-chart-pie'}"></i>
           <strong>${title}${required ? ' <small>TAVSIYA</small>' : ''}</strong>
           <span>${subtitle}</span>
-          <span class="submission-dropzone__hint"><i class="fa-solid fa-paste" aria-hidden="true"></i> <kbd>Ctrl+V</kbd> orqali to‘g‘ridan-to‘g‘ri joylang</span>
+          <span class="submission-dropzone__hint">Rasm tanlash <span aria-hidden="true">·</span> <kbd>Ctrl+V</kbd></span>
         </button>
         <div class="submission-dropzone__preview" hidden>
           <button type="button" class="submission-dropzone__replace" data-select-index="${index}" aria-label="${title} skrinshotini almashtirish"><img alt=""></button>
@@ -349,6 +393,10 @@ window.SubmissionManager = class SubmissionManager {
     this._imageReads = (this._imageReads || [0, 0]).map(version => version + 1);
     this.ocrSource = 'manual';
     this.ocrReviewIssues = [];
+    this._detectedBattleId = null;
+    this._detectedTeamKills = null;
+    this._detectedEnemyKills = null;
+    this._mathReport = null;
     this.rowCounter = 0;
     this.addParticipantRow();
     this.formDirty = false;
@@ -363,7 +411,7 @@ window.SubmissionManager = class SubmissionManager {
     form.addEventListener('change', markEdit);
 
     form.querySelector('#addPracticePlayer')?.addEventListener('click', () => {
-      const rowCount = form.querySelectorAll('.submission-player-row').length;
+      const rowCount = form.querySelectorAll('.submission-player-row, .match-guest').length;
       if (rowCount >= 5) return window.showToast?.('Bitta matchga ko‘pi bilan 5 a’zo qo‘shiladi.', 'warning');
       this.formDirty = true;
       this.addParticipantRow();
@@ -422,16 +470,27 @@ window.SubmissionManager = class SubmissionManager {
     const row = document.createElement('div');
     row.className = 'submission-player-row';
     row.dataset.rowId = String(index);
-    if (values.detectedName && !values.playerId) row.dataset.detectedName = values.detectedName;
+    if (values.detectedName) row.dataset.detectedName = values.detectedName;
     row.innerHTML = `
-      <div class="submission-player-row__index">${String(index).padStart(2, '0')}</div>
-      <label><span>O‘yinchi</span>${row.dataset.detectedName ? `<small>Rasmda o‘qilgan IGN · ${this.escape(row.dataset.detectedName)}</small>` : ''}<select class="form-select" data-field="playerId" required><option value="">Tanlang…</option>${players.map(player => `<option value="${this.escape(player.id)}" ${player.id === values.playerId ? 'selected' : ''}>${this.escape(player.name)}${player.realName ? ` (${this.escape(player.realName)})` : ''}</option>`).join('')}</select></label>
-      <label><span>Qahramon</span><input class="form-input" data-field="heroUsed" list="practiceHeroes${index}" value="${this.escape(values.heroUsed || '')}" required><datalist id="practiceHeroes${index}">${heroes.map(hero => `<option value="${this.escape(hero.name)}">${this.escape(hero.role || '')}</option>`).join('')}</datalist></label>
-      <label><span>Matchdagi rol · ixtiyoriy</span><select class="form-select" data-field="rolePlayed"><option value="">Noma’lum</option>${roles.map(role => `<option value="${role}" ${role === values.rolePlayed ? 'selected' : ''}>${role}</option>`).join('')}</select></label>
-      <label class="submission-kda"><span>K / D / A</span><span><input class="form-input" data-field="kills" type="number" min="0" max="200" value="${this.escape(values.kills ?? '')}" required><input class="form-input" data-field="deaths" type="number" min="0" max="200" value="${this.escape(values.deaths ?? '')}" required><input class="form-input" data-field="assists" type="number" min="0" max="500" value="${this.escape(values.assists ?? '')}" required></span></label>
-      <label><span>Baho <em>ixtiyoriy</em></span><input class="form-input" data-field="inGameScore" type="number" min="0" max="20" step="0.1" value="${this.escape(values.inGameScore ?? '')}"></label>
-      <label><span>Medal <em>ixtiyoriy</em></span><select class="form-select" data-field="medal"><option value="">Noma’lum</option>${['supreme_mvp', 'mvp', 'supreme', 'gold', 'silver', 'bronze'].map(medal => `<option value="${medal}" ${String(values.medal || '').toLowerCase() === medal ? 'selected' : ''}>${medal.replace('_', ' ').toUpperCase()}</option>`).join('')}</select></label>
-      <button type="button" class="submission-row-remove" aria-label="O‘yinchini olib tashlash"><i class="fa-solid fa-xmark"></i></button>`;
+      <div class="submission-player-toolbar">
+        <span class="submission-player-row__index">Qatnashchi ${index}</span>
+        <button type="button" class="submission-row-remove" aria-label="${index}-qatnashchini olib tashlash"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+      <div class="submission-player-fields">
+        <label><span>O‘yinchi</span><select class="form-select" data-field="playerId" required><option value="">Tanlang…</option>${players.map(player => `<option value="${this.escape(player.id)}" ${player.id === values.playerId ? 'selected' : ''}>${this.escape(player.name)}${player.realName ? ` (${this.escape(player.realName)})` : ''}</option>`).join('')}</select>${row.dataset.detectedName ? `<small>Rasmda o‘qilgan IGN · ${this.escape(row.dataset.detectedName)}</small>` : ''}</label>
+        <label><span>Qahramon</span><input class="form-input" data-field="heroUsed" list="practiceHeroes${index}" value="${this.escape(values.heroUsed || '')}" required><datalist id="practiceHeroes${index}">${heroes.map(hero => `<option value="${this.escape(hero.name)}">${this.escape(hero.role || '')}</option>`).join('')}</datalist></label>
+        <label class="submission-player-role"><span>Matchdagi rol <em>ixtiyoriy</em></span><select class="form-select" data-field="rolePlayed"><option value="">Noma’lum</option>${roles.map(role => `<option value="${role}" ${role === values.rolePlayed ? 'selected' : ''}>${role}</option>`).join('')}</select></label>
+        <fieldset class="submission-kda">
+          <legend>K / D / A</legend>
+          <div class="submission-kda__inputs">
+            <input class="form-input" data-field="kills" aria-label="Kill" type="number" min="0" max="200" value="${this.escape(values.kills ?? '')}" required>
+            <input class="form-input" data-field="deaths" aria-label="Death" type="number" min="0" max="200" value="${this.escape(values.deaths ?? '')}" required>
+            <input class="form-input" data-field="assists" aria-label="Assist" type="number" min="0" max="500" value="${this.escape(values.assists ?? '')}" required>
+          </div>
+        </fieldset>
+        <label><span>Baho <em>ixtiyoriy</em></span><input class="form-input" data-field="inGameScore" type="number" min="0" max="20" step="0.1" value="${this.escape(values.inGameScore ?? '')}"></label>
+        <label><span>Medal <em>ixtiyoriy</em></span><select class="form-select" data-field="medal"><option value="">Noma’lum</option>${['supreme_mvp', 'mvp', 'supreme', 'gold', 'silver', 'bronze'].map(medal => `<option value="${medal}" ${String(values.medal || '').toLowerCase() === medal ? 'selected' : ''}>${medal.replace('_', ' ').toUpperCase()}</option>`).join('')}</select></label>
+      </div>`;
     row.querySelector('.submission-row-remove')?.addEventListener('click', () => {
       if (rows.querySelectorAll('.submission-player-row').length <= 1) {
         return window.showToast?.('Kamida bitta o‘yinchi kerak.', 'warning');
@@ -589,6 +648,7 @@ window.SubmissionManager = class SubmissionManager {
     this._ocrController = null;
     this.ocrMeta = null;
     this.container?.querySelector('[data-ocr-meta]')?.remove();
+    this.container?.querySelectorAll('[data-row-evidence]').forEach(panel => { panel.hidden = true; panel.replaceChildren(); });
     this.container?.querySelectorAll('.submission-player-row').forEach(row => {
       row._cropGeneration = (row._cropGeneration || 0) + 1;
       row._matchGeneration = (row._matchGeneration || 0) + 1;
@@ -692,7 +752,7 @@ window.SubmissionManager = class SubmissionManager {
           purpose: 'practice_submission',
           images,
           ...(detailImage ? { detailImage } : {}),
-          rosterPlayers: (this.db.getActivePlayers?.() || this.db.getPlayers()).map(player => ({
+          rosterPlayers: (this.availablePlayers?.() || this.db.getActivePlayers?.() || this.db.getPlayers()).filter(player => player.active !== false).map(player => ({
             id: player.id,
             name: player.name,
             aliases: player.aliases || [],
@@ -763,15 +823,15 @@ window.SubmissionManager = class SubmissionManager {
     }
   }
 
-  applyOcrData(data) {
+  applyOcrData(data, corrections = new Map()) {
     const form = this.container?.querySelector('#practiceSubmissionForm');
     const rows = form?.querySelector('#practicePlayerRows');
     if (!form || !rows) return;
-    const roster = this.db.getActivePlayers?.() || this.db.getPlayers();
+    const roster = (this.availablePlayers?.() || this.db.getActivePlayers?.() || this.db.getPlayers()).filter(player => player.active !== false);
     const roles = ['EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'];
     // Only the server decides which rows have a reliable roster identity.
     const detected = (Array.isArray(data.players) ? data.players.slice(0, 5) : [])
-      .filter(player => player.identityReviewRequired === true || roster.some(item => item.id === player.matchedPlayerId));
+      .filter(player => corrections.has(player.sourceRow) || player.identityReviewRequired === true || roster.some(item => item.id === player.matchedPlayerId));
     if (!detected.length) throw new Error('Eclipse a’zosi ishonchli aniqlanmadi. O‘yinchini tanlab, ma’lumotni qo‘lda kiriting.');
     this.formDirty = true;
     this._manualFormEdits = false;
@@ -779,8 +839,13 @@ window.SubmissionManager = class SubmissionManager {
     rows.innerHTML = '';
     this.rowCounter = 0;
     const used = new Set();
+    const correctedIds = new Set([...corrections.values()].filter(row => row.identityManual).map(row => row.playerId).filter(Boolean));
     (detected.length ? detected : [{}]).forEach(player => {
+      const correction = corrections.get(player.sourceRow);
+      if (correction?.guestId) return;
       let playerId = roster.some(item => item.id === player.matchedPlayerId) ? player.matchedPlayerId : '';
+      if (correction?.identityManual) playerId = correction.playerId;
+      else if (correctedIds.has(playerId)) playerId = '';
       if (playerId && used.has(playerId)) return;
       if (playerId) used.add(playerId);
       const detectedRole = roles.includes(player.rolePlayed) ? player.rolePlayed : '';
@@ -788,9 +853,11 @@ window.SubmissionManager = class SubmissionManager {
       this.addParticipantRow({
         ...player,
         playerId,
-        heroUsed: player.heroSource === 'portrait' && resolvedHero ? resolvedHero.name : '',
-        heroSource: player.heroSource === 'portrait' && resolvedHero ? 'portrait' : 'ocr',
+        heroUsed: correction?.heroSource === 'manual' ? correction.heroUsed : player.heroSource === 'portrait' && resolvedHero ? resolvedHero.name : '',
+        heroSource: correction?.heroSource === 'manual' ? 'manual' : player.heroSource === 'portrait' && resolvedHero ? 'portrait' : 'ocr',
+        identityManual: correction?.identityManual,
         portraitBox: null,
+        reviewRow: true,
         rolePlayed: detectedRole,
         roleSource: detectedRole ? 'ocr' : 'unknown',
         medalSource: 'ocr',
@@ -921,7 +988,7 @@ window.SubmissionManager = class SubmissionManager {
         || payload.match.verificationStatus === 'needs_review' || payload.match.dataIssues?.length || payload.match.status === 'draft');
       window.showToast?.(payload.match ? held ? 'Match saqlandi. Hali statistikaga kiritilmadi.' : 'Match saqlandi va statistikaga qo‘shildi.' : 'Match Captain navbatiga yuborildi.', 'success');
       this.filter = 'pending';
-      await this.render(this.container.id);
+      await this.render(this.container.id, null, this.linkedSubmissionId);
     } catch (error) {
       if (errorBox) {
         errorBox.textContent = error.message;

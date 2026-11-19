@@ -957,7 +957,8 @@ window.MatchManager = class MatchManager {
     const typeLabels = { ranked: 'Ranked', scrim: 'Scrim', tournament: 'Turnir', casual: 'Oddiy' };
     const metric = value => value === null || value === undefined ? '—' : this.escape(value);
 
-    const cardMarkup = (match, index) => {
+    const compact = window.matchMedia?.('(max-width: 768px)').matches ?? window.innerWidth <= 768;
+    const cardMarkup = match => {
       const rosterStats = Array.isArray(match.playerStats) ? match.playerStats : [];
       const guestStats = Array.isArray(match.guestStats) ? match.guestStats : [];
       const participants = [...rosterStats, ...guestStats];
@@ -970,14 +971,13 @@ window.MatchManager = class MatchManager {
           assists: total.assists + Number(stat.assists)
         }), { kills: 0, deaths: 0, assists: 0 })
         : null;
-      const rosterPills = rosterStats.map(stat => {
-        const player = players.find(item => item.id === stat.playerId);
-        const name = player?.name || stat.playerName || 'Arxiv o‘yinchi';
-        const role = (stat.rolePlayed || 'Rol yo‘q').replace(' Laner', '');
-        return `<li><span>${this.escape(name)}${player?.captain ? '<i class="fa-solid fa-crown" aria-label="Captain"></i>' : ''}</span><small>${this.escape(role)} · ${this.escape(stat.heroUsed || 'Hero yo‘q')}</small></li>`;
+      const scoreboardRows = participants.map((stat, i) => {
+        const guest = i >= rosterStats.length;
+        const player = guest ? null : players.find(item => item.id === stat.playerId);
+        const name = guest ? stat.guestName || 'Guest' : player?.name || stat.playerName || 'Arxiv o‘yinchi';
+        const role = guest ? 'Guest' : (stat.rolePlayed || '').replace(' Laner', '');
+        return `<tr><th scope="row">${this.escape(name)}${role ? `<small>${this.escape(role)}</small>` : ''}</th><td>${this.escape(stat.heroUsed || '—')}</td><td>${['kills', 'deaths', 'assists'].map(key => metric(stat[key])).join('/')}</td></tr>`;
       }).join('');
-      const guestPills = guestStats.map(stat =>
-        `<li class="is-guest"><span>${this.escape(stat.guestName || 'Guest')}</span><small>Guest · ${this.escape(stat.heroUsed || 'Hero yo‘q')}</small></li>`).join('');
       const substitutes = (match.substitutes || []).map(id => players.find(player => player.id === id)?.name).filter(Boolean);
       const [scopeLabel, scopeIcon] = scopeMeta[match.scope] || ['SCOPE YO‘Q', 'fa-circle-question'];
       const completeness = completenessMeta[match.dataCompleteness] || completenessMeta.partial;
@@ -987,23 +987,29 @@ window.MatchManager = class MatchManager {
           ? ['OCR TASDIQLANGAN', 'is-verified', 'fa-wand-magic-sparkles']
           : [`${String(match.dataSource || 'manual').toUpperCase()} KIRITILGAN`, 'is-manual', 'fa-keyboard'];
       const duration = match.durationFormatted || window.StatsEngine.formatDuration(match.durationSeconds) || '—';
+      const battleId = match.sourceBattleId;
+      const score = [match.teamKills, match.enemyKills].every(Number.isInteger) ? `${match.teamKills}–${match.enemyKills}` : '';
       return `
-        <article class="match-ledger-card ${match.result === 'win' ? 'is-win' : match.result === 'loss' ? 'is-loss' : 'is-review'}">
-          <header class="match-ledger-card__header">
-            <div class="match-ledger-card__index"><small>MATCH</small><strong>${String(sorted.length - index).padStart(3, '0')}</strong></div>
-            <div class="match-ledger-card__identity">
-              <p><span class="match-tag match-tag-${this.escape(match.matchType || 'ranked')}">${this.escape(typeLabels[match.matchType] || match.matchType || 'Ranked')}</span><span class="scope-badge"><i class="fa-solid ${scopeIcon}"></i>${scopeLabel}</span></p>
-              <h3>${this.escape(fmtDate(match.date))}</h3>
+        <details class="match-ledger-card ${match.result === 'win' ? 'is-win' : match.result === 'loss' ? 'is-loss' : 'is-review'}"${compact ? '' : ' open'}>
+          <summary class="match-ledger-card__header">
+            <span class="match-ledger-card__identity">
+              <span class="match-ledger-card__tags"><span class="match-tag match-tag-${this.escape(match.matchType || 'ranked')}">${this.escape(typeLabels[match.matchType] || match.matchType || 'Ranked')}</span><span class="scope-badge"><i class="fa-solid ${scopeIcon}"></i>${scopeLabel}</span></span>
+              <strong>${this.escape(fmtDate(match.date))}</strong>
               <small>${this.escape(duration)}${match.sessionLabel ? ` · ${this.escape(match.sessionLabel)}` : ''}</small>
-            </div>
-            <div class="match-ledger-card__result"><span>${match.result === 'win' ? 'W' : match.result === 'loss' ? 'L' : '?'}</span><small>${match.result === 'win' ? 'G‘alaba' : match.result === 'loss' ? 'Mag‘lubiyat' : 'Tekshirish'}</small></div>
-          </header>
+            </span>
+            ${score ? `<strong class="match-ledger-score" aria-label="Hisob ${score}">${score}</strong>` : ''}
+            <span class="match-ledger-card__result"><span>${match.result === 'win' ? 'W' : match.result === 'loss' ? 'L' : '?'}</span><small>${match.result === 'win' ? 'G‘alaba' : match.result === 'loss' ? 'Mag‘lubiyat' : 'Tekshirish'}</small></span>
+            <i class="fa-solid fa-chevron-down match-ledger-chevron" aria-hidden="true"></i>
+          </summary>
           <div class="match-ledger-card__body">
             <dl class="match-ledger-metrics">
               <div><dt>Jamoa KDA</dt><dd>${kda ? `${kda.kills} / ${kda.deaths} / ${kda.assists}` : '—'}</dd></div>
               <div><dt>Turret</dt><dd>${metric(match.teamTurrets)}</dd></div>
             </dl>
-            <div class="match-ledger-roster"><p class="section-eyebrow">TARKIB</p><ul>${rosterPills}${guestPills}</ul></div>
+            <div class="match-ledger-roster">
+              <table class="match-history-scoreboard"><caption>Tarkib va natijalar</caption><thead><tr><th scope="col">O‘yinchi</th><th scope="col">Hero</th><th scope="col">K/D/A</th></tr></thead><tbody>${scoreboardRows}</tbody></table>
+              <p class="match-ledger-id"><span>${battleId ? 'BattleID' : 'Match ID'}</span><code>${this.escape(battleId || match.id)}</code>${battleId ? `<button class="btn btn-sm btn-secondary" type="button" data-copy-battle="${this.escape(battleId)}">Nusxalash</button>` : ''}</p>
+            </div>
           </div>
           <footer class="match-ledger-card__footer">
             <div class="match-ledger-card__notes">
@@ -1018,19 +1024,19 @@ window.MatchManager = class MatchManager {
               ${isAdmin ? `<button class="btn btn-sm btn-primary edit-match-btn" data-id="${this.escape(match.id)}" aria-label="Matchni tahrirlash"><i class="fa-solid fa-pen"></i></button><button class="btn btn-sm btn-danger delete-match-btn" data-id="${this.escape(match.id)}" aria-label="Matchni o‘chirish"><i class="fa-solid fa-trash"></i></button>` : ''}
             </div>
           </footer>
-        </article>`;
+        </details>`;
     };
 
     const grouped = [];
     const groupByKey = new Map();
-    sorted.forEach((match, index) => {
+    sorted.forEach(match => {
       const key = match.sessionId || `match-${match.id || index}`;
       if (!groupByKey.has(key)) {
         const group = { key, label: match.sessionLabel || '', items: [] };
         groupByKey.set(key, group);
         grouped.push(group);
       }
-      groupByKey.get(key).items.push({ match, index });
+      groupByKey.get(key).items.push(match);
     });
     container.innerHTML = `
       <div class="match-history-toolbar" style="margin-bottom: 1rem; display: flex; justify-content: flex-end;">
@@ -1040,13 +1046,24 @@ window.MatchManager = class MatchManager {
       </div>
       <div class="match-ledger">${grouped.map(group => `
       ${group.label ? `<header class="match-session-heading"><div><p class="section-eyebrow">SESSION</p><h3>${this.escape(group.label)}</h3></div><span>${group.items.length} match</span></header>` : ''}
-      ${group.items.map(item => cardMarkup(item.match, item.index)).join('')}
+      ${group.items.map(cardMarkup).join('')}
     `).join('')}</div>`;
 
     container.querySelectorAll('.daily-scrim-report-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         window.EclipseShareCard?.openDailyScrimModal?.(matches, players);
       });
+    });
+
+    container.querySelectorAll('[data-copy-battle]').forEach(button => {
+      button.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(button.dataset.copyBattle);
+          window.showToast?.('BattleID nusxalandi.', 'success');
+        } catch (_) {
+          window.showToast?.('Nusxalab bo‘lmadi. BattleID matnini belgilab nusxalang.', 'warning');
+        }
+      };
     });
 
     container.querySelectorAll('.view-match-btn').forEach(btn => {

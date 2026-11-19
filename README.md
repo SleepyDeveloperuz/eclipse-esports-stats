@@ -2,7 +2,7 @@
 
 Private-team MLBB (Mobile Legends: Bang Bang) analytics, match intelligence, and captain command center with a Solar Eclipse visual identity.
 
-Repository version: **v2.43.1 — Kapitan, OCR va Telegram**.
+Repository version: **v2.44.0 — Match kiritish va tekshirish**.
 Production website: [eclipseesports.vercel.app](https://eclipseesports.vercel.app) (mirror: `eclipse-esports-stats.vercel.app`).
 Public Meta Lab URL: [eclipseesports.vercel.app/meta-lab](https://eclipseesports.vercel.app/meta-lab).
 Full release notes: [CHANGELOG.md](CHANGELOG.md). Local audit changes and verification limits: [AUDIT-PROGRESS.md](AUDIT-PROGRESS.md). Release verification details are recorded there.
@@ -72,7 +72,7 @@ Local evaluation uses manually transcribed roster values in `tests/fixtures/ocr-
 
 Batafsil xronologik o‘zgarishlar tarixi bilan [CHANGELOG.md](CHANGELOG.md) faylida tanishishingiz mumkin.
 
-### Repository versiyasi: `v2.43.1`
+### Repository versiyasi: `v2.44.0`
 - **Saqlash (`lib/turso-store.js`):** Turso va Redis tanlanadigan backendlar; ular o‘zaro avtomatik backup emas. Tarix, parallel yozish va tiklash tekshiruvlari audit qaydida berilgan.
 - **Ikki skrinshot va hero matcher:** Bir matchga tegishliligi tekshirilgan ekranlar birlashtiriladi. Noma’lum qiymatlar taxmin bilan to‘ldirilmaydi, noaniq hero qo‘lda tanlanadi. PNG dekodlash tanish aniqligini kafolatlamaydi.
 - **Frontend:** Tartibli deferred yuklash, xatoda qayta urinish, so‘rov kutish chegaralari va ixcham bundlelar.

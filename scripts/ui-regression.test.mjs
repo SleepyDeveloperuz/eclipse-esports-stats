@@ -186,3 +186,34 @@ test('history filters use the latest matches and roster after foreground refresh
     assert.deepEqual([...renders.at(-1).matches].map(match => match.id), ['new-match']);
   } finally { w.close(); }
 });
+
+test('mobile history opens an inline scoreboard and keeps BattleID stable through filtering', async () => {
+  const { w, db, auth, heroDb } = setup();
+  try {
+    for (const file of ['stats', 'match', 'app']) w.eval(readFileSync(new URL(`../js/${file}.js`, import.meta.url), 'utf8'));
+    Object.defineProperty(w, 'innerWidth', { value: 390, configurable: true });
+    w.document.body.insertAdjacentHTML('beforeend', '<div id="matchHistoryContainer"></div><input id="matchQuickSearch">');
+    const battleId = '958494160887065787';
+    const old = { ...matchFixture('legacy-match'), date: '2026-09-01' };
+    db.saveMatches([old, { ...matchFixture('stable-match'), sourceBattleId: battleId, teamKills: 35, enemyKills: 27 }]);
+    const app = w.EclipseApp;
+    Object.assign(app, { dataStore: db, authManager: auth, currentAnalyticsMode: 'squad', matchManager: new w.MatchManager(db, heroDb) });
+    app.renderFilteredHistory();
+    const records = Array.from(w.document.querySelectorAll('.match-ledger-card'));
+    assert.equal(records.length, 2);
+    assert.equal(records[0].open, false);
+    assert.match(records[0].querySelector('summary').textContent, /35–27/);
+    assert.equal(records[1].querySelector('code').textContent, 'legacy-match');
+    records[0].querySelector('summary').click();
+    assert.equal(records[0].open, true);
+    assert.ok(records[0].querySelector('table tbody th'));
+    const copied = [];
+    Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: text => copied.push(text) } });
+    await records[0].querySelector('[data-copy-battle]').onclick();
+    assert.deepEqual(copied, [battleId]);
+    w.document.querySelector('#matchQuickSearch').value = battleId;
+    app.renderFilteredHistory();
+    assert.equal(w.document.querySelectorAll('.match-ledger-card').length, 1);
+    assert.equal(w.document.querySelector('.match-ledger-card code').textContent, battleId);
+  } finally { w.close(); }
+});

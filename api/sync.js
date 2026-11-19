@@ -288,6 +288,7 @@ function normaliseMatch(match) {
     entryMode,
     sourceSubmissionId: cleanId(match?.sourceSubmissionId) || null,
     sourceBattleId: typeof match?.sourceBattleId === 'string' && /^\d{10,24}$/.test(match.sourceBattleId) ? match.sourceBattleId : null,
+    ...Object.fromEntries(['teamKills', 'enemyKills'].filter(key => Number.isInteger(match?.[key]) && match[key] >= 0 && match[key] <= 1000).map(key => [key, match[key]])),
     verificationStatus,
     ocrVerified,
     needsReview,

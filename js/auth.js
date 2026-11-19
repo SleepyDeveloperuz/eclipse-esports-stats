@@ -563,6 +563,7 @@ window.AuthManager = class AuthManager {
     if (progress && !isAdmin) progress.history = null;
     if (progress && document.getElementById('page-progress')?.classList.contains('active')) progress.render();
     window.EclipseApp?.batchManager?.onAuthChange();
+    window.EclipseApp?.updateMobileDockAction?.();
 
     // Update topbar auth status
     const authContainer = document.getElementById('topbarAuthContainer');

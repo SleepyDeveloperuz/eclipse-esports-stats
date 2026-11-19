@@ -100,7 +100,8 @@ const shadow = { id: '95fa6dbd-bd82-4d7d-88de-23bc01858eac', name: 'Shadow as al
 const imageBytes = Buffer.from([255, 216, 255, 217]); // JPEG signature; portrait intentionally unresolved.
 const matches = [
   { battleId: '958494160887065787', duration: '16:14', sourceRow: 2, kills: 9, deaths: 4, assists: 14, medal: 'supreme_mvp', goldEarned: 13206, damageDealt: 68151 },
-  { battleId: '960844113588369136', duration: '17:16', sourceRow: 5, kills: 15, deaths: 3, assists: 5, medal: 'supreme', goldEarned: 14490, damageDealt: 85473 }
+  { battleId: '960844113588369136', duration: '17:16', sourceRow: 5, kills: 15, deaths: 3, assists: 5, medal: 'supreme', goldEarned: 14490, damageDealt: 85473 },
+  { battleId: '962419713750973796', duration: '19:58', sourceRow: 5, kills: 7, deaths: 5, assists: 16, medal: 'supreme', goldEarned: 15807, damageDealt: 109576 }
 ];
 function scanFixture(images, detectedName = 'FS Shadow as always') {
   const primary = images.find(image => image.kind === 'scoreboard') || images[0];
@@ -148,14 +149,17 @@ test('web OCR retains the literal Shadow row, tallies and unassigned partial IGN
 });
 
 test('Telegram HTTP upload stores pending Shadow drafts, deduplicates updates and attaches only the same battle', async t => {
+  const admin = await login('admin');
+  const viewer = await login('viewer');
   process.env.UPSTASH_REDIS_REST_URL = 'https://redis-fixture.upstash.io';
   process.env.UPSTASH_REDIS_REST_TOKEN = 'fixture-redis';
   t.after(() => { delete process.env.UPSTASH_REDIS_REST_URL; delete process.env.UPSTASH_REDIS_REST_TOKEN; });
   const repository = createTeamRepository({ store: createMemoryStore(), key: 'photo-fixture', seed: async () => ({
-    'eclipse_data.json': { content: JSON.stringify({ revision: 1, players: [shadow], matches: [] }) }
+    'eclipse_data.json': { content: JSON.stringify({ revision: 1, players: [shadow, { id: 'p2', name: 'Fixture Teammate' }], matches: [] }) }
   }) });
   const photos = { a: { match: 0, kind: 'scoreboard' }, b: { match: 1, kind: 'scoreboard' },
-    dataA: { match: 0, kind: 'damage' }, dataB: { match: 1, kind: 'damage' }, quota: { quota: true } };
+    dataA: { match: 0, kind: 'damage' }, dataB: { match: 1, kind: 'damage' }, quota: { quota: true },
+    c: { match: 2, kind: 'scoreboard' }, dataC: { match: 2, kind: 'damage' } };
   const redis = new Map(), outgoing = [];
   let scans = 0;
   t.mock.method(globalThis, 'fetch', async (url, options) => {
@@ -189,7 +193,12 @@ test('Telegram HTTP upload stores pending Shadow drafts, deduplicates updates an
       const images = JSON.parse(options.body).contents[0].parts.filter(part => part.inline_data)
         .map(part => photos[Buffer.from(part.inline_data.data, 'base64').subarray(imageBytes.length).toString()]);
       if (images[0].quota) return new Response('{}', { status: 429 });
-      return envelope(scanFixture(images));
+      if (images[0].match !== 2) return envelope(scanFixture(images));
+      const partial = scanFixture(images, 'Shadow');
+      partial.teamKills = 37;
+      partial.enemyKills = 37;
+      partial.players.push({ detectedName: 'Fixture Teammate', sourceRow: 2, kills: 8, deaths: 3, assists: 23, damageDealt: 39667 });
+      return envelope(partial);
     }
     if (target.hostname === 'api.telegram.org') {
       outgoing.push(JSON.parse(options.body));
@@ -211,6 +220,27 @@ test('Telegram HTTP upload stores pending Shadow drafts, deduplicates updates an
   assert.notEqual(first.body.id, second.body.id);
   assert.equal(duplicate.body.skipped, true);
   assert.equal(scans, 2);
+  const links = outgoing.filter(reply => String(reply.chat_id) === '100')
+    .flatMap(reply => reply.reply_markup?.inline_keyboard?.flat() || [])
+    .filter(button => button.text.includes('Saytda tahrirlash'))
+    .map(button => new URL(button.url));
+  assert.deepEqual(links.map(url => url.searchParams.get('submission')), [first.body.id, second.body.id]);
+  assert.ok(links.every(url => [...url.searchParams.keys()].join(',') === 'submission'));
+
+  const getDraft = (id, token) => repository.transaction(() => call(submissions, {
+    method: 'GET', query: { id }, headers: token ? { authorization: `Bearer ${token}` } : {}
+  }));
+  for (const id of [first.body.id, second.body.id]) {
+    const response = await getDraft(id, admin);
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(Object.keys(response.body), ['submission', 'roster']);
+    assert.equal(response.body.submission.id, id);
+    assert.equal(response.body.roster[0].id, shadow.id);
+    assert.equal(response.body.submission.submitter.identityHash, undefined);
+    assert.equal((await getDraft(id)).statusCode, 401);
+    assert.equal((await getDraft(id, viewer)).statusCode, 404);
+  }
+  assert.deepEqual((await getDraft(first.body.id, viewer)).body, (await getDraft('sub_000000000000000000000000', admin)).body);
 
   const rejected = await upload(303, 'missing');
   assert.equal(rejected.body.code, 'TELEGRAM_FILE_UNAVAILABLE');
@@ -243,6 +273,26 @@ test('Telegram HTTP upload stores pending Shadow drafts, deduplicates updates an
   assert.equal([albumData, albumScore].find(result => result.body.submissionCreated)?.body.id, second.body.id);
   assert.equal([albumData, albumScore].filter(result => result.body.skipped).length, 1);
   assert.ok(outgoing.some(reply => reply.media?.length === 2 && reply.media.every(item => !item.media.includes('://'))));
+
+  const review = await upload(308, 'c');
+  assert.equal(review.body.submissionCreated, true);
+  assert.equal((await upload(309, 'dataC')).body.id, review.body.id);
+  const held = (await getDraft(review.body.id, admin)).body.submission;
+  const original = held.review.correctedDraft;
+  const [unresolved] = held.quality.identityReviewRows;
+  assert.deepEqual([unresolved.detectedName, unresolved.sourceRow, unresolved.kills, unresolved.goldEarned], ['Shadow', 5, 7, 15807]);
+  const approve = body => repository.transaction(() => call(submissions, {
+    method: 'PATCH', body: { id: held.id, expectedUpdatedAt: held.updatedAt, ...body }, headers: { authorization: `Bearer ${admin}` }
+  }));
+  assert.equal((await approve({ action: 'approve' })).body.code, 'SUBMISSION_IDENTITY_REVIEW');
+  const teammate = { ...original.playerStats[0], heroUsed: 'Aulus' };
+  assert.equal((await approve({ action: 'correct_approve', draft: { ...original, playerStats: [teammate] } })).body.code, 'SUBMISSION_IDENTITY_REVIEW');
+  const corrected = await approve({ action: 'correct_approve', draft: {
+    ...original, playerStats: [teammate, { ...unresolved, playerId: shadow.id, heroUsed: 'Aulus' }]
+  } });
+  assert.equal(corrected.statusCode, 200, JSON.stringify(corrected.body));
+  assert.equal(corrected.body.match.playerStats.find(row => row.playerId === shadow.id).goldEarned, 15807);
+  assert.deepEqual([corrected.body.match.teamKills, corrected.body.match.enemyKills], [37, 37]);
 });
 
 test('daily summary requires a current admin session; viewer, bot and revoked sessions cannot send it', async t => {

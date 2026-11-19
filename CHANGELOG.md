@@ -4,6 +4,16 @@ Barcha yangilanishlar, yangi funksiyalar, arxitektura o'zgarishlari va tuzatishl
 
 ---
 
+## [v2.44.0] — 2026-11-19
+
+- Desktop formasida qatnashchi maydonlari panel kengligiga moslashadi. K/D/A, baho va medal to‘liq ko‘rinadi.
+- Telegram’dagi «Saytda tahrirlash» tugmasi kirishdan keyin aynan yuborilgan qoralamani ochadi.
+- AI qoralamasida noaniq qatorlar birinchi chiqadi. Roster yoki Guest tanlanganda statistika va qayta skanda qo‘lda tasdiqlangan tanlov saqlanadi.
+- Mobil Matchlar tarixida scoreboard qator ichida ochiladi. BattleID’ni nusxalash va qidirish mumkin.
+- Kapitanning mobil menyusidagi «Match qo‘shish» tugmasi skrinshot tanlashni ochadi.
+
+---
+
 ## [v2.43.1] — 2026-11-19
 
 - Admin kiritgan matchlarda «Kim kiritmoqda?» maydoni Kapitan bo‘lib qoladi.

@@ -87,6 +87,32 @@ function extendedStats(row = {}, strict = false) {
   return { ...output, ...normaliseAwardEvidence(row) };
 }
 
+function scoreboardTotals(source) {
+  const totals = {};
+  for (const field of ['teamKills', 'enemyKills']) {
+    const value = nullableNumber(source[field], { max: 1000, integer: true });
+    if (value !== null) totals[field] = value;
+  }
+  return totals;
+}
+
+function identityReviewRows(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.slice(0, 4).map(row => ({
+    sourceRow: nullableNumber(row?.sourceRow, { min: 1, max: 5, integer: true }),
+    detectedName: cleanText(row?.detectedName, 80),
+    ...normaliseHeroReference(row),
+    rolePlayed: ROLES.has(row?.rolePlayed) ? row.rolePlayed : '',
+    roleSource: ROLES.has(row?.rolePlayed) ? 'ocr' : 'unknown',
+    kills: nullableNumber(row?.kills, { max: 200, integer: true }),
+    deaths: nullableNumber(row?.deaths, { max: 200, integer: true }),
+    assists: nullableNumber(row?.assists, { max: 500, integer: true }),
+    inGameScore: nullableNumber(row?.inGameScore, { max: 20 }),
+    medal: MEDALS.has(row?.medal) ? row.medal : null,
+    ...extendedStats(row || {})
+  })).filter(row => row.sourceRow && row.detectedName);
+}
+
 function fullDraftFields(source, strict = false) {
   if (source.entryMode !== 'full') return {};
   const result = { entryMode: 'full', sessionLabel: cleanText(source.sessionLabel, 80),
@@ -248,6 +274,7 @@ export function normalisePracticeDraft(raw, officialData = {}, options = {}) {
   return {
     date,
     sourceBattleId: cleanBattleId(source.sourceBattleId),
+    ...scoreboardTotals(source),
     ...fullDraftFields(source, true),
     matchType,
     result,
@@ -369,6 +396,7 @@ function normaliseStoredDraft(raw) {
   return {
     date: cleanDate(source.date),
     sourceBattleId: cleanBattleId(source.sourceBattleId),
+    ...scoreboardTotals(source),
     ...fullDraftFields(source),
     matchType: MATCH_TYPES.has(source.matchType) ? source.matchType : '',
     result: MATCH_RESULTS.has(source.result) ? source.result : '',
@@ -398,6 +426,7 @@ export function normaliseSubmission(raw, filename = '') {
   const identity = cleanText(source.submitter?.identityHash, 64).toLowerCase();
   if (!/^[a-f0-9]{64}$/.test(identity)) return null;
   const createdAt = asIso(source.createdAt);
+  const reviewRows = identityReviewRows(source.quality?.identityReviewRows);
   const draft = normaliseStoredDraft(source.draft);
   if (practiceFingerprint(draft) !== fingerprint) return null;
   return {
@@ -415,6 +444,7 @@ export function normaliseSubmission(raw, filename = '') {
     },
     draft,
     quality: {
+      ...(reviewRows.length ? { identityReviewRows: reviewRows } : {}),
       possibleMatchIds: (Array.isArray(source.quality?.possibleMatchIds) ? source.quality.possibleMatchIds : []).map(id => cleanId(id)).filter(Boolean),
       reviewIssues: Array.isArray(source.quality?.reviewIssues)
         ? source.quality.reviewIssues.slice(0, 12).map(issue => cleanText(issue, 80)).filter(Boolean)
@@ -434,6 +464,9 @@ export function normaliseSubmission(raw, filename = '') {
 export function toOfficialMatch(submission, officialData = {}, now = new Date().toISOString()) {
   const normalizedSubmission = normaliseSubmission(submission);
   if (!normalizedSubmission) fail('Submission yozuvi buzilgan', 'INVALID_STORED_SUBMISSION', 500);
+  if (normalizedSubmission.quality.identityReviewRows?.length) {
+    fail('Noaniq o‘yinchini saytda tanlab, matchni tuzatib tasdiqlang.', 'SUBMISSION_IDENTITY_REVIEW', 409);
+  }
   const draft = normalisePracticeDraft(normalizedSubmission.review.correctedDraft || normalizedSubmission.draft, officialData, { allowArchived: true, adminAuthor: normalizedSubmission.submitter.role === 'admin' });
   const matchId = `practice_${normalizedSubmission.fingerprint.slice(0, 24)}`;
   return officialMatchFromDraft(draft, officialData, { id: matchId, sourceSubmissionId: normalizedSubmission.id, createdAt: normalizedSubmission.createdAt, updatedAt: now });
@@ -444,6 +477,7 @@ export function officialMatchFromDraft(draft, officialData, metadata) {
     id: metadata.id,
     date: draft.date,
     sourceBattleId: cleanBattleId(draft.sourceBattleId) || cleanBattleId(metadata.sourceBattleId),
+    ...scoreboardTotals({ ...metadata, ...draft }),
     matchType: draft.matchType,
     result: draft.result,
     scope: draft.scope,
@@ -546,7 +580,7 @@ function responseList(submissions, statusFilter = null) {
   return { counts, submissions: ordered.map(toPublicSubmission) };
 }
 
-export async function createSubmission(req, identity, { allowUnresolvedHero = false } = {}) {
+export async function createSubmission(req, identity, { allowUnresolvedHero = false, unresolvedRows = [] } = {}) {
   const rawBody = req.body && typeof req.body === 'object' ? req.body : {};
   const encoded = JSON.stringify(rawBody);
   if (Buffer.byteLength(encoded, 'utf8') > MAX_BODY_BYTES) fail('Submission hajmi juda katta', 'BODY_TOO_LARGE', 413);
@@ -596,6 +630,7 @@ export async function createSubmission(req, identity, { allowUnresolvedHero = fa
     },
     draft,
     quality: {
+      identityReviewRows: unresolvedRows,
       possibleMatchIds: probableMatchIds(draft, bundle.officialData.matches),
       reviewIssues: Array.isArray(rawBody.reviewIssues) ? rawBody.reviewIssues : []
     },
@@ -1005,7 +1040,8 @@ export async function createSubmissionFromTelegramPhoto({
   if (matchedStats.some(player => !player.heroId)) reviewIssues.push('Qahramon aniqlanmadi. Tasdiqlashdan oldin qahramonni tanlang.');
   if (ocrData.players.some(player => player.identityReviewRequired)) reviewIssues.push('Bir IGN to‘liq o‘qilmadi. Roster qatorlarini skrinshotdan tekshiring.');
   const simulatedReq = { body: { source: 'ocr', claimedPlayerId: matchedStats[0].playerId, draft: simulatedDraft, reviewIssues } };
-  const submission = await queueMutation(() => createSubmission(simulatedReq, identity, { allowUnresolvedHero: true }));
+  const unresolvedRows = ocrData.players.filter(player => player.identityReviewRequired);
+  const submission = await queueMutation(() => createSubmission(simulatedReq, identity, { allowUnresolvedHero: true, unresolvedRows }));
   return { submission, isUpgrade: false };
 }
 
@@ -1121,10 +1157,22 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const identity = await requireAccess(req, res);
       if (!identity) return;
+      const id = req.query?.id;
+      if (id !== undefined && (typeof id !== 'string' || !/^sub_[a-f0-9]{24}$/.test(id))) {
+        return res.status(404).json({ code: 'SUBMISSION_NOT_FOUND', error: 'Qoralama topilmadi yoki unga kirish yopiq.' });
+      }
       const bundle = await readBundle();
       const visible = identity.role === 'admin'
         ? bundle.submissions
         : bundle.submissions.filter(item => item.submitter.identityHash === identityHash(identity));
+      if (id !== undefined) {
+        const record = visible.find(item => item.id === id);
+        if (!record) return res.status(404).json({ code: 'SUBMISSION_NOT_FOUND', error: 'Qoralama topilmadi yoki unga kirish yopiq.' });
+        const roster = identity.role === 'admin' && record.status === 'pending'
+          ? bundle.officialData.players.map(({ id, name, realName, primaryRole, secondaryRole, aliases, active }) => ({ id, name, realName, primaryRole, secondaryRole, aliases, active }))
+          : undefined;
+        return res.status(200).json({ submission: toPublicSubmission(record), ...(roster ? { roster } : {}) });
+      }
       const statusFilter = req.query?.status || null;
       return res.status(200).json(responseList(visible, statusFilter));
     }
@@ -1212,9 +1260,16 @@ export default async function handler(req, res) {
           if (!record) fail('Submission topilmadi', 'SUBMISSION_NOT_FOUND', 404);
           if (record.status !== 'pending' || record.updatedAt !== req.body.expectedUpdatedAt) fail('Yozuv o‘zgargan. Navbatni yangilang', 'SUBMISSION_CONFLICT', 409);
           const correctedDraft = normalisePracticeDraft({ ...req.body.draft, sourceBattleId: record.draft.sourceBattleId || req.body.draft?.sourceBattleId }, bundle.officialData, { adminAuthor: record.submitter.role === 'admin', allowArchived: true });
+          const unresolvedCount = record.quality.identityReviewRows?.length || 0;
+          const currentDraft = record.review.correctedDraft || record.draft;
+          if (unresolvedCount && correctedDraft.playerStats.length + (correctedDraft.guestStats?.length || 0)
+              < currentDraft.playerStats.length + (currentDraft.guestStats?.length || 0) + unresolvedCount) {
+            fail('Noaniq qatorlarga roster o‘yinchisi yoki Guest tanlang.', 'SUBMISSION_IDENTITY_REVIEW', 409);
+          }
           const duplicate = bundle.officialData.matches.some(match => match.sourceSubmissionId !== record.id && matchIdentityFingerprint(match) === matchIdentityFingerprint(correctedDraft));
           if (duplicate) fail('Bu match statistikada bor', 'DUPLICATE_SUBMISSION', 409);
-          const updated = { ...record, review: { ...record.review, correctedDraft }, updatedAt: new Date().toISOString() };
+          const updated = { ...record, quality: { ...record.quality, identityReviewRows: [] },
+            review: { ...record.review, correctedDraft }, updatedAt: new Date().toISOString() };
           await writeFiles({ [submissionFileName(record.fingerprint)]: { content: JSON.stringify(updated) } });
           return approveSubmission(id);
         });

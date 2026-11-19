@@ -1,6 +1,6 @@
 # Eclipse Esports — Deployment & Infrastructure Guide
 
-Current release: **v2.43.1 — Kapitan, OCR va Telegram**
+Current release: **v2.44.0 — Match kiritish va tekshirish**
 
 ---
 

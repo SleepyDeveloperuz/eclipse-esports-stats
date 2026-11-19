@@ -4,7 +4,7 @@
   const metrics = { damageDealt: ['Damage', 10000000], damageReceived: ['Received damage', 10000000], turretDamage: ['Turret damage', 10000000], goldEarned: ['Gold', 1000000], teamfightParticipation: ['Teamfight %', 100] };
   const teamFields = { teamTurrets: 'Turret' };
   window.SubmissionManager = class FullMatchDesk extends Base {
-    async render(containerId, matchId = null) {
+    async render(containerId, matchId = null, submissionId = null) {
       if (this.container && this.container.id !== containerId && this.container.querySelector('#practiceSubmissionForm')) {
         if (this.formDirty) this.saveDraft();
         this.container.innerHTML = '';
@@ -12,7 +12,7 @@
       this.editingMatch = matchId && this.auth.isAdmin() ? this.db.getMatches().find(match => match.id === matchId) || null : null;
       this.editingSubmission = null;
       const existing = this.editingMatch;
-      await super.render(containerId);
+      await super.render(containerId, matchId, submissionId);
       if (!existing || this.container?.id !== containerId || !this.container.querySelector('#practiceSubmissionForm')) return;
       this.restoreDraft({ editingMatch: { id: existing.id, updatedAt: existing.updatedAt }, playerStats: existing.playerStats,
         guestStats: (existing.guestStats || []).map(row => ({ ...row, name: row.guestName || row.name })), substitutes: existing.substitutes, team: existing,
@@ -20,6 +20,7 @@
           practiceDuration: existing.durationFormatted || '', practiceNotes: existing.notes || '' } });
     }
     availablePlayers() {
+      if (this.linkedRoster && this.auth.isAdmin()) return this.linkedRoster;
       return this.editingMatch || this.editingSubmission ? (this.db.getAllPlayers?.() || this.db.getPlayers()) : (this.db.getActivePlayers?.() || this.db.getPlayers());
     }
     formMarkup() {
@@ -57,6 +58,7 @@
       if (!row) return;
       row.insertAdjacentHTML('beforeend', this.metricMarkup(values));
       if (Number.isInteger(values.sourceRow) && values.sourceRow >= 1 && values.sourceRow <= 5) row.dataset.sourceRow = String(values.sourceRow);
+      if (values.identityManual) row.dataset.identityManual = 'true';
       row.dataset.heroSource = ['portrait', 'manual', 'ocr'].includes(values.heroSource) ? values.heroSource : values.heroUsed ? 'manual' : '';
       row.dataset.medalSource = ['ocr', 'manual'].includes(values.medalSource) ? values.medalSource : 'manual';
       row.dataset.roleSource = ['ocr', 'roster', 'manual', 'inferred', 'unknown', 'legacy'].includes(values.roleSource) ? values.roleSource : values.rolePlayed ? 'legacy' : 'unknown';
@@ -71,6 +73,7 @@
       row.querySelector('[data-field="heroUsed"]').addEventListener('input', editHero);
       row.querySelector('[data-field="heroUsed"]').addEventListener('change', editHero);
       row.querySelector('[data-field="playerId"]').addEventListener('change', () => {
+        if (row.dataset.sourceRow) row.dataset.identityManual = 'true';
         row._heroEditVersion = (row._heroEditVersion || 0) + 1;
         row.querySelector('[data-hero-candidates]')?.remove();
         row.dataset.roleSource = 'unknown';
@@ -96,7 +99,96 @@
         });
       }
       this.updateRowProvenance(row);
-      row.querySelector('.submission-row-remove').addEventListener('click', () => this.saveDraft());
+      row.querySelector('.submission-row-remove').addEventListener('click', () => { this.refreshScanSummary(); this.saveDraft(); });
+      if (values.reviewRow || values.sourceRow || values.detectedName || this.editingSubmission && !values.heroUsed) this.addReviewDisclosure(row);
+    }
+
+    addReviewDisclosure(row) {
+      const disclosure = document.createElement('details');
+      disclosure.className = 'scan-player-detail';
+      disclosure.innerHTML = '<summary><strong data-review-name></strong><span data-review-stat></span></summary><div class="scan-player-evidence" data-row-evidence hidden></div><div class="scan-player-fields"></div>';
+      disclosure.querySelector('.scan-player-fields').append(...row.children);
+      row.classList.add('is-scan-review');
+      row.append(disclosure);
+      if (!this.formValue(row, 'playerId') && this.auth.isAdmin()) {
+        const guest = document.createElement('button');
+        guest.type = 'button';
+        guest.className = 'btn btn-sm btn-secondary';
+        guest.textContent = 'Guest sifatida belgilash';
+        row.querySelector('.submission-row-remove').before(guest);
+        guest.onclick = () => {
+          const form = row.closest('form');
+          const index = [...form.querySelectorAll('.submission-player-row')].indexOf(row);
+          const values = this.rawDraft().playerStats[index];
+          row.remove();
+          this.addGuest({ ...values, name: values.detectedName || 'Guest' });
+          const guestRows = form.querySelector('#practiceGuestRows');
+          guestRows.closest('details').open = true;
+          guestRows.lastElementChild?.querySelector('[data-field="name"]')?.focus();
+          this._manualFormEdits = true;
+          this.refreshScanSummary();
+          this.saveDraft();
+        };
+      }
+    }
+
+    refreshReviewRows(form, openFirst) {
+      const rows = [...form.querySelectorAll('.submission-player-row.is-scan-review')];
+      let panel = form.querySelector('[data-row-review]');
+      if (!rows.length) { panel?.remove(); return 0; }
+      const roster = this.availablePlayers();
+      const issues = [], ready = [];
+      for (const row of rows) {
+        const playerId = this.formValue(row, 'playerId');
+        const hero = this.formValue(row, 'heroUsed');
+        const typedName = row.dataset.detectedName;
+        const name = roster.find(player => player.id === playerId)?.name;
+        const metrics = ['kills', 'deaths', 'assists'].map(field => row.querySelector(`[data-field="${field}"]`));
+        const kda = metrics.map(input => input.value || '—').join('/');
+        const missing = !playerId || !this.heroDb.resolve?.(hero) || metrics.some(input => !input.validity.valid);
+        row.querySelector('[data-review-name]').textContent = name || typedName || 'O‘yinchi noma’lum';
+        row.querySelector('[data-review-stat]').textContent = (typedName && name && typedName !== name ? `Rasmda: ${typedName} · ` : '') + `${hero || 'Hero noma’lum'} · ${kda}`;
+        row.classList.toggle('needs-review', missing);
+        (missing ? issues : ready).push(row);
+      }
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.className = 'scan-row-review';
+        panel.dataset.rowReview = '';
+        panel.innerHTML = '<strong role="status"></strong><button type="button" class="btn btn-sm btn-secondary" hidden>Qatorga o‘tish</button><details class="scan-source-preview" hidden><summary>Skrinshotlarni ochish</summary><div></div></details>';
+        form.querySelector('#practiceScanStatus').after(panel);
+      }
+      const label = panel.querySelector('strong');
+      const message = issues.length ? `Tekshirish kerak · ${issues.length} ${issues.length === 1 ? 'qator' : 'ta qator'}` : 'O‘yinchilar tekshirildi';
+      if (label.textContent !== message) label.textContent = message;
+      const jump = panel.querySelector('button');
+      jump.hidden = !issues.length;
+      jump.onclick = () => {
+        const first = issues[0];
+        if (!first) return;
+        first.querySelector('.scan-player-detail').open = true;
+        first.querySelector('input:invalid, select:invalid')?.focus();
+        first.scrollIntoView({ block: 'nearest' });
+      };
+      const sourcePreview = panel.querySelector('details');
+      const images = this.images.filter(Boolean);
+      sourcePreview.hidden = !images.length;
+      if (sourcePreview._images?.length !== images.length || images.some((image, index) => image !== sourcePreview._images[index])) {
+        sourcePreview._images = images;
+        sourcePreview.querySelector('div').replaceChildren(...images.map((source, index) => {
+          const image = document.createElement('img');
+          image.src = source; image.loading = 'lazy'; image.alt = `Match skrinshoti ${index + 1}`;
+          return image;
+        }));
+      }
+      if (openFirst) {
+        const list = form.querySelector('#practicePlayerRows');
+        for (const row of [...issues, ...ready]) {
+          list.append(row);
+          row.querySelector('.scan-player-detail').open = row === issues[0];
+        }
+      }
+      return issues.length;
     }
 
     updateRowProvenance(row) {
@@ -319,16 +411,19 @@
       if (form.querySelectorAll('.submission-player-row, .match-guest').length >= 5) return window.showToast?.('Jamoada ko‘pi bilan 5 qatnashchi.', 'warning');
       const row = document.createElement('div'); row.className = 'match-guest';
       row.dataset.guestId = values.guestId || `guest_${window.crypto?.randomUUID?.() || Date.now()}`;
+      if (values.sourceRow) row.dataset.sourceRow = String(values.sourceRow);
+      if (values.detectedName) row.dataset.detectedName = values.detectedName;
       row.innerHTML = `<div class="match-metrics">${[['name', 'Guest ismi'], ['heroUsed', 'Qahramon'], ['rolePlayed', 'Rol']].map(([field, label]) => `<label><span>${label}</span>${field === 'rolePlayed' ? `<select class="form-select" data-field="rolePlayed">${['', 'EXP Laner', 'Jungler', 'Mid Laner', 'Gold Laner', 'Roamer'].map(role => `<option ${values.rolePlayed === role ? 'selected' : ''}>${role}</option>`).join('')}</select>` : `<input class="form-input" data-field="${field}" value="${this.escape(values[field] || '')}" ${field === 'heroUsed' ? 'list="guestHeroOptions"' : ''}>`}</label>`).join('')}
         ${['kills', 'deaths', 'assists', 'inGameScore'].map(field => `<label><span>${({ kills: 'K', deaths: 'D', assists: 'A', inGameScore: 'Baho' })[field]}</span><input class="form-input" data-field="${field}" type="number" min="0" step="${field === 'inGameScore' ? '0.1' : '1'}" value="${this.escape(values[field] ?? '')}"></label>`).join('')}
         <label><span>Medal</span><select class="form-select" data-field="medal">${['', 'supreme_mvp', 'mvp', 'supreme', 'gold', 'silver', 'bronze'].map(m => `<option value="${m}" ${values.medal === m ? 'selected' : ''}>${m.replace('_', ' ').toUpperCase()}</option>`).join('')}</select></label></div>${this.metricMarkup(values)}<button type="button" class="btn btn-sm btn-secondary" data-remove-guest>Guestni olib tashlash</button>`;
-      row.querySelector('[data-remove-guest]').onclick = () => { row.remove(); this.saveDraft(); };
+      row.querySelector('[data-remove-guest]').onclick = () => { row.remove(); this.refreshScanSummary(); this.saveDraft(); };
       form.querySelector('#practiceGuestRows').append(row);
     }
 
     bindForm() {
       super.bindForm();
       const form = this.container.querySelector('#practiceSubmissionForm'); if (!form) return;
+      this._lastScannedScoreboard = null;
       this.editingSubmission = null;
       if (this.auth.isAdmin()) this.bindLineupPresets(form);
       form.insertAdjacentHTML('beforeend', `<datalist id="guestHeroOptions">${(this.heroDb.getAll?.() || []).map(h => `<option value="${this.escape(h.name)}"></option>`).join('')}</datalist>`);
@@ -336,6 +431,10 @@
       form.querySelector('[data-clear-draft]').onclick = () => {
         if (!window.confirm('Saqlanmagan formani tozalaysizmi?')) return;
         this.clearSavedDraft();
+        if (this.linkedSubmissionId !== null) {
+          this.render(this.container.id, null, this.linkedSubmissionId);
+          return;
+        }
         this.editingMatch = null;
         this.editingSubmission = null;
         this.renderState();
@@ -347,17 +446,34 @@
       form.querySelector('#addPracticePlayer')?.addEventListener('click', () => this.saveDraft());
       this.updateFormMode();
       try {
-        const saved = JSON.parse(localStorage.getItem(this.draftKey()) || 'null');
-        if (saved?.version === 1) {
-          const status = form.querySelector('#matchDraftStatus'); status.textContent = 'Bu brauzerda saqlanmagan match bor. ';
-          const restore = document.createElement('button'); restore.type = 'button'; restore.className = 'btn btn-sm btn-secondary'; restore.textContent = 'Qoralamani tiklash';
-          restore.onclick = () => { this.restoreDraft(saved); status.textContent = 'Qoralama tiklandi. Rasmlarni qayta tanlang.'; };
+        const drafts = [];
+        const saved = this.readLocalDraft();
+        if (saved) drafts.push([saved, 'Qoralamani tiklash']);
+        if (this.auth.isAdmin() && this.linkedSubmissionId == null && !this.editingMatch) {
+          const latest = (this.data.submissions || []).filter(item => item.status === 'pending').map(item => {
+            const draft = this.readLocalDraft(item.id);
+            return draft?.editingSubmission?.updatedAt === item.updatedAt ? draft : null;
+          }).filter(Boolean).sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)))[0];
+          if (latest) drafts.push([latest, 'Submission tahririni tiklash']);
+        }
+        const status = form.querySelector('#matchDraftStatus');
+        if (drafts.length) status.textContent = 'Bu brauzerda saqlanmagan match bor. ';
+        for (const [draft, label] of drafts) {
+          const restore = document.createElement('button'); restore.type = 'button'; restore.className = 'btn btn-sm btn-secondary'; restore.textContent = label;
+          restore.onclick = () => { this.restoreDraft(draft); status.textContent = 'Qoralama tiklandi. Rasmlarni qayta tanlang.'; };
           status.append(restore);
         }
       } catch (_) { form.querySelector('#matchDraftStatus').textContent = 'Brauzer qoralamani saqlashga ruxsat bermadi.'; }
     }
 
-    draftKey() { return `eclipse_full_match_draft_v1_${this.auth.isAdmin() ? 'admin' : 'viewer'}${this.editingMatch ? `_edit_${this.editingMatch.id}` : ''}`; }
+    draftKey(submissionId = this.editingSubmission?.id) {
+      const target = this.editingMatch ? `_edit_${this.editingMatch.id}` : submissionId ? `_submission_${submissionId}` : '';
+      return `eclipse_full_match_draft_v1_${this.auth.isAdmin() ? 'admin' : 'viewer'}${target}`;
+    }
+    readLocalDraft(submissionId) {
+      const draft = JSON.parse(localStorage.getItem(this.draftKey(submissionId)) || 'null');
+      return draft?.version === 1 ? draft : null;
+    }
     bindLineupPresets(form) {
       const key = 'eclipse_lineup_presets_v1';
       let presets = [];
@@ -401,10 +517,13 @@
         : el.dataset.field === 'highlightNotes' ? el.value.split('\n').map(value => value.trim().slice(0,80)).filter(Boolean).slice(0,8)
         : el.dataset.field === 'highlightOverflow' ? (el.value === '' ? null : Number(el.value)) : el.value]));
       return { version: 1, savedAt: new Date().toISOString(), fields: Object.fromEntries([...form.querySelectorAll('[id].form-input, [id].form-select')].filter(el => !el.multiple).map(el => [el.id, el.value])),
-        team: Object.fromEntries([...form.querySelectorAll('[data-team-field]')].map(el => [el.dataset.teamField, el.value])), result: form.querySelector('[name="practice-result"]:checked')?.value || '',
+        team: { ...Object.fromEntries([...form.querySelectorAll('[data-team-field]')].map(el => [el.dataset.teamField, el.value])),
+          sourceBattleId: this._detectedBattleId, teamKills: this._detectedTeamKills, enemyKills: this._detectedEnemyKills }, result: form.querySelector('[name="practice-result"]:checked')?.value || '',
         playerStats: [...form.querySelectorAll('.submission-player-row')].map(row => ({ ...read(row), detectedName: row.dataset.detectedName,
-          sourceRow: row.dataset.sourceRow ? Number(row.dataset.sourceRow) : undefined, heroSource: row.dataset.heroSource, medalSource: row.dataset.medalSource, roleSource: row.dataset.roleSource })),
-        guestStats: [...form.querySelectorAll('.match-guest')].map(row => ({ ...read(row), guestId: row.dataset.guestId })),
+          sourceRow: row.dataset.sourceRow ? Number(row.dataset.sourceRow) : undefined, identityManual: row.dataset.identityManual === 'true',
+          heroSource: row.dataset.heroSource, medalSource: row.dataset.medalSource, roleSource: row.dataset.roleSource })),
+        guestStats: [...form.querySelectorAll('.match-guest')].map(row => ({ ...read(row), guestId: row.dataset.guestId,
+          sourceRow: row.dataset.sourceRow ? Number(row.dataset.sourceRow) : undefined, detectedName: row.dataset.detectedName })),
         substitutes: [...form.querySelector('#practiceSubstitutes').selectedOptions].map(el => el.value),
         source: this.ocrSource, reviewIssues: this.ocrReviewIssues,
         editingSubmission: this.editingSubmission || null, editingMatch: this.editingMatch ? { id: this.editingMatch.id, updatedAt: this.editingMatch.updatedAt } : null };
@@ -441,6 +560,7 @@
     refreshScanSummary({ collapse = false } = {}) {
       const form = this.container?.querySelector('#practiceSubmissionForm');
       if (!form) return false;
+      const issues = this.refreshReviewRows(form, collapse);
       let draft;
       try { draft = super.collectDraft().draft; } catch (_) {}
       const ready = !!draft && !!draft.date && !!draft.matchType && draft.playerStats.every(player => player.heroResolution === 'canonical')
@@ -497,7 +617,7 @@
         line.textContent = `${roster.find(item => item.id === player.playerId)?.name || player.playerId} · ${player.heroUsed} · ${role} · ${player.kills}/${player.deaths}/${player.assists}${player.inGameScore ? ` · ${player.inGameScore}` : ''}${player.medal ? ` · ${player.medal.toUpperCase()}` : ''}`;
         return line;
       }));
-      if (collapse && !this._manualFormEdits) this.setScanDetailsOpen(false);
+      if (collapse && !issues && !this._manualFormEdits) this.setScanDetailsOpen(false);
       return true;
     }
     updateFormMode() {
@@ -559,9 +679,13 @@
       this.refreshRosterOptions();
       this.ocrSource = saved.source === 'ocr' ? 'ocr' : 'manual';
       this.ocrReviewIssues = Array.isArray(saved.reviewIssues) ? saved.reviewIssues : [];
+      this._detectedBattleId = saved.team?.sourceBattleId ?? null;
+      this._detectedTeamKills = saved.team?.teamKills ?? null;
+      this._detectedEnemyKills = saved.team?.enemyKills ?? null;
+      this._mathReport = null;
       this.images = [null, null]; this.imageNames = ['', '']; this.updateImageSlots();
       form.querySelector('#practicePlayerRows').innerHTML = ''; this.rowCounter = 0;
-      (saved.playerStats || []).slice(0, 5).forEach(row => this.addParticipantRow(row));
+      (saved.playerStats || []).slice(0, 5).forEach(row => this.addParticipantRow({ ...row, reviewRow: saved.source === 'ocr' }));
       for (const [id, value] of Object.entries(saved.fields || {})) {
         if (id === 'practiceSubmitter' && this.isCaptainEntry()) continue;
         const input = [...form.querySelectorAll('[id]')].find(el => el.id === id);
@@ -625,7 +749,7 @@
       if (this.scanning) return;
       if (automatic && this._manualFormEdits) return;
       const filled = [...this.container.querySelectorAll('[data-field="kills"]')].some(el => el.value !== '');
-      if (!automatic && filled && this._manualFormEdits && !window.confirm('AI hozirgi o‘yinchi maydonlarini qayta to‘ldiradi. Davom etamizmi?')) return;
+      if (!automatic && filled && this._manualFormEdits && !window.confirm('AI raqamlarni qayta o‘qiydi. Shu skrinshotdagi qo‘lda tasdiqlangan o‘yinchi va hero tanlovlari saqlanadi. Davom etamizmi?')) return;
       this.scanning = true;
       // A damage screenshot may arrive while the scoreboard is being read.
       const controls = [...this.container.querySelectorAll('input, select, textarea, button')].filter(el => !el.closest('[data-drop-index]')).map(el => [el, el.disabled]);
@@ -640,7 +764,14 @@
     collectDraft() {
       const form = this.container.querySelector('#practiceSubmissionForm');
       const heroMissing = [...form.querySelectorAll('.submission-player-row')].some(row => !this.heroDb.resolve?.(this.formValue(row, 'heroUsed')));
-      if (heroMissing) { this.setScanDetailsOpen(true); throw new Error('Qahramon aniqlanmadi. Tiniqroq skrinshot yuklang yoki qahramonni ro‘yxatdan tanlang.'); }
+      if (heroMissing) {
+        this.setScanDetailsOpen(true);
+        form.querySelectorAll('.submission-player-row').forEach(row => {
+          const details = row.querySelector('.scan-player-detail');
+          if (details && !this.heroDb.resolve?.(this.formValue(row, 'heroUsed'))) details.open = true;
+        });
+        throw new Error('Qahramon aniqlanmadi. Tiniqroq skrinshot yuklang yoki qahramonni ro‘yxatdan tanlang.');
+      }
       if (!form.checkValidity()) {
         this.setScanDetailsOpen(true);
         form.querySelectorAll('input, select, textarea').forEach(input => { if (!input.validity.valid) input.closest('details')?.setAttribute('open', ''); });
@@ -656,8 +787,25 @@
     }
 
     async applyOcrData(data, context = null) {
-      super.applyOcrData(data);
+      const scoreboard = this.images[0];
+      const corrections = new Map();
+      if (scoreboard && this._lastScannedScoreboard === scoreboard) {
+        const previous = this.rawDraft();
+        for (const row of [...previous.playerStats, ...previous.guestStats]) {
+          if (row.sourceRow && (row.identityManual || row.guestId || row.heroSource === 'manual')) corrections.set(row.sourceRow, row);
+        }
+      }
+      const players = [...(data.players || [])];
+      for (const row of corrections.values()) {
+        if (!row.guestId && row.identityManual && row.playerId && !players.some(player => player.sourceRow === row.sourceRow)) players.push(row);
+      }
+      super.applyOcrData({ ...data, players }, corrections);
+      if (scoreboard && scoreboard !== this._lastScannedScoreboard) {
+        this.container.querySelectorAll('.match-guest[data-source-row]').forEach(row => row.remove());
+      }
+      this._lastScannedScoreboard = scoreboard;
       this.container.querySelectorAll('[data-team-field]').forEach(el => { if (el.dataset.teamField !== 'sessionLabel') el.value = data[el.dataset.teamField] ?? ''; });
+      this.refreshScanSummary({ collapse: true });
       this.saveDraft();
       await this.locateOcrPortraits(context, data.sourceImageIndex);
       await Promise.all([...this.container.querySelectorAll('.submission-player-row')].map(row => row._roleLookupPromise));
@@ -673,7 +821,7 @@
           signal: new AbortController().signal, page: page?.classList.contains('active') ? page : null };
       }
       const current = () => this.isOcrContextCurrent(context);
-      const entries = [...form.querySelectorAll('.submission-player-row')].filter(row => row.dataset.heroSource !== 'portrait').map(row => ({ row, sourceRow: Number(row.dataset.sourceRow), editVersion: row._heroEditVersion || 0, playerId: this.formValue(row, 'playerId') }));
+      const entries = [...form.querySelectorAll('.submission-player-row')].filter(row => !['portrait', 'manual'].includes(row.dataset.heroSource) || !this.formValue(row, 'playerId')).map(row => ({ row, sourceRow: Number(row.dataset.sourceRow), editVersion: row._heroEditVersion || 0, playerId: this.formValue(row, 'playerId') }));
       const untouched = entry => current() && entry.row.isConnected && (entry.row._heroEditVersion || 0) === entry.editVersion
         && this.formValue(entry.row, 'playerId') === entry.playerId && entry.row.dataset.heroSource !== 'manual';
       const note = (entry, text) => { if (untouched(entry)) entry.row.querySelector('[data-hero-status]').textContent = text; };
@@ -688,17 +836,18 @@
       }
       try {
         this.portraitMatcher ||= new window.HeroPortraitMatcher(this.auth);
-        const progress = text => eligible.forEach(entry => note(entry, text));
+        const progress = text => eligible.filter(entry => entry.row.dataset.heroSource !== 'portrait').forEach(entry => note(entry, text));
         await this.portraitMatcher.prepare(progress);
         if (!current()) return;
         sourceImageIndex = Number.isInteger(sourceImageIndex) ? sourceImageIndex : 0;
         for (const imageIndex of [sourceImageIndex].filter(index => index >= 0 && index < context.images.length)) {
           const result = await window.EclipsePortraitLocator.locate(context.images[imageIndex], { references: this.portraitMatcher.references, progress, signal: context.signal });
           if (!current()) return;
-          const boxes = Array.isArray(result?.boxes) ? result.boxes : [];
+          const boxes = Array.isArray(result?.boxes) ? [...result.boxes].sort((a, b) => a.rowIndex - b.rowIndex) : [];
           if (boxes.length !== 5 || new Set(boxes.map(box => box.rowIndex)).size !== 5 || boxes.some(box => !Number.isInteger(box.rowIndex) || box.rowIndex < 0 || box.rowIndex > 4)) continue;
+          await this.showRowCrops(eligible, boxes, context.images[imageIndex], current);
           for (const entry of eligible) {
-            if (!untouched(entry)) continue;
+            if (!untouched(entry) || entry.row.dataset.heroSource === 'portrait') continue;
             const box = boxes.find(box => box.rowIndex === entry.sourceRow - 1);
             await this.attachPortrait(entry.row, { imageIndex, bounds: box.bounds }, { context, prepared: true, automaticLocation: true });
           }
@@ -707,6 +856,39 @@
         eligible.forEach(entry => note(entry, 'Rasm joylashuvi ishonchli aniqlanmadi. “Ikonkani ajratish” orqali belgilang yoki qahramonni qo‘lda tanlang.'));
       } catch (error) {
         eligible.forEach(entry => note(entry, error?.name === 'AbortError' ? 'Tekshiruv to‘xtatildi.' : 'Ikonkalar hozir tekshirilmadi. Ikonkani qo‘lda ajrating yoki qahramonni tanlang.'));
+      }
+    }
+
+    async showRowCrops(entries, boxes, source, current) {
+      const rows = entries.filter(entry => entry.row.classList.contains('needs-review'));
+      if (!rows.length) return;
+      const image = new Image();
+      image.src = source;
+      try { await image.decode(); } catch (_) { return; }
+      if (!current()) return;
+      const centers = boxes.map(({ bounds }) => (bounds[0] + bounds[2]) / 2);
+      for (const entry of rows) {
+        const panel = entry.row.querySelector('[data-row-evidence]');
+        if (!panel || !entry.row.isConnected) continue;
+        const index = entry.sourceRow - 1;
+        const center = centers[index];
+        const previous = centers[index - 1] ?? 2 * center - centers[index + 1];
+        const next = centers[index + 1] ?? 2 * center - centers[index - 1];
+        const top = Math.max(0, (previous + center) / 2) * image.naturalHeight / 1000;
+        const bottom = Math.min(1000, (center + next) / 2) * image.naturalHeight / 1000;
+        const left = Math.max(0, boxes[index].bounds[1] - 12) * image.naturalWidth / 1000;
+        const width = image.naturalWidth / 2 - left;
+        if (!(bottom > top && width > 0)) continue;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.min(900, Math.round(width));
+        canvas.height = Math.round((bottom - top) * canvas.width / width);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) continue;
+        ctx.drawImage(image, left, top, width, bottom - top, 0, 0, canvas.width, canvas.height);
+        canvas.setAttribute('role', 'img');
+        canvas.setAttribute('aria-label', `Skrinshotdagi ${entry.sourceRow}-qator`);
+        panel.replaceChildren(canvas);
+        panel.hidden = false;
       }
     }
     cardMarkup(item) {
@@ -750,14 +932,29 @@
         if (window.confirm('O‘xshash raqamlarga qaramay bu alohida o‘yin ekanini tasdiqlaysizmi?')) this.reviewSubmission(button, button.dataset.distinctMatch, 'approve', '', { allowProbableDuplicate: true });
       }; });
       this.container.querySelectorAll('[data-correct]').forEach(button => { button.onclick = () => {
-        const item = this.data.submissions.find(record => record.id === button.dataset.correct); if (!item) return;
-        if (this.formDirty && !window.confirm('Hozirgi formaning o‘rniga yuborilgan matchni ochasizmi?')) return;
-        const draft = item.review?.correctedDraft || item.draft;
-        this.restoreDraft({ playerStats: draft.playerStats, guestStats: draft.guestStats, substitutes: draft.substitutes, team: draft,
-          result: draft.result, fields: { practiceSubmitter: draft.claimedPlayerId, practiceDate: draft.date, practiceMatchType: draft.matchType, practiceDuration: draft.durationFormatted, practiceNotes: draft.notes },
-          editingSubmission: { id: item.id, updatedAt: item.updatedAt } });
-        this.saveDraft(); this.container.querySelector('#practiceSubmissionForm').scrollIntoView({ block: 'start' });
+        const item = this.data.submissions.find(record => record.id === button.dataset.correct);
+        if (item) this.openSubmissionEditor(item);
       }; });
+    }
+
+    openSubmissionEditor(item, { focus = true } = {}) {
+      if (!this.auth.isAdmin() || item.status !== 'pending') return;
+      if (this.formDirty && !window.confirm('Hozirgi formaning o‘rniga yuborilgan matchni ochasizmi?')) return;
+      if (this.formDirty) this.saveDraft();
+      const draft = item.review?.correctedDraft || item.draft;
+      const editingSubmission = { id: item.id, updatedAt: item.updatedAt };
+      this.editingSubmission = editingSubmission;
+      let saved;
+      try { saved = this.readLocalDraft(); } catch (_) {}
+      const unresolved = item.quality?.identityReviewRows || [];
+      this.restoreDraft(saved?.version === 1 && saved.editingSubmission?.updatedAt === item.updatedAt ? saved : {
+        playerStats: [...draft.playerStats, ...unresolved], guestStats: draft.guestStats, substitutes: draft.substitutes, team: draft,
+        result: draft.result, source: item.source,
+        fields: { practiceSubmitter: draft.claimedPlayerId, practiceDate: draft.date, practiceMatchType: draft.matchType, practiceDuration: draft.durationFormatted, practiceNotes: draft.notes },
+        editingSubmission
+      });
+      this.saveDraft();
+      if (focus) this.container.querySelector('#practiceSubmissionForm').scrollIntoView({ block: 'start' });
     }
   };
 })();

@@ -15,7 +15,7 @@ const player = (sourceRow, matchedPlayerId = 'p1', extra = {}) => ({ sourceRow, 
 function setup({ admin = false } = {}) {
   const w = new JSDOM('<section class="page-section active"><div id="submissionContainer"></div></section>', { url: 'https://fixture.invalid', runScripts: 'outside-only', pretendToBeVisual: true }).window;
   w.confirm = () => true; w.showToast = () => {};
-  w.Image = class { constructor() { this.width = 1280; this.height = 576; } async decode() {} };
+  w.Image = class { constructor() { this.width = this.naturalWidth = 1280; this.height = this.naturalHeight = 576; } async decode() {} };
   w.HTMLCanvasElement.prototype.getContext = () => ({ drawImage() {} });
   w.HTMLCanvasElement.prototype.toDataURL = () => 'data:image/jpeg;base64,crop';
   const roster = [{ id: 'p1', name: 'Player', primaryRole: 'Gold Laner' }, { id: 'p2', name: 'Second', primaryRole: 'Roamer' }];
@@ -40,6 +40,51 @@ function uploads(w) {
   w.clearTimeout = id => timers.delete(id);
   return { readers, flush() { const pending = [...timers.values()]; timers.clear(); pending.forEach(fn => fn()); } };
 }
+
+domTest('OCR puts unresolved rows first and preserves a manual member assignment on retry', async () => {
+  const { w, desk, form } = setup({ admin: true });
+  try {
+    const known = player(2, 'p1', { heroUsed: 'Miya', heroSource: 'portrait' });
+    const unresolved = player(5, null, { detectedName: 'Shadow', identityReviewRequired: true, kills: 15, deaths: 3, assists: 5, goldEarned: 14490 });
+    const guest = player(1, null, { detectedName: 'No1 Shadow@5279' });
+    const result = { result: 'win', players: [known, unresolved, guest] };
+    await desk.applyOcrData(result);
+    const [row, recognized] = form.querySelectorAll('.submission-player-row');
+    assert.equal(row.dataset.detectedName, 'Shadow');
+    assert.equal(row.querySelector('[data-field="playerId"]').value, '');
+    assert.equal(row.querySelector('.scan-player-detail').open, true);
+    assert.equal(recognized.querySelector('.scan-player-detail').open, false);
+    assert.match(form.querySelector('[data-row-review]').textContent, /Tekshirish kerak · 1 qator/);
+    assert.match(row.querySelector('[data-row-evidence] canvas').getAttribute('aria-label'), /5-qator/);
+    const select = row.querySelector('[data-field="playerId"]');
+    select.value = 'p2';
+    select.dispatchEvent(new w.Event('change', { bubbles: true }));
+    await desk.applyOcrData(result);
+    const draft = desk.collectDraft().draft;
+    const corrected = draft.playerStats.find(stat => stat.playerId === 'p2');
+    assert.deepEqual([corrected.kills, corrected.deaths, corrected.assists, corrected.goldEarned], ['15', '3', '5', '14490']);
+    assert.equal(draft.playerStats.length, 2);
+    assert.equal(form.querySelector('#practiceSubmitter').value, 'admin');
+  } finally { w.close(); }
+});
+
+domTest('choosing Guest retains OCR values and repeated scans keep that row out of the roster', async () => {
+  const { w, desk, form } = setup({ admin: true });
+  try {
+    const known = player(2, 'p1', { heroUsed: 'Miya', heroSource: 'portrait' });
+    const pending = player(5, null, { detectedName: 'Shadow', identityReviewRequired: true, goldEarned: 14490, damageDealt: 85473 });
+    const result = { result: 'win', players: [known, pending] };
+    await desk.applyOcrData(result);
+    const button = [...form.querySelectorAll('.scan-player-fields button')].find(node => node.textContent === 'Guest sifatida belgilash');
+    button.click();
+    await desk.applyOcrData(result);
+    const draft = desk.collectDraft().draft;
+    assert.equal(draft.playerStats.length, 1);
+    assert.equal(draft.guestStats.length, 1);
+    const guest = draft.guestStats[0];
+    assert.deepEqual([guest.name, guest.heroUsed, guest.kills, guest.goldEarned, guest.damageDealt], ['Shadow', 'Miya', '1', '14490', '85473']);
+  } finally { w.close(); }
+});
 
 domTest('Supreme and highlight evidence survive screenshot autofill and form collection', async () => {
  const {w,desk}=setup();

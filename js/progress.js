@@ -1,4 +1,4 @@
-import { METRICS, eligibleMatches, observations, progressOverview, weeklyReport } from './progress-model.js?v=2.43.1';
+import { METRICS, eligibleMatches, observations, progressOverview, weeklyReport } from './progress-model.js?v=2.44.0';
 import { FOCUS_METRICS, adjacentWeek, focusBaseline, focusSignals, compareFocus } from './weekly-focus-model.js?v=2.35.0';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = value => value === null || value === undefined ? '—' : Number(value).toLocaleString('en-US', { maximumFractionDigits: 1 });
